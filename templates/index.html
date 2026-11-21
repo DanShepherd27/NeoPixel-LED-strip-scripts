@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#0a0a14">
+  <title>LED Arcade</title>
+  <link rel="stylesheet" href="/static/css/arcade.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1 class="logo">NEON&nbsp;<span>ARCADE</span></h1>
+    <div id="connection" class="connection-dot" title="connection status"></div>
+  </header>
+
+  <main class="stage">
+    <!-- Join / name entry -->
+    <section id="screen-join" class="screen active">
+      <div class="card">
+        <h2>Join the arcade</h2>
+        <p class="muted">Pick a nickname to play on the LED strip.</p>
+        <form id="join-form">
+          <input id="name-input" type="text" maxlength="16" autocomplete="off"
+                 placeholder="Your name" required>
+          <button type="submit" class="btn btn-primary btn-block">JOIN</button>
+        </form>
+        <p id="join-error" class="error-text" hidden></p>
+      </div>
+    </section>
+
+    <!-- Home / attract -->
+    <section id="screen-home" class="screen">
+      <div class="card">
+        <h2>Welcome<span id="home-name"></span></h2>
+        <p class="muted">Now showing: <strong id="idle-animation">—</strong></p>
+        <p class="muted"><span id="player-count">0</span> player(s) online</p>
+        <button id="enter-lobby" class="btn btn-primary btn-block">ENTER ARCADE</button>
+      </div>
+      <div class="card">
+        <h3>How to join</h3>
+        <p class="muted">Connect to this Wi-Fi and open <strong id="lan-url"></strong></p>
+        <div id="qr-code" class="qr"></div>
+      </div>
+      <div class="card admin-card">
+        <h3>Admin settings</h3>
+        <form id="admin-login-form">
+          <label for="admin-password">Admin password</label>
+          <input id="admin-password" type="password" autocomplete="current-password"
+                 placeholder="Enter admin password" required>
+          <button type="submit" class="btn btn-ghost btn-block">ADMIN LOGIN</button>
+        </form>
+        <form id="admin-settings-form" hidden>
+          <p class="muted">Number of hidden LEDs at each physical end of the strip.</p>
+          <label for="hidden-start">Hidden at start</label>
+          <input id="hidden-start" type="number" min="0" step="1" required>
+          <label for="hidden-end">Hidden at end</label>
+          <input id="hidden-end" type="number" min="0" step="1" required>
+          <button type="submit" class="btn btn-primary btn-block">SAVE OFFSETS</button>
+          <button id="admin-logout" type="button" class="btn btn-ghost btn-block">ADMIN LOGOUT</button>
+        </form>
+        <p id="admin-message" class="muted" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <!-- Lobby -->
+    <section id="screen-lobby" class="screen">
+      <div class="card">
+        <h2>Lobby</h2>
+        <ul id="player-list" class="player-list"></ul>
+        <div class="lobby-actions">
+          <button id="ready-btn" class="btn btn-primary">READY</button>
+          <button id="leave-btn" class="btn btn-ghost">Leave</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Choose a game</h3>
+        <p class="muted">Strip orientation: <strong id="strip-orientation">vertical</strong></p>
+        <div id="game-list" class="game-list"></div>
+        <button id="start-btn" class="btn btn-accent btn-block" disabled>START GAME</button>
+        <button id="back-to-idle" class="btn btn-ghost btn-block">Back to arcade</button>
+      </div>
+    </section>
+
+    <!-- Countdown -->
+    <section id="screen-countdown" class="screen">
+      <div class="countdown-wrap">
+        <div id="countdown-number" class="countdown-number">3</div>
+        <p class="muted" id="countdown-game"></p>
+      </div>
+    </section>
+
+    <!-- Game -->
+    <section id="screen-game" class="screen">
+      <div class="card game-status">
+        <h2 id="game-title">Game</h2>
+        <p id="game-subtitle" class="muted"></p>
+        <div id="game-hud" class="hud"></div>
+      </div>
+      <div id="controller" class="controller"></div>
+    </section>
+
+    <!-- Results -->
+    <section id="screen-results" class="screen">
+      <div class="card">
+        <h2 id="results-title">Results</h2>
+        <div id="results-body"></div>
+        <div class="results-actions">
+          <button id="rematch-btn" class="btn btn-accent">REMATCH</button>
+          <button id="results-idle-btn" class="btn btn-ghost">Back to arcade</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/js/app.js"></script>
+  <script src="/static/js/games.js"></script>
+  <script src="/static/js/controller.js"></script>
+</body>
+</html>

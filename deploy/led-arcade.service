@@ -1,0 +1,19 @@
+[Unit]
+Description=NeoPixel LED Arcade
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# The app drives GPIO via rpi_ws281x, which needs root for DMA/PWM access.
+User=root
+WorkingDirectory=/home/pi/led-arcade
+EnvironmentFile=-/etc/led-arcade.env
+ExecStart=/home/pi/neopixel-env/bin/python /home/pi/led-arcade/app.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

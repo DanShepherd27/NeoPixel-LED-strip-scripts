@@ -1,0 +1,4 @@
+Flask>=3.0
+Flask-SocketIO>=5.3
+qrcode>=7.4
+rpi_ws281x>=4.3.4

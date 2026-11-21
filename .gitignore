@@ -1,5 +1,10 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+/.deploy.env
+/.deploy.env.*
+!/.deploy.env.example
+runtime-settings.json
+runtime-settings.json.tmp
 *.py[codz]
 *$py.class
 
@@ -221,3 +226,5 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+runtime-settings.json
+runtime-settings.json.tmp
