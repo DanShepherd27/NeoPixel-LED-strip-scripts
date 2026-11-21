@@ -16,6 +16,7 @@ from arcade.players import PlayerManager
 from arcade.games import GAMES, game_catalog
 from led.effects import EFFECTS
 from led.colors import hsv_to_rgb
+from led.web_audio import WebMicQueue
 
 from config import (
     LED_COUNT,
@@ -30,9 +31,11 @@ log = logging.getLogger("arcade.manager")
 
 
 class ArcadeManager:
-    def __init__(self, count=LED_COUNT, audio_input=None):
+    def __init__(self, count=LED_COUNT, audio_input=None, mic_handoff_seconds=120):
         self.count = count
         self.audio_input = audio_input
+        self.web_mics = WebMicQueue(mic_handoff_seconds)
+        self._music_pi_enabled = False
         self.state = ArcadeState.IDLE
         self.players = PlayerManager()
 
@@ -105,12 +108,14 @@ class ArcadeManager:
         with self._lock:
             if self.state == ArcadeState.MUSIC:
                 return True
-            if self.state != ArcadeState.IDLE or self.audio_input is None:
+            if self.state != ArcadeState.IDLE:
                 return False
             self.selected_game = None
             self.game = None
             self.game_class = None
-            self.audio_input.set_enabled(True)
+            if self.audio_input is not None:
+                self.audio_input.set_enabled(True)
+                self._music_pi_enabled = True
             self.state = ArcadeState.MUSIC
             log.info("State -> MUSIC (microphone visualizer)")
             return True
@@ -119,6 +124,8 @@ class ArcadeManager:
         with self._lock:
             if self.audio_input is not None:
                 self.audio_input.set_enabled(False)
+                self._music_pi_enabled = False
+            self.web_mics.reset()
             if self.state == ArcadeState.MUSIC:
                 self.state = ArcadeState.IDLE
                 log.info("State -> IDLE (music visualizer stopped)")
@@ -161,6 +168,8 @@ class ArcadeManager:
     def _enter_idle(self, clear_players=True):
         if self.audio_input is not None:
             self.audio_input.set_enabled(False)
+            self._music_pi_enabled = False
+        self.web_mics.reset()
         if clear_players:
             for p in list(self.players.players()):
                 self.players.remove_player(p.id)
@@ -271,7 +280,14 @@ class ArcadeManager:
             self._next_idle()
 
     def _render_music(self, frame, dt):
-        audio = self.audio_input.snapshot() if self.audio_input else {}
+        web_audio = self.web_mics.snapshot()
+        use_pi = not web_audio["active"]
+        if self.audio_input is not None and self._music_pi_enabled != use_pi:
+            self.audio_input.set_enabled(use_pi)
+            self._music_pi_enabled = use_pi
+        audio = web_audio if web_audio["active"] else (
+            self.audio_input.snapshot() if self.audio_input else {}
+        )
         level = float(audio.get("level", 0.0))
         half = (self.count + 1) // 2
         extent = int(round(level * max(0, half - 1)))
@@ -393,13 +409,26 @@ class ArcadeManager:
                 "selected_game": self.selected_game,
                 "countdown": round(max(0.0, self.countdown), 1),
                 "tutorial": self._tutorial_snapshot(),
-                "audio": self.audio_input.snapshot() if self.audio_input else {
+                "audio": self._audio_snapshot(),
+                "web_mic": self.web_mics.snapshot(),
+                "pi_audio": self.audio_input.snapshot() if self.audio_input else {
                     "status": "unavailable", "error": "No audio input configured.",
                     "level": 0.0, "peak": 0.0, "clap": False,
                 },
                 "game": game_state,
                 "results": self.game.results if self.game else None,
             }
+
+    def _audio_snapshot(self):
+        web_audio = self.web_mics.snapshot()
+        if web_audio["active"]:
+            return dict(web_audio, source="web")
+        if self.audio_input:
+            return dict(self.audio_input.snapshot(), source="pi")
+        return {
+            "status": "unavailable", "error": "No audio input configured.",
+            "level": 0.0, "peak": 0.0, "clap": False, "source": "none",
+        }
 
     def _tutorial_snapshot(self):
         if self.state != ArcadeState.TUTORIAL or self.game_class is None:

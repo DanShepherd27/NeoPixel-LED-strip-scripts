@@ -90,14 +90,32 @@ Pi instead of as a service, use:
 sudo /home/pi/neopixel-env/bin/python /home/pi/led-arcade/app.py
 ```
 
-The home screen also offers **Free music mode**. It listens to the Pi's
-microphone input and expands/changes the LED pattern with ambient sound level;
-clap transients flash the strip. It visualizes room sound and does not play or
-stream music. The deploy script installs `alsa-utils` if `arecord` is missing.
-To select a specific microphone, run `arecord -l` on the Pi and set
+The home screen also offers **Free music mode**. The default source is an
+opted-in web user's microphone. The browser computes ambient volume and clap
+features locally and sends only those values to the Pi; raw audio is not
+recorded or transmitted. Users queue FIFO for exclusive microphone ownership,
+and the admin can configure handoff duration. The Pi's ALSA microphone is used
+as fallback. Browser microphone access requires trusted HTTPS; the default
+`http://<pi-ip>:5000` address is not secure for phone browsers, so configure a
+trusted HTTPS URL to use web microphones. The deploy script installs
+`alsa-utils` if `arecord` is missing. To select a specific fallback microphone,
+run `arecord -l` on the Pi and set
 `LED_AUDIO_DEVICE` in `.deploy.env` (for example `plughw:1,0`) before deploying.
-The home screen reports microphone status and capture errors while the mode is
-active.
+The home screen reports microphone source and capture errors while the mode is
+active. Admin settings control the web microphone handoff interval (15 to
+1800 seconds); it applies when other users are waiting.
+
+If capture fails, compare the available devices with the configured device:
+
+```bash
+arecord -l
+arecord -L
+sudo arecord -D default -t raw -f S16_LE -c 1 -r 16000 -d 5 /tmp/mic-test.raw
+```
+
+If `default` cannot open the microphone, test the matching `plughw:CARD,DEVICE`
+value shown by `arecord -l`, set that as `LED_AUDIO_DEVICE` in `.deploy.env`,
+and redeploy. The service runs as root, so test capture with `sudo` too.
 
 ## MVP scope and roadmap
 
@@ -105,10 +123,9 @@ Included: central 40 FPS renderer, idle effects with automatic rotation,
 global brightness and hidden end offsets, LAN web app, QR code, lobby,
 dynamic player colors, and four games with results/rematch flow.
 
-Still on the roadmap: smooth cross-fade transitions between idle effects;
-configurable animation selection/duration from an admin UI; robust reconnect
-and disconnect handling; richer game balance and real-world multiplayer
-playtesting; Spotify music-reactive mode with a public queue link;
-deployment validation on the target Pi and strip; and the broader additional
-games, polish and security review described in `context.md`. Spotify remains
-unimplemented.
+Still on the roadmap: white-backed QR code; tutorial review/replay followed
+by an untimed ready gate; trusted HTTPS deployment for web microphones;
+smooth cross-fades and admin animation controls;
+robust reconnect handling; game balancing/playtesting; Spotify music-reactive
+mode and public queue; Pi hardware validation; and the other games, polish,
+and security review described in `context.md`. Spotify remains unimplemented.

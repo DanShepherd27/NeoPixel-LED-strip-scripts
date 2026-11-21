@@ -828,6 +828,10 @@ Display:
 - Current number of players
 - Start/join options
 
+The QR code must sit on a white background with enough white quiet-zone
+padding for reliable camera scanning. Keep the surrounding page, cards, and
+arcade styling dark; only the QR image area needs the light background.
+
 The home screen should make it obvious that the physical LED strip is active.
 
 ## Lobby
@@ -960,6 +964,24 @@ Player inputs should be sent to the server with low latency.
 
 The system should tolerate players disconnecting or refreshing their browser.
 
+### Web microphone queue (implemented; HTTPS required for browsers)
+
+Free music mode prefers one opted-in web user's microphone and falls back to
+the Pi's ALSA input. Web mic users request the mic explicitly; one owner is
+allowed at a time and other users queue FIFO. If anyone is waiting, the active
+turn is handed off after the admin-configured duration (15 to 1800 seconds).
+The previous owner's browser track is stopped on handoff, and users can leave
+the queue. Browser audio is analyzed locally; only volume, peak, and clap
+features are sent to the Pi. No audio is recorded or retained.
+
+Browser mic access requires a secure origin (HTTPS or localhost) and user
+permission. The default `http://<pi-ip>:5000` deployment is not a secure origin
+for phone browsers, so web mic users need a trusted HTTPS URL; otherwise the
+visualizer uses the Pi ALSA fallback. The interface explains this requirement.
+The Pi fallback requires an ALSA capture device, such as a USB audio
+interface; a GPIO-connected mic would need compatible audio conversion and
+driver support, which is not part of the current hardware setup.
+
 ### Fairness plan for network delay (planned)
 
 Implement latency handling in measured stages rather than subtracting an
@@ -995,6 +1017,21 @@ assumed delay from every input:
 
 The current app does not implement clock synchronization, latency compensation,
 fixed input ticks, or lag-aware pausing; this is a design plan only.
+
+### Tutorial attention and ready gate (roadmap)
+
+Do not start the game automatically when the timed tutorial animation ends.
+Players cannot read a phone and watch the physical strip at the same time.
+Present the phone instructions first, then explicitly cue players to look at
+the strip while the shared LED demo runs; allow a player to replay the demo.
+After the demo, show a per-player READY control and wait without a countdown
+until every participant required for the selected game is ready. Only then
+begin the game countdown. Keep readiness visible and let a player review or
+replay the tutorial before marking ready.
+
+The current implementation runs a timed shared animation and proceeds
+automatically to the countdown; it does not yet meet this ready-gate
+requirement.
 
 ---
 
@@ -1055,8 +1092,14 @@ Potential settings:
 - Game duration
 - Difficulty
 - Number of rounds
+- Free music input source: opted-in web microphone first, Pi ALSA fallback
+- Web microphone queue handoff duration while other users are waiting
 - Free music mode (implemented): capture the local microphone through ALSA,
   adapt the visualizer to ambient level, and flash on clap-like transients.
+- Web-user microphone (implemented): browser-first visualizer input with
+  explicit opt-in, one owner, FIFO queue, admin-configured handoff, local
+  feature extraction, and Pi ALSA fallback. Trusted HTTPS is required for
+  phone browsers; LAN HTTP falls back to the Pi input.
 - Spotify playback integration (future; do not implement yet): connect to the
   owner's personal Spotify account over the LAN and offer a public website
   link where visitors can add tracks to a shared playback queue.
@@ -1250,6 +1293,7 @@ The project should not be considered complete until:
 
 - [ ] Accessible from another LAN device
 - [ ] Mobile responsive
+- [ ] QR code has a white background and quiet zone while the rest of the UI stays dark
 - [ ] No app installation required
 - [ ] Players can join
 - [ ] Player names and colors are visible
@@ -1274,6 +1318,8 @@ The project should not be considered complete until:
 - [ ] Results are displayed
 - [ ] Rematch works
 - [ ] Returning to idle works
+- [ ] Tutorial presents phone instructions before directing attention to the LED demo
+- [ ] Tutorial can be replayed, and game waits without a timer for all required players to mark ready
 
 ### Architecture
 
@@ -1292,6 +1338,16 @@ The project should not be considered complete until:
 - [ ] LEDs return to idle mode appropriately
 - [ ] Can be controlled remotely over SSH
 
+### Free music mode
+
+- [x] Web microphone is primary; Pi ALSA is fallback
+- [x] At most one web microphone owner at a time
+- [x] Other web microphone requests queue in FIFO order
+- [x] Admin can configure the active user's queue handoff duration
+- [x] Handoff notifies the current user, releases their media track, then activates the next queued user
+- [x] Audio is not recorded or retained; only locally computed features are sent
+- [ ] Provide a trusted HTTPS deployment URL so phone browsers can grant mic access
+
 ---
 
 # 23. Development Instructions for the Coding Agent
@@ -1307,6 +1363,10 @@ Before implementation:
 
 During implementation:
 
+- Prefer plug-and-play solutions, existing browser APIs, and proven reusable
+  building blocks. Before writing custom code, inspect the repo and available
+  libraries/tools for something that already solves the need. Avoid duplicating
+  functionality or adding a dependency unless it fits the offline Pi setup.
 - Favor clean, maintainable, modular code.
 - Keep the architecture simple enough for a Raspberry Pi.
 - Do not unnecessarily introduce complex dependencies.

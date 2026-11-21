@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css?v=20261121-tutorial">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261121-web-mic">
 </head>
 <body>
   <header class="app-header">
@@ -37,6 +37,11 @@
         <button id="enter-lobby" class="btn btn-primary btn-block">ENTER ARCADE</button>
         <button id="music-mode-btn" class="btn btn-accent btn-block">START FREE MUSIC MODE</button>
         <p id="music-message" class="muted" role="status" aria-live="polite"></p>
+        <div id="web-mic-controls" hidden>
+          <p id="web-mic-status" class="muted" role="status" aria-live="polite"></p>
+          <button id="mic-queue-btn" class="btn btn-ghost btn-block">USE THIS DEVICE'S MIC</button>
+          <button id="mic-start-btn" class="btn btn-primary btn-block" hidden>ALLOW MIC AND VISUALIZE</button>
+        </div>
       </div>
       <div class="card">
         <h3>How to join</h3>
@@ -57,7 +62,10 @@
           <input id="hidden-start" type="number" min="0" step="1" required>
           <label for="hidden-end">Hidden at end</label>
           <input id="hidden-end" type="number" min="0" step="1" required>
-          <button type="submit" class="btn btn-primary btn-block">SAVE OFFSETS</button>
+          <label for="mic-handoff-seconds">Web microphone handoff (seconds)</label>
+          <input id="mic-handoff-seconds" type="number" min="15" max="1800" step="1" required>
+          <p class="muted">When someone is queued, the active web microphone is handed off after this time.</p>
+          <button type="submit" class="btn btn-primary btn-block">SAVE SETTINGS</button>
           <button id="admin-logout" type="button" class="btn btn-ghost btn-block">ADMIN LOGOUT</button>
         </form>
         <p id="admin-message" class="muted" role="status" aria-live="polite"></p>
@@ -128,7 +136,7 @@
     </section>
   </main>
 
-  <script src="/static/js/app.js?v=20261121-free-music"></script>
+  <script src="/static/js/app.js?v=20261121-web-mic"></script>
   <script src="/static/js/games.js"></script>
   <script src="/static/js/controller.js"></script>
 </body>

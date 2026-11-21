@@ -123,6 +123,37 @@ def register_api(app, manager, hardware):
             manager.stop_music_mode()
         return jsonify({"ok": True, "enabled": enabled})
 
+    @app.post("/api/music/mic/request")
+    def music_mic_request():
+        if manager.state.value != "music":
+            return jsonify({"ok": False, "message": "Start free music mode first."}), 409
+        data = request.get_json(silent=True) or {}
+        try:
+            status = manager.web_mics.request(data.get("client_id"), data.get("name", "Guest"))
+        except ValueError as exc:
+            return jsonify({"ok": False, "message": str(exc)}), 400
+        return jsonify({"ok": True, **status})
+
+    @app.post("/api/music/mic/leave")
+    def music_mic_leave():
+        data = request.get_json(silent=True) or {}
+        status = manager.web_mics.leave(data.get("client_id"), data.get("token"))
+        return jsonify({"ok": True, **status})
+
+    @app.get("/api/music/mic/state")
+    def music_mic_state():
+        client_id = request.args.get("client_id")
+        return jsonify(manager.web_mics.status(client_id))
+
+    @app.post("/api/music/mic/audio")
+    def music_mic_audio():
+        data = request.get_json(silent=True) or {}
+        if manager.state.value != "music" or not manager.web_mics.update(
+            data.get("token"), data.get("level"), data.get("peak"), data.get("clap")
+        ):
+            return jsonify({"ok": False, "message": "Microphone lease is no longer active."}), 409
+        return jsonify({"ok": True})
+
     @app.post("/api/admin/login")
     def admin_login():
         password = (request.get_json(silent=True) or {}).get("password", "")
@@ -147,6 +178,7 @@ def register_api(app, manager, hardware):
             "hidden_start": hardware.hidden_start,
             "hidden_end": hardware.hidden_end,
             "led_count": LED_COUNT,
+            "mic_handoff_seconds": manager.web_mics.handoff_seconds,
         })
 
     @app.put("/api/admin/settings")
@@ -156,17 +188,24 @@ def register_api(app, manager, hardware):
         data = request.get_json(silent=True) or {}
         start_value = data.get("hidden_start")
         end_value = data.get("hidden_end")
-        if type(start_value) is not int or type(end_value) is not int:
-            return jsonify({"ok": False, "message": "Enter whole numbers for both offsets."}), 400
+        handoff_value = data.get("mic_handoff_seconds", manager.web_mics.handoff_seconds)
+        if type(start_value) is not int or type(end_value) is not int or type(handoff_value) is not int:
+            return jsonify({"ok": False, "message": "Enter whole numbers for offsets and microphone handoff."}), 400
         start, end = start_value, end_value
         if start < 0 or end < 0 or start + end > LED_COUNT:
             return jsonify({"ok": False, "message": "Offsets must be nonnegative and total no more than the strip length."}), 400
+        if not 15 <= handoff_value <= 1800:
+            return jsonify({"ok": False, "message": "Microphone handoff must be between 15 and 1800 seconds."}), 400
 
         settings_path = RUNTIME_SETTINGS_FILE
         temporary_path = settings_path + ".tmp"
         try:
             with open(temporary_path, "w", encoding="utf-8") as settings_file:
-                json.dump({"hidden_start": start, "hidden_end": end}, settings_file)
+                json.dump({
+                    "hidden_start": start,
+                    "hidden_end": end,
+                    "mic_handoff_seconds": handoff_value,
+                }, settings_file)
             os.replace(temporary_path, settings_path)
         except OSError:
             log.exception("Could not persist LED offset settings")
@@ -177,7 +216,11 @@ def register_api(app, manager, hardware):
             return jsonify({"ok": False, "message": "Could not save settings on the server."}), 500
 
         hardware.set_hidden_offsets(start, end)
-        return jsonify({"ok": True, "hidden_start": start, "hidden_end": end})
+        manager.web_mics.handoff_seconds = handoff_value
+        return jsonify({
+            "ok": True, "hidden_start": start, "hidden_end": end,
+            "mic_handoff_seconds": handoff_value,
+        })
 
     def broadcast_state():
         socketio.emit("state", manager.get_state())

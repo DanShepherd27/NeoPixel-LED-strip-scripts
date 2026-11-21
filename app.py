@@ -18,6 +18,7 @@ from config import (
     LED_HIDDEN_START, LED_HIDDEN_END,
     LED_INVERT, LED_CHANNEL, HOST, PORT, FPS,
     RUNTIME_SETTINGS_FILE, AUDIO_DEVICE,
+    WEB_MIC_HANDOFF_SECONDS,
 )
 from led.hardware import LEDHardware
 from led.audio import AudioInput
@@ -44,6 +45,7 @@ def main():
     log = logging.getLogger("app")
 
     hidden_start, hidden_end = LED_HIDDEN_START, LED_HIDDEN_END
+    mic_handoff_seconds = WEB_MIC_HANDOFF_SECONDS
     try:
         with open(RUNTIME_SETTINGS_FILE, "r", encoding="utf-8") as settings_file:
             saved = json.load(settings_file)
@@ -51,13 +53,17 @@ def main():
             raise ValueError("saved LED settings must be a JSON object")
         hidden_start = int(saved.get("hidden_start", hidden_start))
         hidden_end = int(saved.get("hidden_end", hidden_end))
+        mic_handoff_seconds = int(saved.get("mic_handoff_seconds", mic_handoff_seconds))
         if hidden_start < 0 or hidden_end < 0 or hidden_start + hidden_end > LED_COUNT:
             raise ValueError("saved LED offsets are outside the valid strip range")
+        if not 15 <= mic_handoff_seconds <= 1800:
+            raise ValueError("saved microphone handoff must be between 15 and 1800 seconds")
     except FileNotFoundError:
         pass
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
         log.warning("Ignoring invalid runtime LED settings: %s", exc)
         hidden_start, hidden_end = LED_HIDDEN_START, LED_HIDDEN_END
+        mic_handoff_seconds = WEB_MIC_HANDOFF_SECONDS
 
     hardware = LEDHardware(
         LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT,
@@ -70,7 +76,7 @@ def main():
 
     audio_input = AudioInput(AUDIO_DEVICE)
     audio_input.start()
-    manager = ArcadeManager(LED_COUNT, audio_input)
+    manager = ArcadeManager(LED_COUNT, audio_input, mic_handoff_seconds)
 
     renderer = Renderer(hardware, FPS)
     renderer.set_scene(manager)

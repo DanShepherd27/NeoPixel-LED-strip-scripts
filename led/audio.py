@@ -100,7 +100,7 @@ class AudioInput:
                         "-r", str(self.SAMPLE_RATE),
                     ],
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
                     bufsize=0,
                 )
                 self._process = process
@@ -117,11 +117,14 @@ class AudioInput:
 
                 if process.poll() is None:
                     process.terminate()
-                process.wait(timeout=1.0)
+                return_code = process.wait(timeout=1.0)
+                error_output = process.stderr.read().decode("utf-8", errors="replace").strip()
                 self._process = None
                 if self._enabled.is_set() and not self._stopping.is_set():
+                    detail = error_output or "no ALSA error details were reported"
                     self._set_failure(
-                        "arecord stopped; check the microphone and LED_AUDIO_DEVICE"
+                        f"arecord exited with status {return_code}: {detail} "
+                        "Check the microphone and LED_AUDIO_DEVICE."
                     )
                     self._stopping.wait(2.0)
             except Exception as exc:

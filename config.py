@@ -57,6 +57,7 @@ PLAYER_TIMEOUT = 20.0            # seconds before a silent player is dropped
 # Admin settings. Set LED_ARCADE_ADMIN_PASSWORD in the service environment.
 ADMIN_PASSWORD = os.environ.get("LED_ARCADE_ADMIN_PASSWORD", "")
 AUDIO_DEVICE = os.environ.get("LED_AUDIO_DEVICE", "default")
+WEB_MIC_HANDOFF_SECONDS = int(os.environ.get("LED_WEB_MIC_HANDOFF_SECONDS", "120"))
 RUNTIME_SETTINGS_FILE = os.environ.get(
     "LED_ARCADE_SETTINGS_FILE",
     os.path.join(os.path.dirname(__file__), "runtime-settings.json"),

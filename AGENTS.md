@@ -14,13 +14,19 @@ and usable without internet after installation.
 - Preserve the known-working `rpi_ws281x.PixelStrip` settings in `config.py`:
   count 60, 800 kHz, DMA 10, brightness 40, non-inverted, channel 0.
 - The installed strip is vertical (`LED_ORIENTATION = "vertical"`).
+- Roadmap UI requirement: give the QR code a white background/quiet zone while
+  retaining the dark theme everywhere else.
 - `LED_HIDDEN_START` and `LED_HIDDEN_END` are global counts of dark pixels at
   the physical ends. Admin changes apply immediately and persist in
   `runtime-settings.json` in the app directory.
-- Free music mode reads microphone PCM from `arecord` via `led/audio.py`; the
-  ALSA device is `LED_AUDIO_DEVICE` (default `default`). Capture runs only
-  while the visualizer is active. It computes adaptive RMS volume and clap
-  transients; the central renderer remains the sole LED writer.
+- Free music mode prefers an opted-in browser microphone and falls back to
+  microphone PCM from `arecord` via `led/audio.py`; the ALSA device is
+  `LED_AUDIO_DEVICE` (default `default`). Browser audio stays local; only RMS
+  volume/peak/clap features are sent. One browser owns the mic at a time, with
+  a FIFO queue and admin-configured handoff (`mic_handoff_seconds` in runtime
+  settings). Browser mic requires trusted HTTPS on phones; the default LAN
+  HTTP address falls back to ALSA. The central renderer remains the sole LED
+  writer.
 - The systemd service runs as root because the current GPIO/DMA setup requires
   it. `/healthz` reports `led_hardware`, `led_error`, count and offsets. A
   `mock` value means the web process is alive but physical LED control failed;
@@ -43,11 +49,18 @@ and usable without internet after installation.
 - `templates/`, `static/js/`, `static/css/`: mobile browser UI. Static asset
   URLs use version query strings when necessary to bypass stale browser cache.
 
-Lifecycle is `IDLE -> LOBBY -> TUTORIAL -> COUNTDOWN -> GAME -> RESULTS`.
+Lifecycle currently is `IDLE -> LOBBY -> TUTORIAL -> COUNTDOWN -> GAME -> RESULTS`.
 Games define `tutorial_steps` and `render_tutorial(...)`; the manager
 synchronizes tutorial time and pixels for all players. Each player can skip to
-the countdown. Current games are Reaction Race, Dodge, Shooter/LED Battle,
-and Pong.
+the countdown. Roadmap requirement: present phone instructions before asking
+players to watch the strip, allow replay, then wait without a timer for every
+required participant to mark ready before countdown. Current behavior still
+auto-advances after the timed tutorial. Current games are Reaction Race,
+Dodge, Shooter/LED Battle, and Pong.
+
+For new work, first look for a plug-and-play library, existing browser API, or
+reusable building block already in the repo/environment. Avoid custom code or
+new dependencies when an existing solution fits the offline Raspberry Pi.
 
 ## Network fairness status
 
@@ -64,9 +77,9 @@ shared cue, but button arrival time is currently scored on the server.
 - From the repo, run `python deploy/deploy.py`. It prompts for the Pi address
   and SSH username; OpenSSH handles password prompts. `.deploy.env.example`
   can be copied to the git-ignored `.deploy.env` for saved connection values.
-- Deployment archives exclude `.deploy.env` and local runtime settings. Only
-  `LED_ARCADE_*` values are copied separately to `/etc/led-arcade.env` with
-  root-only permissions.
+- Deployment archives exclude `.deploy.env` and local runtime settings.
+  `LED_ARCADE_*` and `LED_AUDIO_*` values are copied separately to
+  `/etc/led-arcade.env` with root-only permissions.
 - The site admin password is `LED_ARCADE_ADMIN_PASSWORD`. Do not commit
   `.deploy.env`, runtime settings, or credentials.
 - `deploy/install.sh` creates the configured venv if missing, installs
@@ -79,11 +92,13 @@ shared cue, but button arrival time is currently scored on the server.
 
 This is an MVP, not the full vision in `context.md`. Idle effects, lobby,
 player colors, four games, pre-game tutorials, admin LED offsets, free
-microphone music visualization, and basic deployment are present.
-Cross-fades/admin animation controls, stronger
-reconnect handling, game balancing/playtesting, more games, audio, and Pi
-hardware validation remain. Spotify-reactive lighting and a public queue are
-roadmap-only; do not implement them unless asked.
+browser-first microphone music visualization with a FIFO lease, and basic
+deployment are present.
+Cross-fades/admin animation controls, stronger reconnect handling, game
+balancing/playtesting, more games, trusted HTTPS for phone microphone access,
+post-tutorial ready gating, white-backed QR, and Pi hardware validation
+remain. Spotify-reactive lighting and a public queue are roadmap-only; do not
+implement them unless asked.
 
 ## Quick local checks
 

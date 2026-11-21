@@ -5,6 +5,22 @@
 
   var STORAGE_ID = "led_arcade_player_id";
   var STORAGE_NAME = "led_arcade_player_name";
+  var MIC_CLIENT_KEY = "led_arcade_mic_client";
+  var micClientId = localStorage.getItem(MIC_CLIENT_KEY);
+  if (!micClientId) {
+    micClientId = (window.crypto && crypto.randomUUID)
+      ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+    localStorage.setItem(MIC_CLIENT_KEY, micClientId);
+  }
+  var micToken = null;
+  var micStream = null;
+  var micContext = null;
+  var micAnalyser = null;
+  var micFrame = 0;
+  var micLastSend = 0;
+  var micNoiseFloor = 0.008;
+  var micLastClap = 0;
+  var micRole = "idle";
 
   var App = {
     socket: null,
@@ -160,6 +176,7 @@
     }
 
     render();
+    updateMicStatus(state);
   }
 
   // ---- rendering ----------------------------------------------------------
@@ -177,10 +194,13 @@
       musicButton.textContent = musicActive ? "STOP MUSIC MODE" : "START FREE MUSIC MODE";
       var audio = s.audio || {};
       musicMessage.textContent = musicActive
-        ? (audio.status === "listening"
-          ? "Listening on " + (audio.device || "default") + "; volume adapts automatically; clap for a flash"
-          : (audio.error || "Starting microphone..."))
-        : "Uses the Pi microphone input; no Spotify or internet connection needed.";
+        ? (audio.source === "web"
+          ? "Listening to the opted-in web microphone; only volume features are sent to the Pi."
+          : (audio.status === "listening"
+            ? "Using the Pi microphone fallback (" + (audio.device || "default") + ")."
+            : (audio.error || "Waiting for a web microphone or Pi input.")))
+        : "Web microphone is the default; the Pi's ALSA input is used only as fallback.";
+      $id("web-mic-controls").hidden = !musicActive;
     }
     var orientation = s.led_orientation || "vertical";
     var orientationLabel = $id("strip-orientation");
@@ -220,6 +240,145 @@
       default:
         showScreen("home");
     }
+  }
+
+  function updateMicStatus(state) {
+    if (!state || state.state !== "music") {
+      if (micStream) stopMicCapture();
+      micToken = null;
+      micRole = "idle";
+      return;
+    }
+    fetch("/api/music/mic/state?client_id=" + encodeURIComponent(micClientId), { cache: "no-store" })
+      .then(function (response) { return response.json(); })
+      .then(function (status) {
+        var oldRole = micRole;
+        micRole = status.role || "idle";
+        micToken = status.token || null;
+        var statusText = $id("web-mic-status");
+        var queueButton = $id("mic-queue-btn");
+        var startButton = $id("mic-start-btn");
+        var secure = window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+        if (!secure) {
+          statusText.textContent = "Browser microphone needs HTTPS on this LAN address. Use a trusted HTTPS URL, then allow microphone access.";
+          queueButton.disabled = true;
+          startButton.hidden = true;
+        } else if (micRole === "owner") {
+          statusText.textContent = micStream
+            ? "Your microphone is active. The browser track closes automatically when your turn ends. " +
+              (status.handoff_in != null ? "Turn ends in about " + status.handoff_in + " seconds. " : "") +
+              (status.queued ? status.queued + " user(s) queued." : "")
+            : "It is your turn. Start the microphone when you are ready.";
+          queueButton.textContent = "RELEASE MICROPHONE";
+          queueButton.hidden = false;
+          queueButton.disabled = false;
+          startButton.hidden = !!micStream;
+        } else if (micRole === "queued") {
+          statusText.textContent = "You are number " + status.position + " in the microphone queue. " +
+            (status.owner ? status.owner + " is using it." : "Waiting for the current turn.");
+          queueButton.textContent = "LEAVE MIC QUEUE";
+          queueButton.hidden = false;
+          queueButton.disabled = false;
+          startButton.hidden = true;
+        } else {
+          statusText.textContent = oldRole === "owner"
+            ? "Your microphone turn ended. Your browser track has been released."
+            : "Join the queue to use this device's microphone.";
+          queueButton.textContent = "USE THIS DEVICE'S MIC";
+          queueButton.hidden = false;
+          queueButton.disabled = false;
+          startButton.hidden = true;
+        }
+        if (micRole !== "owner" && micStream) stopMicCapture();
+      }).catch(function () {});
+  }
+
+  function stopMicCapture() {
+    if (micFrame) cancelAnimationFrame(micFrame);
+    micFrame = 0;
+    if (micStream) micStream.getTracks().forEach(function (track) { track.stop(); });
+    micStream = null;
+    if (micContext) micContext.close().catch(function () {});
+    micContext = null;
+    micAnalyser = null;
+  }
+
+  function releaseMic() {
+    stopMicCapture();
+    var token = micToken;
+    var shouldLeave = micRole !== "idle" || !!token;
+    micToken = null;
+    if (shouldLeave) {
+      fetch("/api/music/mic/leave", {
+        method: "POST", keepalive: true,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: micClientId, token: token }),
+      }).catch(function () {});
+    }
+    micRole = "idle";
+  }
+
+  function startMicCapture() {
+    if (micRole !== "owner" || !micToken) return;
+    var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      $id("web-mic-status").textContent = "This browser does not support live audio analysis.";
+      return;
+    }
+    // Create/resume inside the button gesture so mobile browsers allow analysis.
+    micContext = new AudioContextClass();
+    micContext.resume().catch(function () {});
+    navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then(function (stream) {
+      if (micRole !== "owner") {
+        stream.getTracks().forEach(function (track) { track.stop(); });
+        stopMicCapture();
+        return;
+      }
+      micStream = stream;
+      stream.getTracks().forEach(function (track) {
+        track.addEventListener("ended", releaseMic, { once: true });
+      });
+      var source = micContext.createMediaStreamSource(stream);
+      micAnalyser = micContext.createAnalyser();
+      micAnalyser.fftSize = 1024;
+      source.connect(micAnalyser);
+      var samples = new Float32Array(micAnalyser.fftSize);
+      function sample(now) {
+        if (!micAnalyser || !micToken || micRole !== "owner") return;
+        micAnalyser.getFloatTimeDomainData(samples);
+        var squares = 0;
+        var peak = 0;
+        for (var i = 0; i < samples.length; i++) {
+          var value = Math.abs(samples[i]);
+          squares += value * value;
+          if (value > peak) peak = value;
+        }
+        var rms = Math.sqrt(squares / samples.length);
+        if (rms < micNoiseFloor) micNoiseFloor += (rms - micNoiseFloor) * 0.08;
+        else if (rms < micNoiseFloor * 2) micNoiseFloor += (rms - micNoiseFloor) * 0.004;
+        var level = Math.max(0, Math.min(1, (rms - micNoiseFloor) / Math.max(0.025, micNoiseFloor * 5)));
+        var clap = rms > Math.max(0.018, micNoiseFloor * 1.35) && peak > 0.12 &&
+          peak / Math.max(0.001, rms) > 3 && now - micLastClap > 160;
+        if (clap) micLastClap = now;
+        if (now - micLastSend > 100) {
+          micLastSend = now;
+          fetch("/api/music/mic/audio", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: micToken, level: level, peak: peak, clap: clap }),
+          }).then(function (response) {
+            if (response.status === 409) releaseMic();
+          }).catch(function () {});
+        }
+        micFrame = requestAnimationFrame(sample);
+      }
+      micFrame = requestAnimationFrame(sample);
+    }).catch(function (error) {
+      var detail = error && error.name === "NotAllowedError"
+        ? "Microphone permission was denied or this page is not HTTPS."
+        : "Could not open this microphone: " + (error.message || error.name || "unknown error");
+      $id("web-mic-status").textContent = detail + " Using the Pi microphone fallback if available.";
+      releaseMic();
+    });
   }
 
   function renderLobby(s) {
@@ -419,8 +578,31 @@
     });
 
     $id("music-mode-btn").addEventListener("click", function () {
+      if (!App.state || App.state.state !== "music") releaseMic();
       App.socket.emit("music_mode", { enabled: !App.state || App.state.state !== "music" });
     });
+
+    $id("mic-queue-btn").addEventListener("click", function () {
+      if (micRole === "queued" || micRole === "owner") {
+        releaseMic();
+        return;
+      }
+      fetch("/api/music/mic/request", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: micClientId, name: App.playerName || "Guest" }),
+      }).then(function (response) {
+        return response.json().then(function (body) {
+          if (!response.ok) throw new Error(body.message || "Could not join microphone queue.");
+          return body;
+        });
+      }).then(function (status) {
+        micRole = status.role;
+        micToken = status.token;
+        updateMicStatus(App.state);
+      }).catch(function (error) { $id("web-mic-status").textContent = error.message; });
+    });
+
+    $id("mic-start-btn").addEventListener("click", startMicCapture);
 
     $id("join-form").addEventListener("submit", function (ev) {
       ev.preventDefault();
@@ -478,6 +660,7 @@
       }).then(function (data) {
         $id("hidden-start").value = data.hidden_start;
         $id("hidden-end").value = data.hidden_end;
+        $id("mic-handoff-seconds").value = data.mic_handoff_seconds;
         $id("hidden-start").max = data.led_count;
         $id("hidden-end").max = data.led_count;
         loginForm.hidden = true;
@@ -514,6 +697,7 @@
         body: JSON.stringify({
           hidden_start: Number($id("hidden-start").value),
           hidden_end: Number($id("hidden-end").value),
+          mic_handoff_seconds: Number($id("mic-handoff-seconds").value),
         }),
       }).then(function (response) {
         return response.json().then(function (body) {
@@ -522,7 +706,7 @@
         });
       }).then(function (body) {
         showAdminMessage("Saved. " + body.hidden_start + " hidden at start, " +
-          body.hidden_end + " hidden at end.");
+          body.hidden_end + " hidden at end; microphone handoff " + body.mic_handoff_seconds + " seconds.");
       }).catch(function (error) {
         showAdminMessage(error.message);
       });
@@ -551,4 +735,6 @@
     wireEvents();
     connect();
   });
+
+  window.addEventListener("pagehide", releaseMic);
 })();
