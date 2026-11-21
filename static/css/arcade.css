@@ -209,6 +209,33 @@ input[type="text"]:focus {
 
 /* Countdown */
 .countdown-wrap { text-align: center; padding-top: 30vh; }
+.tutorial-card { text-align: center; margin-top: 8vh; }
+.tutorial-card h2 { margin-top: 24px; }
+.tutorial-led-preview {
+  height: 30px;
+  margin: 28px 0 18px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #00e5ff, #7c4dff, #ff2ea6);
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.38);
+  animation: tutorial-pulse 1s ease-in-out infinite alternate;
+}
+.tutorial-led-preview span {
+  display: block;
+  width: 22px;
+  height: 22px;
+  position: relative;
+  top: 4px;
+  left: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 12px #fff;
+  animation: tutorial-sweep 1.8s linear infinite alternate;
+}
+.tutorial-step { color: var(--accent2); font-size: 0.85rem; }
+.tutorial-progress { height: 4px; overflow: hidden; background: var(--border); border-radius: 9px; }
+.tutorial-progress span { display: block; height: 100%; background: var(--neon); transition: width 0.25s linear; }
+@keyframes tutorial-sweep { to { left: calc(100% - 22px); } }
+@keyframes tutorial-pulse { to { opacity: 0.55; } }
 .countdown-number {
   font-size: 7rem;
   font-weight: 900;

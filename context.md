@@ -960,6 +960,42 @@ Player inputs should be sent to the server with low latency.
 
 The system should tolerate players disconnecting or refreshing their browser.
 
+### Fairness plan for network delay (planned)
+
+Implement latency handling in measured stages rather than subtracting an
+assumed delay from every input:
+
+1. Measure each phone's round-trip time and jitter during the lobby and
+   throughout play. Track median and 95th-percentile values per player; report
+   these in server logs without exposing them as a score.
+2. Advance every game on a fixed server simulation tick using the server's
+   monotonic clock. Give each input a player ID, sequence number, action, and
+   client event timestamp; reject duplicates, out-of-order packets, and
+   implausibly old/future timestamps.
+3. For Reaction Race, keep the physical LED flash as the authoritative common
+   cue. Estimate browser-to-server clock offset from repeated timestamped
+   exchanges, and score the button's client event timestamp after conversion
+   to server time. Bound the correction by measured RTT/jitter and retain an
+   uncertainty value; do not treat RTT/2 as exact because the two network
+   directions may differ. If uncertainty is too high, flag the round or use a
+   generous tie window rather than pretending the result is precise.
+4. For movement and hit games, batch input intents onto common future server
+   ticks. Choose one input delay for the whole match from the slowest player's
+   measured high-percentile latency plus a small safety margin, then keep it
+   fixed for the match. This gives all players the same response window.
+   Predict local controller feedback for responsiveness, then reconcile it to
+   authoritative server state.
+5. During play, buffer brief jitter spikes within the agreed input window.
+   Discard inputs that arrive too late instead of applying them to a later
+   game moment. For severe sustained lag or a disconnect, show a clear paused
+   or reconnect state and resume from a server snapshot where the game allows.
+6. Validate the approach with phones on the actual Wi-Fi, recording per-player
+   median/p95 RTT, jitter, input arrival times, and perceived fairness. Keep
+   Reaction Race timing separate from the movement-game input delay policy.
+
+The current app does not implement clock synchronization, latency compensation,
+fixed input ticks, or lag-aware pausing; this is a design plan only.
+
 ---
 
 # 16. Idle/Lobby/Game Lifecycle

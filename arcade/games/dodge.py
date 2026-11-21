@@ -6,6 +6,7 @@ speeds up over time. Score is survival time.
 """
 
 import random
+import math
 
 from led.colors import hsv_to_rgb, blend, dim
 
@@ -26,6 +27,10 @@ class DodgeGame(BaseGame):
     MAX_SPEED = 30.0
     SPEEDUP = 0.35           # LEDs/sec added per second
     INVULN_TIME = 1.5
+    tutorial_steps = (
+        {"title": "Move to dodge", "instruction": "Hold LEFT or RIGHT to move your colored LED.", "duration": 2.6},
+        {"title": "Avoid red lights", "instruction": "Incoming red LEDs are obstacles. Survive with three lives.", "duration": 2.6},
+    )
 
     def __init__(self, manager):
         super().__init__(manager)
@@ -147,6 +152,20 @@ class DodgeGame(BaseGame):
         if self._hit_flash > 0:
             for i in range(frame.count):
                 frame.blend(i, (255, 0, 0), self._hit_flash * 0.6)
+
+    def render_tutorial(self, frame, step_index, elapsed, duration):
+        center = (frame.count - 1) / 2.0
+        avatar = center + (frame.count * 0.22) * math.sin(elapsed * 2.0)
+        frame.set(int(round(avatar)), (0, 220, 255))
+        if step_index == 0:
+            for offset in range(min(5, frame.count)):
+                frame.set(offset, (30, 80, 200) if offset % 2 == 0 else (8, 15, 35))
+                frame.set(frame.count - 1 - offset, (30, 80, 200) if offset % 2 == 0 else (8, 15, 35))
+        else:
+            travel = max(1.0, frame.count - 1)
+            obstacle = int((elapsed * 12.0) % travel)
+            frame.set(obstacle, (255, 45, 35))
+            frame.set(frame.count - 1 - obstacle, (255, 45, 35))
 
     def get_state(self):
         state = super().get_state()

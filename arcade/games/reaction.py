@@ -27,6 +27,10 @@ class ReactionGame(BaseGame):
     ROUND_TIMEOUT = 3.0
     ROUND_PAUSE = 2.5
     FALSE_START_PENALTY = 3.0  # seconds added to a false-starter's time
+    tutorial_steps = (
+        {"title": "Wait for the flash", "instruction": "Keep your hands off the button while the strip pulses.", "duration": 2.6},
+        {"title": "Tap on white", "instruction": "Press only when the whole strip flashes white.", "duration": 2.6},
+    )
 
     def __init__(self, manager):
         super().__init__(manager)
@@ -137,6 +141,15 @@ class ReactionGame(BaseGame):
             # Waiting: dim pulsing colour so the strip stays alive.
             pulse = (math.sin(time.monotonic() * 4.0) + 1.0) / 2.0
             frame.fill(dim((80, 80, 160), 0.3 + 0.3 * pulse))
+
+    def render_tutorial(self, frame, step_index, elapsed, duration):
+        if step_index == 0:
+            import math
+            pulse = 0.18 + 0.32 * (math.sin(elapsed * 4.0) + 1.0) / 2.0
+            color = tuple(int(90 * pulse) for _ in range(3))
+            frame.fill(color)
+        else:
+            frame.fill((255, 255, 255) if int(elapsed * 3.0) % 2 == 0 else (12, 12, 24))
 
     def get_state(self):
         state = super().get_state()

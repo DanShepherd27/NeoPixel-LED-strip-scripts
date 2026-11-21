@@ -56,6 +56,7 @@
           join: "/api/join", rejoin: "/api/rejoin", leave: "/api/leave",
           ready: "/api/ready", select_game: "/api/select_game",
           start_game: "/api/start_game", rematch: "/api/rematch",
+          skip_tutorial: "/api/skip_tutorial",
           return_to_idle: "/api/return_to_idle", input: "/api/input",
           ping: "/api/ping",
         };
@@ -185,6 +186,10 @@
         showScreen("lobby");
         renderLobby(s);
         break;
+      case "tutorial":
+        showScreen("tutorial");
+        renderTutorial(s);
+        break;
       case "countdown":
         showScreen("countdown");
         renderCountdown(s);
@@ -303,6 +308,19 @@
     $id("countdown-game").textContent = game ? game.name : "";
   }
 
+  function renderTutorial(s) {
+    var game = (s.games || []).find(function (item) { return item.slug === s.selected_game; });
+    var tutorial = s.tutorial || {};
+    $id("tutorial-game-name").textContent = game ? game.name : "Game tutorial";
+    $id("tutorial-title").textContent = tutorial.title || "Get ready";
+    $id("tutorial-instruction").textContent = tutorial.instruction || "Watch the LED strip.";
+    $id("tutorial-step").textContent = tutorial.count
+      ? "Step " + tutorial.index + " of " + tutorial.count
+      : "Starting soon";
+    var progress = tutorial.count ? (tutorial.index / tutorial.count) * 100 : 100;
+    $id("tutorial-progress").style.width = progress + "%";
+  }
+
   function renderGame(s) {
     var game = s.game || {};
     $id("game-title").textContent = game.name || "Game";
@@ -406,6 +424,10 @@
 
     $id("start-btn").addEventListener("click", function () {
       App.socket.emit("start_game");
+    });
+
+    $id("skip-tutorial-btn").addEventListener("click", function () {
+      App.socket.emit("skip_tutorial");
     });
 
     $id("back-to-idle").addEventListener("click", function () {

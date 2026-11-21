@@ -23,6 +23,11 @@ class BaseGame:
     max_players = None
     #: Physical strip orientations this game is designed to support.
     layouts = ("horizontal", "vertical")
+    tutorial_steps = ({
+        "title": "How to play",
+        "instruction": "Watch the LED strip and follow the controller prompt.",
+        "duration": 3.0,
+    },)
 
     def __init__(self, manager):
         self.manager = manager
@@ -72,6 +77,10 @@ class BaseGame:
 
     def render(self, frame, dt):
         """Fill ``frame`` with the current game view."""
+
+    def render_tutorial(self, frame, step_index, elapsed, duration):
+        """Render an instructional preview frame without advancing game play."""
+        frame.fill((16, 24, 48))
 
     def get_state(self):
         """Return a JSON-serialisable snapshot for the web UI."""

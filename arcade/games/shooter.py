@@ -24,6 +24,10 @@ class ShooterGame(BaseGame):
     BASE_SPEED = 5.0
     PROJECTILE_SPEED = 45.0
     GAME_TIME = 60.0
+    tutorial_steps = (
+        {"title": "Protect the base", "instruction": "Enemies approach from the far end of the strip.", "duration": 2.6},
+        {"title": "Fire to destroy", "instruction": "Tap FIRE to launch a shot. Stop enemies reaching your base.", "duration": 2.6},
+    )
 
     def __init__(self, manager):
         super().__init__(manager)
@@ -173,6 +177,17 @@ class ShooterGame(BaseGame):
         for i in range(min(3, frame.count)):
             if i < int(self.health * 3 / self.START_HEALTH):
                 frame.set(i, (0, 200, 0))
+
+    def render_tutorial(self, frame, step_index, elapsed, duration):
+        base = 1
+        enemy = max(base + 5, frame.count - 1 - int(elapsed * 5.0) % max(1, frame.count - 5))
+        frame.set(base, (0, 220, 100))
+        frame.set(enemy, (255, 40, 35))
+        if step_index == 1:
+            shot = min(enemy, base + int(elapsed * self.PROJECTILE_SPEED))
+            frame.set(shot, (220, 250, 255))
+            if shot >= enemy - 1:
+                frame.set(enemy, (255, 255, 255))
 
     def get_state(self):
         state = super().get_state()

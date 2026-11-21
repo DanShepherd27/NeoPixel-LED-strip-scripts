@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261121-tutorial">
 </head>
 <body>
   <header class="app-header">
@@ -83,6 +83,19 @@
     </section>
 
     <!-- Countdown -->
+    <section id="screen-tutorial" class="screen">
+      <div class="card tutorial-card">
+        <p class="muted" id="tutorial-game-name">Game tutorial</p>
+        <div class="tutorial-led-preview" aria-hidden="true"><span></span></div>
+        <h2 id="tutorial-title">How to play</h2>
+        <p id="tutorial-instruction" class="muted"></p>
+        <p id="tutorial-step" class="tutorial-step"></p>
+        <div class="tutorial-progress"><span id="tutorial-progress"></span></div>
+        <button id="skip-tutorial-btn" class="btn btn-ghost btn-block">SKIP TUTORIAL</button>
+      </div>
+    </section>
+
+    <!-- Countdown -->
     <section id="screen-countdown" class="screen">
       <div class="countdown-wrap">
         <div id="countdown-number" class="countdown-number">3</div>
@@ -113,7 +126,7 @@
     </section>
   </main>
 
-  <script src="/static/js/app.js?v=20261121-join-screen"></script>
+  <script src="/static/js/app.js?v=20261121-tutorial"></script>
   <script src="/static/js/games.js"></script>
   <script src="/static/js/controller.js"></script>
 </body>

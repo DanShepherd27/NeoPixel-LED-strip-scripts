@@ -80,6 +80,11 @@ def register_api(app, manager, hardware):
         manager.start_game()
         return jsonify({"ok": True})
 
+    @app.post("/api/skip_tutorial")
+    def http_skip_tutorial():
+        manager.skip_tutorial()
+        return jsonify({"ok": True})
+
     @app.post("/api/rematch")
     def http_rematch():
         manager.rematch()
@@ -216,6 +221,11 @@ def register_api(app, manager, hardware):
     @socketio.on("start_game")
     def on_start_game():
         manager.start_game()
+        broadcast_state()
+
+    @socketio.on("skip_tutorial")
+    def on_skip_tutorial():
+        manager.skip_tutorial()
         broadcast_state()
 
     @socketio.on("rematch")

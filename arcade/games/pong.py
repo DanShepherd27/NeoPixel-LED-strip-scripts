@@ -25,6 +25,10 @@ class PongGame(BaseGame):
     START_SPEED = 20.0
     MAX_SPEED = 60.0
     SPEEDUP = 4.0           # LEDs/sec added per hit
+    tutorial_steps = (
+        {"title": "Guard your end", "instruction": "Each player protects one end of the strip.", "duration": 2.6},
+        {"title": "Tap HIT in the zone", "instruction": "Tap as the ball enters your dim end zone to send it back.", "duration": 2.6},
+    )
 
     def __init__(self, manager):
         super().__init__(manager)
@@ -132,6 +136,16 @@ class PongGame(BaseGame):
         if self._flash > 0:
             for i in range(frame.count):
                 frame.blend(i, (255, 255, 255), self._flash * 0.4)
+
+    def render_tutorial(self, frame, step_index, elapsed, duration):
+        zone = min(self.HIT_ZONE, frame.count // 3)
+        for i in range(zone):
+            frame.set(i, (30, 50, 170))
+            frame.set(frame.count - 1 - i, (170, 40, 50))
+        span = max(1, frame.count - 1)
+        phase = (elapsed * 0.45) % 2.0
+        ball = phase * span if phase <= 1.0 else (2.0 - phase) * span
+        frame.set(int(round(ball)), (255, 255, 255))
 
     def get_state(self):
         state = super().get_state()

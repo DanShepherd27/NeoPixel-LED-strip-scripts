@@ -51,6 +51,8 @@ class ArcadeManager:
         # Lifecycle timers.
         self.countdown = 0.0
         self.results_timer = 0.0
+        self.tutorial_index = 0
+        self.tutorial_elapsed = 0.0
 
         self._lock = threading.RLock()
         self._input_queue = queue.Queue()
@@ -98,11 +100,16 @@ class ArcadeManager:
     def start_game(self):
         with self._lock:
             if self.state == ArcadeState.LOBBY and self.selected_game:
-                self._enter_countdown()
+                self._enter_tutorial()
 
     def rematch(self):
         with self._lock:
             if self.state == ArcadeState.RESULTS and self.selected_game:
+                self._enter_tutorial()
+
+    def skip_tutorial(self):
+        with self._lock:
+            if self.state == ArcadeState.TUTORIAL:
                 self._enter_countdown()
 
     def return_to_idle(self):
@@ -112,6 +119,7 @@ class ArcadeManager:
     def stop_game(self):
         with self._lock:
             if self.state in (ArcadeState.GAME, ArcadeState.COUNTDOWN,
+                              ArcadeState.TUTORIAL,
                               ArcadeState.RESULTS):
                 self._enter_idle(clear_players=True)
 
@@ -132,6 +140,8 @@ class ArcadeManager:
         self.game_class = None
         self.selected_game = None
         self.countdown = 0.0
+        self.tutorial_index = 0
+        self.tutorial_elapsed = 0.0
         self.state = ArcadeState.IDLE
         log.info("State -> IDLE")
 
@@ -147,10 +157,20 @@ class ArcadeManager:
         self.players.reset_ready()
         log.info("State -> COUNTDOWN (%s)", self.selected_game)
 
-    def _start_game(self):
+    def _enter_tutorial(self):
         self.game_class = GAMES[self.selected_game]
         self.game = self.game_class(self)
         self.game.setup(self._participants())
+        self.tutorial_index = 0
+        self.tutorial_elapsed = 0.0
+        self.state = ArcadeState.TUTORIAL
+        log.info("State -> TUTORIAL (%s)", self.selected_game)
+
+    def _start_game(self):
+        if self.game is None or self.game_class is None:
+            self.game_class = GAMES[self.selected_game]
+            self.game = self.game_class(self)
+            self.game.setup(self._participants())
         self.game.start()
         self.state = ArcadeState.GAME
         log.info("State -> GAME (%s) with %d players",
@@ -194,6 +214,15 @@ class ArcadeManager:
                 self.current_effect.render(frame, dt)
             elif self.state == ArcadeState.LOBBY:
                 self._render_lobby(frame, dt)
+            elif self.state == ArcadeState.TUTORIAL:
+                self._update_tutorial(dt)
+                if self.state == ArcadeState.TUTORIAL and self.game is not None:
+                    steps = self.game_class.tutorial_steps
+                    step = steps[self.tutorial_index]
+                    self.game.render_tutorial(
+                        frame, self.tutorial_index, self.tutorial_elapsed,
+                        step["duration"],
+                    )
             elif self.state == ArcadeState.COUNTDOWN:
                 self._update_countdown(dt)
                 self._render_countdown(frame, dt)
@@ -210,6 +239,17 @@ class ArcadeManager:
         self._idle_timer -= dt
         if self._idle_timer <= 0:
             self._next_idle()
+
+    def _update_tutorial(self, dt):
+        steps = self.game_class.tutorial_steps
+        self.tutorial_elapsed += dt
+        while self.tutorial_index < len(steps):
+            duration = float(steps[self.tutorial_index]["duration"])
+            if self.tutorial_elapsed < duration:
+                return
+            self.tutorial_elapsed -= duration
+            self.tutorial_index += 1
+        self._enter_countdown()
 
     def _update_countdown(self, dt):
         self.countdown -= dt
@@ -296,6 +336,23 @@ class ArcadeManager:
                 "games": game_catalog(),
                 "selected_game": self.selected_game,
                 "countdown": round(max(0.0, self.countdown), 1),
+                "tutorial": self._tutorial_snapshot(),
                 "game": game_state,
                 "results": self.game.results if self.game else None,
             }
+
+    def _tutorial_snapshot(self):
+        if self.state != ArcadeState.TUTORIAL or self.game_class is None:
+            return None
+        steps = self.game_class.tutorial_steps
+        if not steps:
+            return {"index": 0, "count": 0, "title": "Get ready",
+                    "instruction": "The game is about to begin.", "remaining": 0.0}
+        step = steps[self.tutorial_index]
+        return {
+            "index": self.tutorial_index + 1,
+            "count": len(steps),
+            "title": step["title"],
+            "instruction": step["instruction"],
+            "remaining": round(max(0.0, float(step["duration"]) - self.tutorial_elapsed), 1),
+        }
