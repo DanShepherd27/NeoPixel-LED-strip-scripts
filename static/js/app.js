@@ -11,6 +11,7 @@
     playerId: localStorage.getItem(STORAGE_ID) || null,
     playerName: localStorage.getItem(STORAGE_NAME) || null,
     state: null,
+    screen: null,
   };
 
   function $id(id) { return document.getElementById(id); }
@@ -35,7 +36,10 @@
 
   function setPlayerId(id) {
     App.playerId = id;
-    if (id) localStorage.setItem(STORAGE_ID, id);
+    if (id) {
+      App.screen = null;
+      localStorage.setItem(STORAGE_ID, id);
+    }
     else localStorage.removeItem(STORAGE_ID);
   }
 
@@ -167,8 +171,8 @@
     if (orientationLabel) orientationLabel.textContent = orientation;
 
     if (!App.playerId) {
-      // Spectator: show attract screen.
-      showScreen("home");
+      // Keep the nickname form open while a visitor is deciding to join.
+      showScreen(App.screen === "join" ? "join" : "home");
       if (App.playerName) $id("name-input").value = App.playerName;
       return;
     }
@@ -377,6 +381,7 @@
   // ---- events -------------------------------------------------------------
   function wireEvents() {
     $id("enter-lobby").addEventListener("click", function () {
+      App.screen = "join";
       showScreen("join");
     });
 
