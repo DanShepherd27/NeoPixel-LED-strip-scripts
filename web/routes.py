@@ -30,6 +30,7 @@ def register_routes(app, manager, hardware):
             "led_count": hardware.count,
             "hidden_start": hardware.hidden_start,
             "hidden_end": hardware.hidden_end,
+            "audio": manager.audio_input.snapshot() if manager.audio_input else None,
         })
 
     @app.route("/qr.svg")

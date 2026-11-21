@@ -17,9 +17,10 @@ from config import (
     LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_BRIGHTNESS,
     LED_HIDDEN_START, LED_HIDDEN_END,
     LED_INVERT, LED_CHANNEL, HOST, PORT, FPS,
-    RUNTIME_SETTINGS_FILE,
+    RUNTIME_SETTINGS_FILE, AUDIO_DEVICE,
 )
 from led.hardware import LEDHardware
+from led.audio import AudioInput
 from led.renderer import Renderer
 from arcade.manager import ArcadeManager
 from web.server import create_app
@@ -67,7 +68,9 @@ def main():
         hardware.strip = None
         hardware.mock = True
 
-    manager = ArcadeManager(LED_COUNT)
+    audio_input = AudioInput(AUDIO_DEVICE)
+    audio_input.start()
+    manager = ArcadeManager(LED_COUNT, audio_input)
 
     renderer = Renderer(hardware, FPS)
     renderer.set_scene(manager)
@@ -89,6 +92,7 @@ def main():
         log.info("Shutting down")
     finally:
         renderer.stop()
+        audio_input.stop()
         hardware.clear()
 
 

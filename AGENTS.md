@@ -17,6 +17,10 @@ and usable without internet after installation.
 - `LED_HIDDEN_START` and `LED_HIDDEN_END` are global counts of dark pixels at
   the physical ends. Admin changes apply immediately and persist in
   `runtime-settings.json` in the app directory.
+- Free music mode reads microphone PCM from `arecord` via `led/audio.py`; the
+  ALSA device is `LED_AUDIO_DEVICE` (default `default`). Capture runs only
+  while the visualizer is active. It computes adaptive RMS volume and clap
+  transients; the central renderer remains the sole LED writer.
 - The systemd service runs as root because the current GPIO/DMA setup requires
   it. `/healthz` reports `led_hardware`, `led_error`, count and offsets. A
   `mock` value means the web process is alive but physical LED control failed;
@@ -74,8 +78,9 @@ shared cue, but button arrival time is currently scored on the server.
 ## Current scope and deferred work
 
 This is an MVP, not the full vision in `context.md`. Idle effects, lobby,
-player colors, four games, pre-game tutorials, admin LED offsets, and basic
-deployment are present. Cross-fades/admin animation controls, stronger
+player colors, four games, pre-game tutorials, admin LED offsets, free
+microphone music visualization, and basic deployment are present.
+Cross-fades/admin animation controls, stronger
 reconnect handling, game balancing/playtesting, more games, audio, and Pi
 hardware validation remain. Spotify-reactive lighting and a public queue are
 roadmap-only; do not implement them unless asked.

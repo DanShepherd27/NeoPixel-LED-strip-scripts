@@ -111,6 +111,18 @@ def register_api(app, manager, hardware):
             manager.touch(player_id)
         return jsonify({"ok": True})
 
+    @app.post("/api/music_mode")
+    def http_music_mode():
+        enabled = bool((request.get_json(silent=True) or {}).get("enabled"))
+        if enabled and not manager.start_music_mode():
+            return jsonify({
+                "ok": False,
+                "message": "Free music mode can only start while the arcade is idle.",
+            }), 409
+        if not enabled:
+            manager.stop_music_mode()
+        return jsonify({"ok": True, "enabled": enabled})
+
     @app.post("/api/admin/login")
     def admin_login():
         password = (request.get_json(silent=True) or {}).get("password", "")

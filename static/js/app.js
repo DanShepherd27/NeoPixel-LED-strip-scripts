@@ -59,6 +59,7 @@
           skip_tutorial: "/api/skip_tutorial",
           return_to_idle: "/api/return_to_idle", input: "/api/input",
           ping: "/api/ping",
+          music_mode: "/api/music_mode",
         };
         var route = routes[event];
         if (!route) return;
@@ -135,6 +136,8 @@
       var err = $id("join-error");
       err.textContent = data && data.message ? data.message : "Something went wrong.";
       err.hidden = false;
+      var musicError = $id("music-message");
+      if (musicError) musicError.textContent = err.textContent;
     });
 
     App.socket.on("state", onState);
@@ -167,6 +170,18 @@
     $id("idle-animation").textContent = s.idle_animation || "—";
     $id("player-count").textContent = (s.players || []).length;
     $id("lan-url").textContent = window.location.host;
+    var musicButton = $id("music-mode-btn");
+    var musicMessage = $id("music-message");
+    if (musicButton) {
+      var musicActive = s.state === "music";
+      musicButton.textContent = musicActive ? "STOP MUSIC MODE" : "START FREE MUSIC MODE";
+      var audio = s.audio || {};
+      musicMessage.textContent = musicActive
+        ? (audio.status === "listening"
+          ? "Listening on " + (audio.device || "default") + "; volume adapts automatically; clap for a flash"
+          : (audio.error || "Starting microphone..."))
+        : "Uses the Pi microphone input; no Spotify or internet connection needed.";
+    }
     var orientation = s.led_orientation || "vertical";
     var orientationLabel = $id("strip-orientation");
     if (orientationLabel) orientationLabel.textContent = orientation;
@@ -401,6 +416,10 @@
     $id("enter-lobby").addEventListener("click", function () {
       App.screen = "join";
       showScreen("join");
+    });
+
+    $id("music-mode-btn").addEventListener("click", function () {
+      App.socket.emit("music_mode", { enabled: !App.state || App.state.state !== "music" });
     });
 
     $id("join-form").addEventListener("submit", function (ev) {

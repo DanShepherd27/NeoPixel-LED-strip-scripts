@@ -90,6 +90,15 @@ Pi instead of as a service, use:
 sudo /home/pi/neopixel-env/bin/python /home/pi/led-arcade/app.py
 ```
 
+The home screen also offers **Free music mode**. It listens to the Pi's
+microphone input and expands/changes the LED pattern with ambient sound level;
+clap transients flash the strip. It visualizes room sound and does not play or
+stream music. The deploy script installs `alsa-utils` if `arecord` is missing.
+To select a specific microphone, run `arecord -l` on the Pi and set
+`LED_AUDIO_DEVICE` in `.deploy.env` (for example `plughw:1,0`) before deploying.
+The home screen reports microphone status and capture errors while the mode is
+active.
+
 ## MVP scope and roadmap
 
 Included: central 40 FPS renderer, idle effects with automatic rotation,
@@ -99,7 +108,7 @@ dynamic player colors, and four games with results/rematch flow.
 Still on the roadmap: smooth cross-fade transitions between idle effects;
 configurable animation selection/duration from an admin UI; robust reconnect
 and disconnect handling; richer game balance and real-world multiplayer
-playtesting; sound and Spotify music-reactive mode with a public queue link;
+playtesting; Spotify music-reactive mode with a public queue link;
 deployment validation on the target Pi and strip; and the broader additional
 games, polish and security review described in `context.md`. Spotify remains
 unimplemented.

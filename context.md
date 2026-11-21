@@ -1055,10 +1055,11 @@ Potential settings:
 - Game duration
 - Difficulty
 - Number of rounds
-- Sound support (future)
-- Music-reactive LED mode using Spotify (future; do not implement yet): connect
-  to the owner's personal Spotify account over the LAN and offer a public
-  website link where visitors can add tracks to a shared playback queue.
+- Free music mode (implemented): capture the local microphone through ALSA,
+  adapt the visualizer to ambient level, and flash on clap-like transients.
+- Spotify playback integration (future; do not implement yet): connect to the
+  owner's personal Spotify account over the LAN and offer a public website
+  link where visitors can add tracks to a shared playback queue.
 - Reset arcade
 - Stop game
 - Return to idle
@@ -1207,7 +1208,7 @@ Prioritize quality over quantity.
 - Animations
 - Transitions
 - Victory effects
-- Sound (optional future feature)
+- Sound effects (future; microphone-driven free music visualization is implemented)
 - Spotify music-reactive LED mode and public queue link (roadmap only; not part
   of the current implementation)
 - QR code

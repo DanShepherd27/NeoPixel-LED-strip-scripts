@@ -15,6 +15,7 @@ from arcade.state import ArcadeState
 from arcade.players import PlayerManager
 from arcade.games import GAMES, game_catalog
 from led.effects import EFFECTS
+from led.colors import hsv_to_rgb
 
 from config import (
     LED_COUNT,
@@ -29,8 +30,9 @@ log = logging.getLogger("arcade.manager")
 
 
 class ArcadeManager:
-    def __init__(self, count=LED_COUNT):
+    def __init__(self, count=LED_COUNT, audio_input=None):
         self.count = count
+        self.audio_input = audio_input
         self.state = ArcadeState.IDLE
         self.players = PlayerManager()
 
@@ -71,6 +73,8 @@ class ArcadeManager:
     # -- public control API (thread-safe, called from web layer) ------------
     def join_player(self, name):
         with self._lock:
+            if self.state == ArcadeState.MUSIC:
+                self.stop_music_mode()
             player = self.players.add_player(name)
             if self.state == ArcadeState.IDLE:
                 self._enter_lobby()
@@ -96,6 +100,28 @@ class ArcadeManager:
             if slug in GAMES and self.state == ArcadeState.LOBBY:
                 self.selected_game = slug
                 log.info("Game selected: %s", slug)
+
+    def start_music_mode(self):
+        with self._lock:
+            if self.state == ArcadeState.MUSIC:
+                return True
+            if self.state != ArcadeState.IDLE or self.audio_input is None:
+                return False
+            self.selected_game = None
+            self.game = None
+            self.game_class = None
+            self.audio_input.set_enabled(True)
+            self.state = ArcadeState.MUSIC
+            log.info("State -> MUSIC (microphone visualizer)")
+            return True
+
+    def stop_music_mode(self):
+        with self._lock:
+            if self.audio_input is not None:
+                self.audio_input.set_enabled(False)
+            if self.state == ArcadeState.MUSIC:
+                self.state = ArcadeState.IDLE
+                log.info("State -> IDLE (music visualizer stopped)")
 
     def start_game(self):
         with self._lock:
@@ -133,6 +159,8 @@ class ArcadeManager:
 
     # -- lifecycle transitions (must hold self._lock) ------------------------
     def _enter_idle(self, clear_players=True):
+        if self.audio_input is not None:
+            self.audio_input.set_enabled(False)
         if clear_players:
             for p in list(self.players.players()):
                 self.players.remove_player(p.id)
@@ -214,6 +242,8 @@ class ArcadeManager:
                 self.current_effect.render(frame, dt)
             elif self.state == ArcadeState.LOBBY:
                 self._render_lobby(frame, dt)
+            elif self.state == ArcadeState.MUSIC:
+                self._render_music(frame, dt)
             elif self.state == ArcadeState.TUTORIAL:
                 self._update_tutorial(dt)
                 if self.state == ArcadeState.TUTORIAL and self.game is not None:
@@ -239,6 +269,32 @@ class ArcadeManager:
         self._idle_timer -= dt
         if self._idle_timer <= 0:
             self._next_idle()
+
+    def _render_music(self, frame, dt):
+        audio = self.audio_input.snapshot() if self.audio_input else {}
+        level = float(audio.get("level", 0.0))
+        half = (self.count + 1) // 2
+        extent = int(round(level * max(0, half - 1)))
+
+        # Show a dim center marker when the room is quiet, then expand outward
+        # as microphone energy rises. Hue shifts from cool to warm with level.
+        for offset in range(max(1, extent + 1)):
+            strength = max(0.18, 1.0 - offset / max(2.0, extent + 1.0) * 0.65)
+            hue = 205.0 - 185.0 * level + offset * 2.5
+            color = hsv_to_rgb(hue, 0.9, strength * (0.28 + level * 0.72))
+            left = half - 1 - offset
+            right = half + offset
+            frame.set(left, color)
+            frame.set(right, color)
+
+        if audio.get("clap"):
+            self._music_clap_flash = 0.20
+        else:
+            self._music_clap_flash = max(0.0, getattr(self, "_music_clap_flash", 0.0) - dt)
+        if self._music_clap_flash > 0:
+            amount = min(1.0, self._music_clap_flash / 0.20)
+            for index in range(frame.count):
+                frame.blend(index, (255, 255, 255), amount)
 
     def _update_tutorial(self, dt):
         steps = self.game_class.tutorial_steps
@@ -337,6 +393,10 @@ class ArcadeManager:
                 "selected_game": self.selected_game,
                 "countdown": round(max(0.0, self.countdown), 1),
                 "tutorial": self._tutorial_snapshot(),
+                "audio": self.audio_input.snapshot() if self.audio_input else {
+                    "status": "unavailable", "error": "No audio input configured.",
+                    "level": 0.0, "peak": 0.0, "clap": False,
+                },
                 "game": game_state,
                 "results": self.game.results if self.game else None,
             }

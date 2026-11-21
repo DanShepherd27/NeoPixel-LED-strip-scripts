@@ -16,6 +16,12 @@ if [ ! -x "$PYTHON" ]; then
     python3 -m venv --system-site-packages "$VENV"
 fi
 
+if ! command -v arecord >/dev/null 2>&1; then
+    echo "Installing ALSA microphone utilities"
+    apt-get update
+    apt-get install -y alsa-utils
+fi
+
 echo "Installing Python requirements"
 "$PYTHON" -m pip install --upgrade pip
 "$PYTHON" -m pip install -r "$APP_DIR/requirements.txt"
