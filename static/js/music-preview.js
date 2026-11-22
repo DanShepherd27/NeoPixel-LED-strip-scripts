@@ -94,9 +94,16 @@
     if (now - previewLastDraw < 50) return;
     previewLastDraw = now;
     const audio = currentApp.state && currentApp.state.audio || {};
-    const bands = Array.isArray(audio.bands) && audio.bands.length === 6
+    let bands = Array.isArray(audio.bands) && audio.bands.length === 6
       ? audio.bands.map(function (value) { return Math.max(0, Math.min(1, Number(value) || 0)); })
       : [0, 0, 0, 0, 0, 0];
+    const overallLevel = Math.max(0, Math.min(1, Number(audio.level) || 0));
+    // Older or partially available audio sources may provide overall level
+    // without usable frequency bands. Keep the graphic EQ visibly responsive
+    // instead of presenting a blank chart while audio is reaching the server.
+    if (overallLevel > 0.015 && !bands.some(function (value) { return value > 0.015; })) {
+      bands = bands.map(function () { return overallLevel; });
+    }
     const selected = Array.prototype.map.call(document.querySelectorAll("#live-band-controls [data-band]"),
       function (input) { return input.checked; });
     const colors = ["#ff2c0c", "#ff7a00", "#ffdc00", "#24ff20", "#00cdff", "#aa20ff"];

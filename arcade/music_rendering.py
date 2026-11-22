@@ -198,9 +198,37 @@ class MusicRenderingMixin(MusicPatternMixin):
             peak = min(1.0, (peak * 1.5) ** 0.82)
         brightness = 0.16 + 0.66 * level
         if self.music_animation == "red_shades":
+            bass = max(bands[0], bands[1] * 0.88) if bands else level
+            bass = min(1.0, (bass * 1.7) ** 0.72)
+            beat = min(1.0, self._music_beat_pulse)
+            period = self._music_beat_period
+            fast_beat_pulse = None
+            if (period is not None and period <= 0.5 and
+                    self._music_beat_confidence >= 0.25 and
+                    self._music_beat_last_onset is not None):
+                beat_phase = (self._music_beat_clock - self._music_beat_last_onset) % period
+                pulse_width = period * 0.38
+                if beat_phase < pulse_width:
+                    fast_beat_pulse = 1.0 - beat_phase / pulse_width
+                else:
+                    fast_beat_pulse = 0.0
             for index in range(count):
                 wave = (math.sin(index * 0.48 + self._music_phase * 4.0) + 1.0) * 0.5
-                red = int(max(8, min(255, 12 + level * 45 + wave * (24 + 174 * level) + peak * 20)))
+                # Bass energy carries the steady pulse, while onset/predicted
+                # beat energy adds a clear kick without requiring RMS volume
+                # to change much across the track.
+                if fast_beat_pulse is not None:
+                    # At fast tempos, reserve most of each beat for a dark
+                    # gap so adjacent flashes remain visually distinct.
+                    pulse = fast_beat_pulse
+                    red = int(max(0, min(
+                        255, pulse * (24 + bass * 112 + wave * (24 + 82 * bass) + peak * 8),
+                    )))
+                else:
+                    red = int(max(8, min(
+                        255,
+                        10 + bass * 92 + wave * (18 + 100 * bass) + beat * 110 + peak * 12,
+                    )))
                 frame.set(index, (red, 0, 0))
             return
 
