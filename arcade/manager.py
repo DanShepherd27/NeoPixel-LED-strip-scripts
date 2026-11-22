@@ -83,6 +83,17 @@ class ArcadeManager:
         self._laser_phrase_index = -1
         self._laser_color_index = 0
         self._laser_energy = 0.0
+        self._laser_last_phrase = -1
+        self._laser_call_side = 0
+        self._laser_group_mode = False
+        self._laser_motion = 0.0
+        self._laser_target = 0.0
+        self._laser_step = 0
+        self._laser_previous_bands = [0.0] * 6
+        self._laser_kick = 0.0
+        self._laser_snare = 0.0
+        self._laser_last_kick = -10.0
+        self._laser_last_snare = -10.0
         self.state = ArcadeState.IDLE
         self.players = PlayerManager()
 
@@ -392,7 +403,7 @@ class ArcadeManager:
         )
         self._draw_music_animation(frame, level, peak, dt, bands)
 
-        if beat_pulse > 0 and self.music_animation != "live_band":
+        if beat_pulse > 0 and self.music_animation not in ("live_band", "laser_dance"):
             flash_color = (
                 (255, 70, 0) if self.music_animation in ("retro_vu", "live_band")
                 else self._music_accent_rgb
@@ -405,7 +416,7 @@ class ArcadeManager:
             self._music_clap_flash = 0.13
         else:
             self._music_clap_flash = max(0.0, getattr(self, "_music_clap_flash", 0.0) - dt)
-        if self._music_clap_flash > 0 and self.music_animation != "live_band":
+        if self._music_clap_flash > 0 and self.music_animation not in ("live_band", "laser_dance"):
             amount = min(0.32, self._music_clap_flash / 0.13 * 0.32)
             if self.music_animation == "red_shades":
                 flash_color = (255, 0, 0)
@@ -502,39 +513,7 @@ class ArcadeManager:
             frame.set(tail, (0, int(170 * self._bpm_trace_energy), int(255 * self._bpm_trace_energy)))
             return
         if self.music_animation == "laser_dance":
-            frame.clear()
-            period = self._music_beat_period or 0.55
-            beat = int(self._music_beat_clock / period)
-            if beat // self._laser_phrase_length != self._laser_phrase_index:
-                self._laser_phrase_index = beat // self._laser_phrase_length
-                # Four and eight beat phrases alternate so choreography has
-                # room to breathe and does not flicker on every beat.
-                self._laser_phrase_length = 8 if self._laser_phrase_index % 2 else 4
-                self._laser_phrase = (self._laser_phrase_index % 4)
-                self._laser_color_index = (self._laser_color_index + 1) % 3
-            phase = (self._music_beat_clock / period) % self._laser_phrase_length
-            # Follow song dynamics: let energy rise quickly and fall gently,
-            # with the level envelope deciding how many dancers join.
-            selected_energy = [value for index, value in enumerate(bands or [])
-                               if self.music_enabled_bands[index]]
-            sound_level = sum(selected_energy) / max(1, len(selected_energy))
-            target_energy = min(1.0, max(sound_level, self._music_beat_pulse * 0.8))
-            response = 0.16 if target_energy > self._laser_energy else 1.2
-            self._laser_energy += (target_energy - self._laser_energy) * min(1.0, max(0.0, dt) / response)
-            wave = (math.sin((phase / self._laser_phrase_length) * math.tau) + 1.0) * 0.5
-            rgb = ((0, 210, 255), (180, 40, 255), (255, 40, 120))[self._laser_color_index]
-            runner = wave * (count - 1) if self._laser_phrase % 2 == 0 else (1.0 - wave) * (count - 1)
-            frame.set(int(round(runner)), rgb)
-            # A phrase starts with the solo pixel. Rising energy introduces
-            # up to two dim companions that drift inward/outward in sequence.
-            dancer_count = 1 + int(self._laser_energy > 0.32) + int(self._laser_energy > 0.68)
-            for dancer in range(1, dancer_count):
-                distance = 5 + dancer * 7 + round((1.0 - wave) * (count * 0.22))
-                if self._laser_phrase % 2:
-                    distance = count - 1 - distance
-                position = min(count - 1, max(0, int(round(runner + (distance if dancer % 2 else -distance)))))
-                companion = tuple(int(channel * (0.45 / dancer)) for channel in rgb)
-                frame.set(position, companion)
+            self._draw_laser_dance(frame, bands or [level] * 6, dt)
             return
         if self.music_animation in ("center_pulse", "mirror_bars", "comet", "inward_diamonds"):
             # These patterns previously used raw RMS directly, which left
@@ -646,6 +625,129 @@ class ArcadeManager:
             color = tuple(int(channel * strength * pulse_brightness) for channel in color)
             frame.set(half - 1 - offset, color)
             frame.set(half + offset, color)
+
+    def _draw_laser_dance(self, frame, bands, dt):
+        """Sparse, phrase-based choreography driven by drum-like onsets.
+
+        This is intentionally an interpretation rather than instrument
+        separation: low-band attacks are kick-like and mid/high attacks are
+        snare-like. Other band energy provides the quieter connective motion.
+        """
+        frame.clear()
+        count = self.count
+        bands = [max(0.0, min(1.0, float(value))) for value in bands]
+        enabled = [value if self.music_enabled_bands[index] else 0.0
+                   for index, value in enumerate(bands)]
+        now = self._music_beat_clock
+        low = max(enabled[0], enabled[1] * 0.90)
+        snare_band = max(enabled[2] * 0.65, enabled[3], enabled[4] * 0.78)
+        low_rise = low - max(self._laser_previous_bands[0], self._laser_previous_bands[1] * 0.90)
+        snare_rise = snare_band - max(
+            self._laser_previous_bands[2] * 0.65,
+            self._laser_previous_bands[3], self._laser_previous_bands[4] * 0.78,
+        )
+        self._laser_previous_bands = list(enabled)
+
+        kick_hit = low >= 0.24 and low_rise >= 0.07 and now - self._laser_last_kick >= 0.22
+        snare_hit = (snare_band >= 0.28 and snare_rise >= 0.08 and
+                     snare_band >= low * 0.62 and now - self._laser_last_snare >= 0.16)
+        if kick_hit:
+            self._laser_last_kick = now
+            self._laser_kick = 1.0
+            self._laser_step += 1
+        else:
+            self._laser_kick *= math.exp(-max(0.0, dt) * 5.0)
+        if snare_hit:
+            self._laser_last_snare = now
+            self._laser_snare = 1.0
+        else:
+            self._laser_snare *= math.exp(-max(0.0, dt) * 8.0)
+
+        period = self._music_beat_period or 0.55
+        phrase_index = int(now / period) // 8
+        if phrase_index != self._laser_phrase_index:
+            self._laser_phrase_index = phrase_index
+            # A club-like scene lasts eight beats: solo chase, call/answer,
+            # mirror sweep, then a grouped run for a higher-energy phrase.
+            self._laser_phrase = phrase_index % 4
+            self._laser_call_side = phrase_index % 2
+            self._laser_color_index = phrase_index % 3
+
+        selected = [value for index, value in enumerate(enabled)
+                    if self.music_enabled_bands[index]]
+        target_energy = sum(selected) / max(1, len(selected))
+        rate = 0.16 if target_energy > self._laser_energy else 1.35
+        self._laser_energy += (target_energy - self._laser_energy) * min(1.0, max(0.0, dt) / rate)
+
+        # Audio influences a continuously changing palette. Low energy makes
+        # it cooler; mid/high energy opens it toward magenta and violet.
+        hue = (190 + 58 * max(enabled[3:]) + 22 * enabled[0] + phrase_index * 17) % 360
+        lead_color = hsv_to_rgb(hue, 0.88, 0.96)
+        answer_color = hsv_to_rgb((hue + 78) % 360, 0.82, 0.82)
+        soft_color = hsv_to_rgb((hue + 32) % 360, 0.72, 0.46)
+        section = max(1, count // 4)
+
+        # Kicks advance the choreography; the motion is eased so the strip
+        # reads as a chase rather than a strobe.
+        if self._laser_phrase == 0:
+            path = (2, 10, 19, 29, 40, 50, 57, 47, 36, 25, 14, 5)
+        elif self._laser_phrase == 1:
+            path = (2, 5, 9, 13, 10, 6)
+        elif self._laser_phrase == 2:
+            path = (2, 6, 10, 13, 9, 5)
+        else:
+            path = (2, 5, 8, 11, 13, 10, 7, 4)
+        target = path[self._laser_step % len(path)]
+        if self._laser_phrase in (1, 3) and self._laser_call_side:
+            target = count - 1 - target
+        self._laser_target = target
+        ease = 0.12 if kick_hit else 0.42
+        self._laser_motion += (target - self._laser_motion) * min(1.0, max(0.0, dt) / ease)
+        lead = min(count - 1, max(0, int(round(self._laser_motion))))
+
+        def paint_run(center, length, color, strength=1.0):
+            start = center - (length - 1) // 2
+            for offset in range(length):
+                pixel = start + offset
+                if 0 <= pixel < count:
+                    edge = 1.0 - abs(offset - (length - 1) / 2) / max(1.0, length)
+                    frame.set(pixel, tuple(int(channel * strength * (0.68 + edge * 0.32))
+                                           for channel in color))
+
+        if self._laser_phrase == 0:
+            # Single-color chase: the clearest sound-active club-light cue.
+            paint_run(lead, 1, lead_color)
+            if self._laser_snare > 0.14:
+                paint_run(max(0, lead - 3), 1, answer_color, self._laser_snare * 0.65)
+        elif self._laser_phrase == 1:
+            # Question/answer: the kick speaks in one outer quarter and the
+            # snare replies from the other, leaving both middle quarters dark.
+            paint_run(lead, 1, lead_color)
+            if self._laser_snare > 0.12:
+                paint_run(count - 1 - lead, 1, answer_color, self._laser_snare)
+        elif self._laser_phrase == 2:
+            # Alternating laser look: two symmetric dancers only occupy the
+            # two outer quarters, separated by thirty dark pixels.
+            outer = min(section - 1, max(0, lead))
+            paint_run(outer, 1, lead_color)
+            paint_run(count - 1 - outer, 1, lead_color, 0.82)
+        else:
+            # Grouped chase for a chorus/drop, still only three adjacent LEDs.
+            side_start = 0 if self._laser_call_side == 0 else count - section
+            local = min(section - 2, max(1, lead - side_start))
+            group = side_start + local
+            group_size = 3 if self._laser_energy > 0.48 else 1
+            paint_run(group, group_size, lead_color)
+            if self._laser_snare > 0.16:
+                paint_run(count - 1 - group, 1, answer_color, self._laser_snare * 0.78)
+
+        # A single, dim, slow accent represents melodic/vocal content only
+        # when the drums leave space. It never shares a section with a pair.
+        mid_energy = max(enabled[2:]) if enabled[2:] else 0.0
+        if self._laser_phrase in (0, 3) and self._laser_kick < 0.12 and self._laser_snare < 0.12 and mid_energy > 0.20:
+            middle_start = section if self._laser_call_side == 0 else section * 2
+            drift = int((math.sin(now * 0.72) + 1.0) * 0.5 * (section - 1))
+            paint_run(middle_start + drift, 1, soft_color, min(0.48, mid_energy * 0.55))
 
     def _draw_live_band(self, frame, bands, dt):
         """Render six frequency bands as independent bars along the 1D strip."""
