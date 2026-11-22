@@ -93,7 +93,7 @@ def main():
             raise ValueError("saved microphone handoff must be between 15 and 1800 seconds")
         if music_animation not in (
             "center_pulse", "mirror_bars", "rainbow_wave", "comet",
-            "retro_vu", "inward_diamonds", "red_shades", "live_band", "bpm_trace", "laser_dance", "kitt_scanner",
+            "retro_vu", "inward_diamonds", "red_shades", "live_band", "bpm_trace", "laser_dance", "kitt_scanner", "christmas_glitter",
         ):
             raise ValueError("saved music animation is not supported")
         if not 0.25 <= music_sensitivity <= 4.0:

@@ -66,6 +66,7 @@ class ArcadeManager(MusicRenderingMixin):
         self._music_phase = 0.0
         self._music_beat_clock = 0.0
         self._music_beat_last_onset = None
+        self._music_beat_onset_count = 0
         self._music_beat_period = None
         self._music_beat_confidence = 0.0
         self._music_beat_low = 0.0
@@ -247,7 +248,7 @@ class ArcadeManager(MusicRenderingMixin):
         if animation not in (
             "center_pulse", "mirror_bars", "rainbow_wave", "comet",
             "retro_vu", "inward_diamonds", "red_shades", "live_band",
-            "bpm_trace", "laser_dance", "kitt_scanner",
+            "bpm_trace", "laser_dance", "kitt_scanner", "christmas_glitter",
         ):
             raise ValueError("Unknown music animation.")
         if not 0.25 <= float(sensitivity) <= 4.0:

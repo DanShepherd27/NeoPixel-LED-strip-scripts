@@ -58,7 +58,9 @@ class MusicRenderingMixin(MusicPatternMixin):
         )
         self._draw_music_animation(frame, level, peak, dt, bands)
 
-        if beat_pulse > 0 and self.music_animation not in ("live_band", "laser_dance", "kitt_scanner"):
+        if beat_pulse > 0 and self.music_animation not in (
+            "live_band", "laser_dance", "kitt_scanner", "christmas_glitter",
+        ):
             flash_color = (
                 (255, 70, 0) if self.music_animation in ("retro_vu", "live_band")
                 else self._music_accent_rgb
@@ -71,7 +73,9 @@ class MusicRenderingMixin(MusicPatternMixin):
             self._music_clap_flash = 0.13
         else:
             self._music_clap_flash = max(0.0, getattr(self, "_music_clap_flash", 0.0) - dt)
-        if self._music_clap_flash > 0 and self.music_animation not in ("live_band", "laser_dance", "kitt_scanner"):
+        if self._music_clap_flash > 0 and self.music_animation not in (
+            "live_band", "laser_dance", "kitt_scanner", "christmas_glitter",
+        ):
             amount = min(0.32, self._music_clap_flash / 0.13 * 0.32)
             if self.music_animation == "red_shades":
                 flash_color = (255, 0, 0)
@@ -81,6 +85,40 @@ class MusicRenderingMixin(MusicPatternMixin):
                 flash_color = self._music_accent_rgb
             for index in range(frame.count):
                 frame.blend(index, flash_color, amount)
+
+    def _draw_christmas_glitter(self, frame, level, peak):
+        """Show slow candy-cane blocks, then a brief multicolor glitter burst."""
+        palette = (
+            (0, 255, 50), (0, 180, 255), (255, 190, 0),
+            (210, 0, 255), (255, 40, 90), (0, 255, 210),
+        )
+        period = self._music_beat_period
+        if period is None or self._music_beat_confidence < 0.25:
+            period = 0.65
+        if self._music_beat_last_onset is None:
+            beat_position = self._music_beat_clock / period
+        else:
+            elapsed = max(0.0, self._music_beat_clock - self._music_beat_last_onset)
+            beat_position = self._music_beat_onset_count + elapsed / period
+        cycle_position = beat_position % 4.0
+        glitter_phase = beat_position >= 4.0 and cycle_position < 0.38
+        beat = min(1.0, self._music_beat_pulse)
+        stripe_shift = int(beat_position / 2.0)
+        base_brightness = min(1.0, 0.58 + level * 0.28 + beat * 0.14)
+        glitter_brightness = min(1.0, 0.72 + level * 0.2 + peak * 0.08)
+        glitter_tick = int(self._music_beat_clock * 18.0)
+
+        for index in range(frame.count):
+            if glitter_phase:
+                seed = ((index * 73) ^ (glitter_tick * 193) ^
+                        (index * glitter_tick * 17)) % 100
+                color = palette[(index * 7 + glitter_tick * 3 + seed // 10) % len(palette)]
+                factor = glitter_brightness * (0.72 + (seed % 28) / 100.0)
+            else:
+                stripe = ((index + stripe_shift) // 5) % 2
+                color = (235, 8, 22) if stripe == 0 else (255, 245, 230)
+                factor = base_brightness
+            frame.set(index, tuple(int(channel * factor) for channel in color))
 
     def _update_music_beat(self, bands, latency_ms, dt):
         """Track bass onsets and pulse slightly ahead of the predicted next beat."""
@@ -98,6 +136,7 @@ class MusicRenderingMixin(MusicPatternMixin):
             self._music_beat_last_onset is None
             or now - self._music_beat_last_onset >= 0.27
         ):
+            self._music_beat_onset_count += 1
             if self._music_beat_last_onset is not None:
                 interval = now - self._music_beat_last_onset
                 if 0.30 <= interval <= 1.50:
@@ -200,6 +239,9 @@ class MusicRenderingMixin(MusicPatternMixin):
             return
         if self.music_animation == "laser_dance":
             self._draw_laser_dance(frame, bands or [level] * 6, dt)
+            return
+        if self.music_animation == "christmas_glitter":
+            self._draw_christmas_glitter(frame, level, peak)
             return
         if self.music_animation in ("center_pulse", "mirror_bars", "comet", "inward_diamonds"):
             # These patterns previously used raw RMS directly, which left
