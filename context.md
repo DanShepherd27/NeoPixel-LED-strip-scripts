@@ -1275,7 +1275,9 @@ Prioritize quality over quantity.
 - Animations
 - Transitions
 - Victory effects
-- Sound effects (future; microphone-driven free music visualization is implemented)
+- Per-player game sounds in the web client (future; play game cues only for each
+  player's own browser while a game is active; no lobby, menu, or free-music
+  mode sounds. Microphone-driven free music visualization is already implemented.)
 - Spotify music-reactive LED mode and public queue link (roadmap only; not part
   of the current implementation)
 - QR code
