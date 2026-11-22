@@ -45,8 +45,8 @@ and usable without internet after installation.
   ranges and do not isolate individual instruments. Music UI checkboxes select
   the bands that render. The strip preview uses the renderer's last 60-pixel
   frame, including peak/beat flashes, with hardware offsets and RGB balance
-  applied; it is horizontal in landscape and vertical in portrait. Bass kicks
-  add a brief saturated amber accent across the strip.
+  applied; it is horizontal in landscape and vertical in portrait. Live Band
+  Spectrum keeps its frequency colors confined to their bands.
   Music mode estimates BPM from bass-band onsets, adds a predicted beat pulse
   to every pattern, and compensates with measured mic/network latency. Admin
   beat-sync timing adds a saved -100 to +200 ms manual trim.

@@ -252,7 +252,7 @@ def register_api(app, manager, hardware):
             return jsonify({"ok": False, "message": "Microphone handoff must be between 15 and 1800 seconds."}), 400
         if animation_value not in (
             "center_pulse", "mirror_bars", "rainbow_wave", "comet",
-            "retro_vu", "inward_diamonds", "red_shades", "live_band",
+            "retro_vu", "inward_diamonds", "red_shades", "live_band", "bpm_trace", "laser_dance",
         ):
             return jsonify({"ok": False, "message": "Choose one of the available music animations."}), 400
         sensitivity = float(sensitivity_value)

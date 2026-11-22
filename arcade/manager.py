@@ -75,10 +75,14 @@ class ArcadeManager:
         self._music_band_peaks = [0.0] * 6
         self._music_band_holds = [0.0] * 6
         self.music_enabled_bands = [True] * 6
-        self._music_bass_flash = 0.0
         self._bpm_trace_position = 0.0
         self._bpm_trace_energy = 0.0
         self._music_led_frame = [(0, 0, 0)] * count
+        self._laser_phrase = 0
+        self._laser_phrase_length = 4
+        self._laser_phrase_index = -1
+        self._laser_color_index = 0
+        self._laser_energy = 0.0
         self.state = ArcadeState.IDLE
         self.players = PlayerManager()
 
@@ -214,7 +218,7 @@ class ArcadeManager:
         if animation not in (
             "center_pulse", "mirror_bars", "rainbow_wave", "comet",
             "retro_vu", "inward_diamonds", "red_shades", "live_band",
-            "bpm_trace",
+            "bpm_trace", "laser_dance",
         ):
             raise ValueError("Unknown music animation.")
         if not 0.25 <= float(sensitivity) <= 4.0:
@@ -388,7 +392,7 @@ class ArcadeManager:
         )
         self._draw_music_animation(frame, level, peak, dt, bands)
 
-        if beat_pulse > 0:
+        if beat_pulse > 0 and self.music_animation != "live_band":
             flash_color = (
                 (255, 70, 0) if self.music_animation in ("retro_vu", "live_band")
                 else self._music_accent_rgb
@@ -401,7 +405,7 @@ class ArcadeManager:
             self._music_clap_flash = 0.13
         else:
             self._music_clap_flash = max(0.0, getattr(self, "_music_clap_flash", 0.0) - dt)
-        if self._music_clap_flash > 0:
+        if self._music_clap_flash > 0 and self.music_animation != "live_band":
             amount = min(0.32, self._music_clap_flash / 0.13 * 0.32)
             if self.music_animation == "red_shades":
                 flash_color = (255, 0, 0)
@@ -496,6 +500,41 @@ class ArcadeManager:
             frame.set(marker, (255, 255, 255))
             tail = (marker - 1) % count
             frame.set(tail, (0, int(170 * self._bpm_trace_energy), int(255 * self._bpm_trace_energy)))
+            return
+        if self.music_animation == "laser_dance":
+            frame.clear()
+            period = self._music_beat_period or 0.55
+            beat = int(self._music_beat_clock / period)
+            if beat // self._laser_phrase_length != self._laser_phrase_index:
+                self._laser_phrase_index = beat // self._laser_phrase_length
+                # Four and eight beat phrases alternate so choreography has
+                # room to breathe and does not flicker on every beat.
+                self._laser_phrase_length = 8 if self._laser_phrase_index % 2 else 4
+                self._laser_phrase = (self._laser_phrase_index % 4)
+                self._laser_color_index = (self._laser_color_index + 1) % 3
+            phase = (self._music_beat_clock / period) % self._laser_phrase_length
+            # Follow song dynamics: let energy rise quickly and fall gently,
+            # with the level envelope deciding how many dancers join.
+            selected_energy = [value for index, value in enumerate(bands or [])
+                               if self.music_enabled_bands[index]]
+            sound_level = sum(selected_energy) / max(1, len(selected_energy))
+            target_energy = min(1.0, max(sound_level, self._music_beat_pulse * 0.8))
+            response = 0.16 if target_energy > self._laser_energy else 1.2
+            self._laser_energy += (target_energy - self._laser_energy) * min(1.0, max(0.0, dt) / response)
+            wave = (math.sin((phase / self._laser_phrase_length) * math.tau) + 1.0) * 0.5
+            rgb = ((0, 210, 255), (180, 40, 255), (255, 40, 120))[self._laser_color_index]
+            runner = wave * (count - 1) if self._laser_phrase % 2 == 0 else (1.0 - wave) * (count - 1)
+            frame.set(int(round(runner)), rgb)
+            # A phrase starts with the solo pixel. Rising energy introduces
+            # up to two dim companions that drift inward/outward in sequence.
+            dancer_count = 1 + int(self._laser_energy > 0.32) + int(self._laser_energy > 0.68)
+            for dancer in range(1, dancer_count):
+                distance = 5 + dancer * 7 + round((1.0 - wave) * (count * 0.22))
+                if self._laser_phrase % 2:
+                    distance = count - 1 - distance
+                position = min(count - 1, max(0, int(round(runner + (distance if dancer % 2 else -distance)))))
+                companion = tuple(int(channel * (0.45 / dancer)) for channel in rgb)
+                frame.set(position, companion)
             return
         if self.music_animation in ("center_pulse", "mirror_bars", "comet", "inward_diamonds"):
             # These patterns previously used raw RMS directly, which left
@@ -617,9 +656,6 @@ class ArcadeManager:
         )
         bands = [value if self.music_enabled_bands[index] else 0.0
                  for index, value in enumerate(bands)]
-        bass = max(bands[0], bands[1] * 0.92)
-        kick = min(1.0, max(0.0, bass) ** 0.72)
-        self._music_bass_flash = max(kick, self._music_bass_flash * math.exp(-max(0.0, dt) * 5.5))
         widths = (0.18, 0.16, 0.15, 0.15, 0.16, 0.20)
         for band_index, raw_level in enumerate(bands):
             target = min(1.0, max(0.0, float(raw_level)) * 1.35) ** 0.78
@@ -655,13 +691,6 @@ class ArcadeManager:
             marker = int(round(peak * capacity)) - 1
             if peak > 0.05 and 0 <= marker < capacity:
                 frame.set(start + marker, (0, 220, 255))
-
-        # Bass is the rhythmic anchor: kicks momentarily energize the whole
-        # one-dimensional strip so they read as full-strip accents.
-        if self._music_bass_flash > 0.04:
-            accent = min(0.34, self._music_bass_flash * 0.30)
-            for index in range(self.count):
-                frame.blend(index, (255, 88, 0), accent)
 
     def _update_tutorial(self, dt):
         steps = self.game_class.tutorial_steps
