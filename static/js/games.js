@@ -35,8 +35,28 @@
         const scores = game.scores || {};
         const vals = [];
         for (const k in scores) vals.push(scores[k]);
-        html = "<div class='hud-line'>" + (vals[0] || 0) + " — " + (vals[1] || 0) + "</div>";
-        break;
+        const playerId = window.App && window.App.playerId;
+        const assignment = (game.players || []).find(function (player) {
+          return player.id === playerId;
+        });
+        hud.replaceChildren();
+        if (assignment) {
+          const role = document.createElement("div");
+          role.className = "pong-player-role";
+          const swatch = document.createElement("span");
+          swatch.className = "pong-role-swatch";
+          swatch.style.backgroundColor = "rgb(" + assignment.color.join(",") + ")";
+          swatch.setAttribute("aria-hidden", "true");
+          const label = document.createElement("strong");
+          label.textContent = "Your end: " + assignment.side.toUpperCase();
+          role.append(swatch, label);
+          hud.appendChild(role);
+        }
+        const score = document.createElement("div");
+        score.className = "hud-line";
+        score.textContent = (vals[0] || 0) + " — " + (vals[1] || 0);
+        hud.appendChild(score);
+        return;
     }
 
     hud.innerHTML = html;

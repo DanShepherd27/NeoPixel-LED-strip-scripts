@@ -26,8 +26,8 @@ class PongGame(BaseGame):
     MAX_SPEED = 60.0
     SPEEDUP = 4.0           # LEDs/sec added per hit
     tutorial_steps = (
-        {"title": "Guard your end", "instruction": "Each player protects one end of the strip.", "duration": 2.6},
-        {"title": "Tap HIT in the zone", "instruction": "Tap as the ball enters your dim end zone to send it back.", "duration": 2.6},
+        {"title": "Guard your end", "instruction": "Your player color marks your end: one player guards LEFT, the other RIGHT.", "duration": 4.5},
+        {"title": "Tap HIT in the zone", "instruction": "Tap as the ball enters your colored end zone to send it back.", "duration": 4.5},
     )
 
     def __init__(self, manager):
@@ -153,5 +153,14 @@ class PongGame(BaseGame):
             "scores": dict(self.scores),
             "ball": round(self.ball, 1),
             "speed": round(self.speed, 1),
+            "players": [
+                {
+                    "id": player.id,
+                    "name": player.name,
+                    "color": list(player.color),
+                    "side": "left" if index == 0 else "right",
+                }
+                for index, player in enumerate(self.players)
+            ],
         })
         return state

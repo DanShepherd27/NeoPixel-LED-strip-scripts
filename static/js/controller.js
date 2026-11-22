@@ -85,8 +85,26 @@
     el.appendChild(row);
   }
 
-  function renderPong(el) {
-    el.appendChild(makeButton("HIT!", "hit", "hit"));
+  function renderPong(el, game) {
+    const playerId = window.App && window.App.playerId;
+    const assignment = (game.players || []).find(function (player) {
+      return player.id === playerId;
+    });
+    if (assignment) {
+      const role = document.createElement("div");
+      role.className = "pong-controller-role";
+      const swatch = document.createElement("span");
+      swatch.className = "pong-role-swatch";
+      swatch.style.backgroundColor = "rgb(" + assignment.color.join(",") + ")";
+      swatch.setAttribute("aria-hidden", "true");
+      const label = document.createElement("strong");
+      label.textContent = "You guard the " + assignment.side.toUpperCase() + " end";
+      role.append(swatch, label);
+      el.appendChild(role);
+    }
+    const hitButton = makeButton("HIT YOUR END", "hit pong-hit", "hit");
+    if (assignment) hitButton.style.borderColor = "rgb(" + assignment.color.join(",") + ")";
+    el.appendChild(hitButton);
   }
 
   function renderController(s) {
@@ -98,7 +116,7 @@
       case "reaction": renderReaction(el, game); break;
       case "dodge": renderDodge(el); break;
       case "shooter": renderShooter(el); break;
-      case "pong": renderPong(el); break;
+      case "pong": renderPong(el, game); break;
       default: break;
     }
   }

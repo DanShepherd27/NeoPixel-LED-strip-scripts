@@ -344,6 +344,18 @@ input[type="text"]:focus {
 /* HUD */
 .hud { font-size: 1.6rem; font-weight: 800; text-align: center; margin-top: 8px; }
 .hud .hud-line { margin: 4px 0; }
+.pong-player-role, .pong-controller-role {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 8px 0;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+.pong-player-role { padding: 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card-hover); }
+.pong-role-swatch { width: 22px; height: 22px; flex: 0 0 22px; border: 2px solid rgba(255,255,255,.85); border-radius: 50%; box-shadow: 0 0 12px currentColor; }
+.pong-hit { min-height: 96px; }
 
 /* Controller buttons */
 .controller { margin-top: 4px; }
@@ -484,4 +496,8 @@ input[type="text"]:focus {
     width: 100%;
     height: auto;
   }
+}
+
+@media (max-width: 1024px) and (pointer: coarse) {
+  body[data-arcade-state="game"] .led-preview-dock { display: none; }
 }

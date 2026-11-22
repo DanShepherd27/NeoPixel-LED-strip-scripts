@@ -25,8 +25,8 @@ class ShooterGame(BaseGame):
     PROJECTILE_SPEED = 45.0
     GAME_TIME = 60.0
     tutorial_steps = (
-        {"title": "Protect the base", "instruction": "Enemies approach from the far end of the strip.", "duration": 2.6},
-        {"title": "Fire to destroy", "instruction": "Tap FIRE to launch a shot. Stop enemies reaching your base.", "duration": 2.6},
+        {"title": "Protect the base", "instruction": "Enemies approach from the far end of the strip.", "duration": 4.5},
+        {"title": "Fire to destroy", "instruction": "Tap FIRE to launch a shot. Stop enemies reaching your base.", "duration": 4.5},
     )
 
     def __init__(self, manager):

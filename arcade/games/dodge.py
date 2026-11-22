@@ -28,8 +28,8 @@ class DodgeGame(BaseGame):
     SPEEDUP = 0.35           # LEDs/sec added per second
     INVULN_TIME = 1.5
     tutorial_steps = (
-        {"title": "Move to dodge", "instruction": "Hold LEFT or RIGHT to move your colored LED.", "duration": 2.6},
-        {"title": "Avoid red lights", "instruction": "Incoming red LEDs are obstacles. Survive with three lives.", "duration": 2.6},
+        {"title": "Move to dodge", "instruction": "Hold LEFT or RIGHT to move your colored LED.", "duration": 4.5},
+        {"title": "Avoid red lights", "instruction": "Incoming red LEDs are obstacles. Survive with three lives.", "duration": 4.5},
     )
 
     def __init__(self, manager):

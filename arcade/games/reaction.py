@@ -28,8 +28,8 @@ class ReactionGame(BaseGame):
     ROUND_PAUSE = 2.5
     FALSE_START_PENALTY = 3.0  # seconds added to a false-starter's time
     tutorial_steps = (
-        {"title": "Wait for the flash", "instruction": "Keep your hands off the button while the strip pulses.", "duration": 2.6},
-        {"title": "Tap on white", "instruction": "Press only when the whole strip flashes white.", "duration": 2.6},
+        {"title": "Wait for the flash", "instruction": "Keep your hands off the button while the strip pulses.", "duration": 4.5},
+        {"title": "Tap on white", "instruction": "Press only when the whole strip flashes white.", "duration": 4.5},
     )
 
     def __init__(self, manager):

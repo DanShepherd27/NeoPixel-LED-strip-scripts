@@ -179,6 +179,7 @@
   function render() {
     const s = App.state;
     if (!s) return;
+    document.body.dataset.arcadeState = s.state || "";
     if (s.preview_invert_order != null) App.previewInvertOrder = s.preview_invert_order === true;
 
     $id("idle-animation").textContent = s.idle_animation || "—";
