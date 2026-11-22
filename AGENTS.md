@@ -59,6 +59,7 @@ and usable without internet after installation.
 
 ## Architecture and where to change things
 
+- clean code is desired, SOLID principles should be followed, files longer than 200 lines should raise suspicion for refactoring
 - `app.py`: loads persisted settings and starts one renderer and the web app.
 - `led/hardware.py`: sole `rpi_ws281x` wrapper; only `led/renderer.py` writes
   frames to hardware. Do not call `strip.show()` from routes or games.

@@ -165,6 +165,7 @@
         <div class="lobby-actions">
           <button id="ready-btn" class="btn btn-primary">READY</button>
           <button id="leave-btn" class="btn btn-ghost">Leave</button>
+        <p id="lobby-ready-status" class="muted">Everyone in the lobby must be ready to start.</p>
         </div>
       </div>
 
@@ -186,7 +187,9 @@
         <p id="tutorial-instruction" class="muted"></p>
         <p id="tutorial-step" class="tutorial-step"></p>
         <div class="tutorial-progress"><span id="tutorial-progress"></span></div>
-        <button id="skip-tutorial-btn" class="btn btn-ghost btn-block">SKIP TUTORIAL</button>
+        <p id="tutorial-ready-status" class="muted" role="status" aria-live="polite"></p>
+        <button id="tutorial-ready-btn" class="btn btn-primary btn-block" disabled>READY</button>
+        <button id="replay-tutorial-btn" class="btn btn-ghost btn-block">REPLAY DEMO</button>
       </div>
     </section>
 
@@ -228,7 +231,7 @@
     </div>
   </aside>
 
-  <script src="/static/js/app.js?v=20261122-long-edge-preview"></script>
+  <script src="/static/js/app.js?v=20261122-lobby-ready-gate"></script>
   <script src="/static/js/games.js"></script>
   <script src="/static/js/controller.js"></script>
 </body>

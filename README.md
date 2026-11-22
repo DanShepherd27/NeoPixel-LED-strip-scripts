@@ -137,8 +137,7 @@ Included: central 40 FPS renderer, idle effects with automatic rotation,
 global brightness and hidden end offsets, LAN web app, QR code, lobby,
 dynamic player colors, and four games with results/rematch flow.
 
-Still on the roadmap: white-backed QR code; tutorial review/replay followed
-by an untimed ready gate; trusted HTTPS deployment for web microphones;
+Still on the roadmap: white-backed QR code; trusted HTTPS deployment for web microphones;
 smooth cross-fades and admin animation controls;
 robust reconnect handling; game balancing/playtesting; Spotify music-reactive
 mode and public queue; Pi hardware validation; and the other games, polish,

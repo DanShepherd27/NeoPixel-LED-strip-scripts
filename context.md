@@ -1018,7 +1018,7 @@ assumed delay from every input:
 The current app does not implement clock synchronization, latency compensation,
 fixed input ticks, or lag-aware pausing; this is a design plan only.
 
-### Tutorial attention and ready gate (roadmap)
+### Tutorial attention and ready gate
 
 Do not start the game automatically when the timed tutorial animation ends.
 Players cannot read a phone and watch the physical strip at the same time.
@@ -1027,11 +1027,10 @@ the strip while the shared LED demo runs; allow a player to replay the demo.
 After the demo, show a per-player READY control and wait without a countdown
 until every participant required for the selected game is ready. Only then
 begin the game countdown. Keep readiness visible and let a player review or
-replay the tutorial before marking ready.
-
-The current implementation runs a timed shared animation and proceeds
-automatically to the countdown; it does not yet meet this ready-gate
-requirement.
+replay the tutorial before marking ready. Before entering the tutorial, every
+connected player in the lobby must also mark ready; this prevents one player
+from starting before the group is prepared. Both readiness checks are now
+implemented.
 
 ---
 

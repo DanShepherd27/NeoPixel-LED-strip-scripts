@@ -660,6 +660,9 @@
       readyBtn.textContent = me.ready ? "NOT READY" : "READY";
       readyBtn.className = "btn " + (me.ready ? "btn-ghost" : "btn-primary");
     }
+    var readyCount = players.filter(function (player) { return player.connected && player.ready; }).length;
+    var connectedCount = players.filter(function (player) { return player.connected; }).length;
+    $id("lobby-ready-status").textContent = readyCount + " of " + connectedCount + " players ready. Everyone must be ready to start.";
 
     renderGameList(s);
     updateStartButton(s);
@@ -715,8 +718,10 @@
     var players = s.players || [];
     var startBtn = $id("start-btn");
     var selected = (s.games || []).find(function (g) { return g.slug === s.selected_game; });
-    var enough = selected && players.length >= selected.min_players;
-    startBtn.disabled = !(s.selected_game && enough);
+    var connected = players.filter(function (player) { return player.connected; });
+    var enough = selected && connected.length >= selected.min_players;
+    var everyoneReady = connected.length > 0 && connected.every(function (player) { return player.ready; });
+    startBtn.disabled = !(s.selected_game && enough && everyoneReady);
   }
 
   function renderCountdown(s) {
@@ -737,6 +742,19 @@
       : "Starting soon";
     var progress = tutorial.count ? (tutorial.index / tutorial.count) * 100 : 100;
     $id("tutorial-progress").style.width = progress + "%";
+    var players = s.players || [];
+    var connected = players.filter(function (player) { return player.connected; });
+    var readyCount = connected.filter(function (player) { return player.ready; }).length;
+    var waiting = !!tutorial.waiting_ready;
+    var me = connected.find(function (player) { return player.id === App.playerId; });
+    var readyButton = $id("tutorial-ready-btn");
+    readyButton.disabled = !waiting || !me;
+    readyButton.textContent = me && me.ready ? "NOT READY" : "READY";
+    readyButton.className = "btn btn-block " + (me && me.ready ? "btn-ghost" : "btn-primary");
+    $id("tutorial-ready-status").textContent = waiting
+      ? readyCount + " of " + connected.length + " players ready. " + (readyCount === connected.length ? "Starting countdown…" : "Waiting for everyone.")
+      : "Read the instructions, then watch the LED demo. You can replay it before marking ready.";
+    $id("replay-tutorial-btn").hidden = !waiting;
   }
 
   function renderGame(s) {
@@ -948,7 +966,12 @@
       App.socket.emit("start_game");
     });
 
-    $id("skip-tutorial-btn").addEventListener("click", function () {
+    $id("tutorial-ready-btn").addEventListener("click", function () {
+      var me = (App.state.players || []).find(function (p) { return p.id === App.playerId; });
+      App.socket.emit("ready", { ready: me ? !me.ready : true });
+    });
+
+    $id("replay-tutorial-btn").addEventListener("click", function () {
       App.socket.emit("skip_tutorial");
     });
 

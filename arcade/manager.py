@@ -161,7 +161,13 @@ class ArcadeManager:
         self.players.mark_disconnected(player_id)
 
     def set_ready(self, player_id, ready):
-        self.players.set_ready(player_id, ready)
+        with self._lock:
+            tutorial_done = (
+                self.state == ArcadeState.TUTORIAL and self.game_class is not None and
+                self.tutorial_index >= len(self.game_class.tutorial_steps)
+            )
+            if self.state == ArcadeState.LOBBY or tutorial_done:
+                self.players.set_ready(player_id, ready)
 
     def select_game(self, slug):
         with self._lock:
@@ -203,7 +209,8 @@ class ArcadeManager:
 
     def start_game(self):
         with self._lock:
-            if self.state == ArcadeState.LOBBY and self.selected_game:
+            if (self.state == ArcadeState.LOBBY and self.selected_game and
+                    self.players.all_ready(GAMES[self.selected_game].min_players)):
                 self._enter_tutorial()
 
     def rematch(self):
@@ -213,8 +220,10 @@ class ArcadeManager:
 
     def skip_tutorial(self):
         with self._lock:
-            if self.state == ArcadeState.TUTORIAL:
-                self._enter_countdown()
+            if self.state == ArcadeState.TUTORIAL and self.game_class:
+                self.tutorial_index = 0
+                self.tutorial_elapsed = 0.0
+                self.players.reset_ready()
 
     def return_to_idle(self):
         with self._lock:
@@ -306,6 +315,7 @@ class ArcadeManager:
         self.game.setup(self._participants())
         self.tutorial_index = 0
         self.tutorial_elapsed = 0.0
+        self.players.reset_ready()
         self.state = ArcadeState.TUTORIAL
         log.info("State -> TUTORIAL (%s)", self.selected_game)
 
@@ -363,11 +373,12 @@ class ArcadeManager:
                 self._update_tutorial(dt)
                 if self.state == ArcadeState.TUTORIAL and self.game is not None:
                     steps = self.game_class.tutorial_steps
-                    step = steps[self.tutorial_index]
-                    self.game.render_tutorial(
-                        frame, self.tutorial_index, self.tutorial_elapsed,
-                        step["duration"],
-                    )
+                    if self.tutorial_index < len(steps):
+                        step = steps[self.tutorial_index]
+                        self.game.render_tutorial(
+                            frame, self.tutorial_index, self.tutorial_elapsed,
+                            step["duration"],
+                        )
             elif self.state == ArcadeState.COUNTDOWN:
                 self._update_countdown(dt)
                 self._render_countdown(frame, dt)
@@ -863,6 +874,10 @@ class ArcadeManager:
 
     def _update_tutorial(self, dt):
         steps = self.game_class.tutorial_steps
+        if self.tutorial_index >= len(steps):
+            if self.players.all_ready(self.game_class_min_players()):
+                self._enter_countdown()
+            return
         self.tutorial_elapsed += dt
         while self.tutorial_index < len(steps):
             duration = float(steps[self.tutorial_index]["duration"])
@@ -870,7 +885,11 @@ class ArcadeManager:
                 return
             self.tutorial_elapsed -= duration
             self.tutorial_index += 1
-        self._enter_countdown()
+        self.tutorial_index = len(steps)
+        self.tutorial_elapsed = 0.0
+
+    def game_class_min_players(self):
+        return int(getattr(self.game_class, "min_players", 1))
 
     def _update_countdown(self, dt):
         self.countdown -= dt
@@ -998,6 +1017,13 @@ class ArcadeManager:
         if self.state != ArcadeState.TUTORIAL or self.game_class is None:
             return None
         steps = self.game_class.tutorial_steps
+        if self.tutorial_index >= len(steps):
+            return {
+                "index": len(steps), "count": len(steps),
+                "title": "Everyone ready?",
+                "instruction": "Review or replay the demo, then mark yourself ready. The game starts when everyone is ready.",
+                "remaining": 0.0, "waiting_ready": True,
+            }
         if not steps:
             return {"index": 0, "count": 0, "title": "Get ready",
                     "instruction": "The game is about to begin.", "remaining": 0.0}
