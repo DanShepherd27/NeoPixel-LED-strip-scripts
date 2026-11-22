@@ -213,6 +213,10 @@
       const animationSelect = $id("music-animation-select");
       const selectedPattern = selection.animation || "center_pulse";
       if (animationSelect) animationSelect.value = selectedPattern;
+      $id("live-christmas-glitter-control").hidden = selectedPattern !== "christmas_glitter";
+      $id("music-live-glitter-brightness").value = selection.glitter_brightness == null
+        ? 255 : selection.glitter_brightness;
+      $id("music-live-glitter-brightness-value").textContent = $id("music-live-glitter-brightness").value;
       window.MusicPreview.configurePatternControls("music", selectedPattern, selection.band_colors);
       $id("music-live-primary").value = selection.primary_color || "#00e5ff";
       $id("music-live-accent").value = selection.accent_color || "#ff2ea6";
@@ -492,6 +496,7 @@
         band_colors: window.MusicPreview.getBandColors("music"),
         enabled_bands: Array.prototype.map.call(
           document.querySelectorAll("#live-band-controls [data-band]"), function (input) { return input.checked; }),
+        glitter_brightness: Number($id("music-live-glitter-brightness").value),
       };
       musicVisualizerPending = selection;
       fetch("/api/music/visualizer", {
@@ -516,6 +521,7 @@
           App.state.music_visualizer.accent_color = body.accent_color;
           App.state.music_visualizer.enabled_bands = body.enabled_bands;
           App.state.music_visualizer.band_colors = body.band_colors;
+          App.state.music_visualizer.glitter_brightness = body.glitter_brightness;
         }
         render();
       }).catch(function (error) {
@@ -535,6 +541,7 @@
         band_colors: window.MusicPreview.getBandColors("music"),
         enabled_bands: Array.prototype.map.call(
           document.querySelectorAll("#live-band-controls [data-band]"), function (input) { return input.checked; }),
+        glitter_brightness: Number($id("music-live-glitter-brightness").value),
       };
     }
 
@@ -546,6 +553,11 @@
       submitMusicVisualizer();
     });
     $id("music-band-color-controls").addEventListener("change", submitMusicVisualizer);
+    $id("music-live-glitter-brightness").addEventListener("input", function () {
+      $id("music-live-glitter-brightness-value").textContent = this.value;
+      rememberMusicVisualizerDraft();
+    });
+    $id("music-live-glitter-brightness").addEventListener("change", submitMusicVisualizer);
     document.querySelectorAll("#live-band-controls [data-band]").forEach(function (input) {
       input.addEventListener("change", submitMusicVisualizer);
     });

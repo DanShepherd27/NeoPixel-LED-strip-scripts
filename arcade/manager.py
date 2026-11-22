@@ -70,6 +70,9 @@ class ArcadeManager(MusicRenderingMixin):
         self._music_beat_clock = 0.0
         self._music_beat_last_onset = None
         self._music_beat_onset_count = 0
+        self._music_downbeat_phase = 1
+        self._music_downbeat_scores = [0.0] * 4
+        self._music_beat_bar_strengths = []
         self._music_beat_period = None
         self._music_beat_confidence = 0.0
         self._music_beat_low = 0.0
@@ -203,6 +206,9 @@ class ArcadeManager(MusicRenderingMixin):
             self._music_beat_low = 0.0
             self._music_beat_pulse = 0.0
             self._music_beat_onset_count = 0
+            self._music_downbeat_phase = 1
+            self._music_downbeat_scores = [0.0] * 4
+            self._music_beat_bar_strengths.clear()
             self._music_onset_history.clear()
             self._music_onset_sample_clock = 0.0
             self._music_onset_sample_value = 0.0
@@ -546,6 +552,7 @@ class ArcadeManager(MusicRenderingMixin):
                         else None
                     ),
                     "beat_lead_ms": self.music_beat_lead_ms,
+                    "glitter_brightness": self.music_glitter_brightness,
                 },
                 "music_led_frame": [list(pixel) for pixel in self._music_led_frame],
                 "pi_audio": self.audio_input.snapshot() if self.audio_input else {

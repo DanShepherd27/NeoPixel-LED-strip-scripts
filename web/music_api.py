@@ -26,11 +26,15 @@ def register_music_routes(app, manager):
         accent_color = data.get("accent_color", manager.music_accent_color)
         enabled_bands = data.get("enabled_bands", manager.music_enabled_bands)
         band_colors = data.get("band_colors", manager.music_band_colors)
+        glitter_brightness = data.get("glitter_brightness", manager.music_glitter_brightness)
+        if type(glitter_brightness) is not int or not 0 <= glitter_brightness <= 255:
+            return jsonify({"ok": False, "message": "Glitter burst overdrive must be from 0 to 255."}), 400
         try:
             manager.set_music_visualizer(
                 animation, manager.music_sensitivity, primary_color, accent_color,
                 enabled_bands, band_colors,
             )
+            manager.music_glitter_brightness = glitter_brightness
         except (ValueError, TypeError) as exc:
             return jsonify({"ok": False, "message": str(exc)}), 400
         return jsonify({
@@ -40,6 +44,7 @@ def register_music_routes(app, manager):
             "accent_color": manager.music_accent_color,
             "enabled_bands": list(manager.music_enabled_bands),
             "band_colors": list(manager.music_band_colors),
+            "glitter_brightness": manager.music_glitter_brightness,
         })
 
     @app.post("/api/music/mic/request")

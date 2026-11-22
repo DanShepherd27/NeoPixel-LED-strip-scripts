@@ -103,8 +103,8 @@ class MusicRenderingMixin(MusicPatternMixin):
             beat_position = self._music_beat_onset_count + since_onset / period
         burst_interval = self.music_glitter_every_beats
         scheduled_burst = (
-            beat_position >= burst_interval
-            and beat_position % burst_interval < 0.24
+            beat_position > self._music_downbeat_phase
+            and (beat_position - self._music_downbeat_phase) % burst_interval < 0.24
             and self._music_beat_pulse >= 0.6
         )
         first_beat = self._music_beat_onset_count == 1 and since_onset < 0.16
@@ -178,6 +178,23 @@ class MusicRenderingMixin(MusicPatternMixin):
             or now - self._music_beat_last_onset >= 0.20
         ):
             self._music_beat_onset_count += 1
+            self._music_beat_bar_strengths.append(rise)
+            if len(self._music_beat_bar_strengths) == 4:
+                strongest_beat = max(
+                    range(4), key=self._music_beat_bar_strengths.__getitem__,
+                )
+                first_beat_number = self._music_beat_onset_count - 3
+                candidate_phase = (first_beat_number + strongest_beat) % 4
+                self._music_downbeat_scores = [
+                    score * 0.72 for score in self._music_downbeat_scores
+                ]
+                self._music_downbeat_scores[candidate_phase] += max(
+                    self._music_beat_bar_strengths
+                )
+                self._music_downbeat_phase = max(
+                    range(4), key=self._music_downbeat_scores.__getitem__,
+                )
+                self._music_beat_bar_strengths.clear()
             self._music_beat_last_onset = now
             self._music_beat_pulse = min(1.0, 0.45 + rise * 2.0)
 
