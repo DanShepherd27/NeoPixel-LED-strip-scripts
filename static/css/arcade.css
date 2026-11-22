@@ -63,6 +63,34 @@ html, body {
 }
 .connection-dot.on { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
 .connection-dot.off { background: var(--err); box-shadow: 0 0 8px var(--err); }
+.header-actions { display: flex; align-items: center; gap: 14px; }
+.settings-cog {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text);
+  background: var(--bg-card);
+  font-size: 1.35rem;
+  cursor: pointer;
+}
+.settings-cog:hover, .settings-cog:focus-visible { color: var(--neon); border-color: var(--neon); }
+.admin-dialog {
+  width: min(640px, calc(100vw - 24px));
+  max-height: min(88vh, 900px);
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--text);
+  background: var(--bg);
+}
+.admin-dialog::backdrop { background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(5px); }
+.admin-dialog .admin-card { margin: 0; border: 0; box-shadow: none; }
+.admin-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-card-heading h2 { margin: 0 0 12px; }
 
 .stage {
   max-width: 1120px;
@@ -345,7 +373,14 @@ input[type="text"]:focus {
 .results-actions .btn { width: 100%; }
 
 .qr { margin-top: 10px; text-align: center; }
-.qr canvas, .qr img { image-rendering: pixelated; border-radius: 8px; }
+.qr canvas, .qr img {
+  display: inline-block;
+  padding: 10px;
+  image-rendering: pixelated;
+  background: #fff;
+  border: 0;
+  border-radius: 8px;
+}
 
 .music-band-controls {
   border: 1px solid var(--border);
@@ -364,6 +399,9 @@ input[type="text"]:focus {
 #music-led-preview { height: 52px; }
 .music-preview-labels { display: flex; justify-content: space-between; gap: 3px; color: var(--muted); font-size: 0.58rem; white-space: nowrap; }
 .music-preview-panel p { margin: 6px 0 0; font-size: 0.75rem; }
+.pattern-color-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin: 10px 0; }
+.pattern-color-controls label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pattern-color-controls input[type="color"] { width: 42px; height: 32px; padding: 2px; }
 @media (min-width: 720px) { .music-preview-grid { grid-template-columns: 1fr 1fr; } }
 .led-preview-dock {
   position: fixed;

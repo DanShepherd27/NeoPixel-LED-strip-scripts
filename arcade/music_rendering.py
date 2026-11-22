@@ -270,12 +270,11 @@ class MusicRenderingMixin(MusicPatternMixin):
             return
 
         if self.music_animation == "mirror_bars":
-            # Discrete saturated blocks grow from the center with the beat.
+            # Paired, alternating color blocks grow symmetrically from center.
             frame.clear()
             for offset in range(max(1, extent + 1)):
-                color = _blend_rgb(self._music_primary_rgb, self._music_accent_rgb,
-                                   offset / max(1, half - 1))
-                color = tuple(int(channel * (0.48 + 0.48 * level)) for channel in color)
+                color = self._music_primary_rgb if (offset // 3) % 2 == 0 else self._music_accent_rgb
+                color = tuple(int(channel * (0.58 + 0.42 * level)) for channel in color)
                 frame.set(half - 1 - offset, color)
                 frame.set(half + offset, color)
             return

@@ -3,6 +3,11 @@
   "use strict";
   function $id(id) { return document.getElementById(id); }
   function init(App) {
+    const adminDialog = $id("admin-dialog");
+    $id("open-admin").addEventListener("click", function () {
+      if (!adminDialog.open) adminDialog.showModal();
+    });
+    $id("close-admin").addEventListener("click", function () { adminDialog.close(); });
     const loginForm = $id("admin-login-form");
     const settingsForm = $id("admin-settings-form");
     const adminMessage = $id("admin-message");
@@ -22,6 +27,9 @@
         $id("music-beat-lead-ms").value = data.music_beat_lead_ms || 0;
         $id("music-beat-lead-value").textContent = (data.music_beat_lead_ms || 0) + " ms";
         $id("music-animation").value = data.music_animation || "center_pulse";
+        window.MusicPreview.configurePatternControls(
+          "admin", $id("music-animation").value, data.music_band_colors,
+        );
         $id("music-sensitivity").value = data.music_sensitivity || 1;
         $id("music-primary-color").value = data.music_primary_color || "#00e5ff";
         $id("music-accent-color").value = data.music_accent_color || "#ff2ea6";
@@ -78,6 +86,7 @@
           music_beat_lead_ms: Number($id("music-beat-lead-ms").value),
           music_primary_color: $id("music-primary-color").value,
           music_accent_color: $id("music-accent-color").value,
+          music_band_colors: window.MusicPreview.getBandColors("admin"),
           led_color_red: Number($id("led-color-red").value),
           led_color_green: Number($id("led-color-green").value),
           led_color_blue: Number($id("led-color-blue").value),
@@ -92,7 +101,7 @@
       }).then(function (body) {
         showAdminMessage("Saved. " + body.hidden_start + " hidden at start, " +
           body.hidden_end + " hidden at end; microphone handoff " + body.mic_handoff_seconds +
-          " seconds; " + body.music_animation.split("_").join(" ") + " at " +
+          " seconds; " + window.MusicPreview.patternLabel(body.music_animation) + " at " +
           Number(body.music_sensitivity).toFixed(2) + "× sensitivity; colors " +
           body.music_primary_color + " / " + body.music_accent_color + "; LED balance R/G/B " +
           body.led_color_red + "% / " + body.led_color_green + "% / " + body.led_color_blue + "%. ");
@@ -125,6 +134,11 @@
     ["music-primary-color", "music-accent-color"].forEach(function (id) {
       $id(id).addEventListener("input", window.MusicPreview.updateColors);
       $id(id).addEventListener("change", window.MusicPreview.updateColors);
+    });
+    $id("music-animation").addEventListener("change", function () {
+      window.MusicPreview.configurePatternControls(
+        "admin", this.value, window.MusicPreview.getBandColors("admin"),
+      );
     });
 
     $id("music-beat-lead-ms").addEventListener("input", function () {

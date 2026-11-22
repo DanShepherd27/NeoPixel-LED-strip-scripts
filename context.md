@@ -1363,7 +1363,7 @@ The project should not be considered complete until:
 - [ ] LEDs return to idle mode appropriately
 - [ ] Can be controlled remotely over SSH
 
-### Free music mode
+### Sound-reactive lighting
 
 - [x] Web microphone is primary; Pi ALSA is fallback
 - [x] At most one web microphone owner at a time

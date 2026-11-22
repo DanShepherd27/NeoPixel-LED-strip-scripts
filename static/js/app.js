@@ -188,27 +188,20 @@
     const musicMessage = $id("music-message");
     if (musicButton) {
       const musicActive = s.state === "music";
-      musicButton.textContent = musicActive ? "STOP MUSIC MODE" : "START FREE MUSIC MODE";
+      musicButton.textContent = musicActive ? "STOP SOUND REACTIVE LIGHTING" : "START SOUND REACTIVE LIGHTING";
       const audio = s.audio || {};
       musicMessage.textContent = musicActive
         ? (audio.source === "web"
-          ? "Listening to the opted-in web microphone; only volume features are sent to the Pi."
+          ? "Listening to this browser microphone; only analyzed sound levels are sent to the Pi."
           : (audio.status === "listening"
             ? "Using the Pi microphone fallback (" + (audio.device || "default") + ")."
             : (audio.error || "Waiting for a web microphone or Pi input.")))
-        : "Web microphone is the default; the Pi's ALSA input is used only as fallback.";
+        : "Uses this browser microphone when available, with the Pi microphone as fallback.";
       const visualizer = s.music_visualizer || {};
-      const animationNames = {
-        center_pulse: "Center pulse", mirror_bars: "Mirror bars",
-        rainbow_wave: "Rainbow wave", comet: "Comet",
-        retro_vu: "Retro VU meter", inward_diamonds: "Inward diamonds",
-        red_shades: "Red shades", live_band: "Live band spectrum",
-        kitt_scanner: "KITT Scanner",
-      };
       const visualizerStatus = $id("music-visualizer-status");
       if (visualizerStatus) {
         visualizerStatus.textContent = musicActive
-          ? "Animation: " + (animationNames[visualizer.animation] || "Center pulse") + " · Sensitivity: " +
+          ? "Pattern: " + window.MusicPreview.patternLabel(visualizer.animation) + " · Sensitivity: " +
             Number(visualizer.sensitivity || 1).toFixed(2) + "×"
           : "";
       }
@@ -217,13 +210,16 @@
       }
       const selection = musicVisualizerPending || musicVisualizerDraft || visualizer;
       const animationSelect = $id("music-animation-select");
-      if (animationSelect) animationSelect.value = selection.animation || "center_pulse";
+      const selectedPattern = selection.animation || "center_pulse";
+      if (animationSelect) animationSelect.value = selectedPattern;
+      window.MusicPreview.configurePatternControls("music", selectedPattern, selection.band_colors);
       $id("music-live-primary").value = selection.primary_color || "#00e5ff";
       $id("music-live-accent").value = selection.accent_color || "#ff2ea6";
       const enabledBands = selection.enabled_bands || [true, true, true, true, true, true];
       document.querySelectorAll("#live-band-controls [data-band]").forEach(function (input) {
         input.checked = enabledBands[Number(input.dataset.band)] !== false;
       });
+      $id("live-band-controls").hidden = selectedPattern !== "live_band";
       window.MusicPreview.updateColors();
       $id("web-mic-controls").hidden = !musicActive;
     }
@@ -494,6 +490,7 @@
         animation: $id("music-animation-select").value,
         primary_color: $id("music-live-primary").value,
         accent_color: $id("music-live-accent").value,
+        band_colors: window.MusicPreview.getBandColors("music"),
         enabled_bands: Array.prototype.map.call(
           document.querySelectorAll("#live-band-controls [data-band]"), function (input) { return input.checked; }),
       };
@@ -519,6 +516,7 @@
           App.state.music_visualizer.primary_color = body.primary_color;
           App.state.music_visualizer.accent_color = body.accent_color;
           App.state.music_visualizer.enabled_bands = body.enabled_bands;
+          App.state.music_visualizer.band_colors = body.band_colors;
         }
         render();
       }).catch(function (error) {
@@ -535,12 +533,21 @@
         animation: $id("music-animation-select").value,
         primary_color: $id("music-live-primary").value,
         accent_color: $id("music-live-accent").value,
+        band_colors: window.MusicPreview.getBandColors("music"),
         enabled_bands: Array.prototype.map.call(
           document.querySelectorAll("#live-band-controls [data-band]"), function (input) { return input.checked; }),
       };
     }
 
-    $id("music-animation-select").addEventListener("change", submitMusicVisualizer);
+    $id("music-animation-select").addEventListener("change", function () {
+      const pattern = this.value;
+      window.MusicPreview.configurePatternControls(
+        "music", pattern, App.state.music_visualizer.band_colors,
+      );
+      $id("live-band-controls").hidden = pattern !== "live_band";
+      submitMusicVisualizer();
+    });
+    $id("music-band-color-controls").addEventListener("change", submitMusicVisualizer);
     document.querySelectorAll("#live-band-controls [data-band]").forEach(function (input) {
       input.addEventListener("change", submitMusicVisualizer);
     });

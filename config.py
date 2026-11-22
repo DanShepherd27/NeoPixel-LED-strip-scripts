@@ -68,6 +68,9 @@ MUSIC_SENSITIVITY = 1.0
 MUSIC_BEAT_LEAD_MS = int(os.environ.get("LED_MUSIC_BEAT_LEAD_MS", "0"))
 MUSIC_PRIMARY_COLOR = "#00E5FF"
 MUSIC_ACCENT_COLOR = "#FF2EA6"
+MUSIC_BAND_COLORS = (
+    "#FF2C0C", "#FF7A00", "#FFDC00", "#24FF20", "#00CDFF", "#AA20FF",
+)
 RUNTIME_SETTINGS_FILE = os.environ.get(
     "LED_ARCADE_SETTINGS_FILE",
     os.path.join(os.path.dirname(__file__), "runtime-settings.json"),

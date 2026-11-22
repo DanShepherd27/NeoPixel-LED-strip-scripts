@@ -27,6 +27,62 @@
     updateColorPreview("music-accent-color", "music-accent-preview", "music-accent-value");
   }
 
+  const twoColorPatterns = new Set(["center_pulse", "mirror_bars", "comet", "inward_diamonds"]);
+  const bandNames = ["Sub-bass", "Bass", "Low mids", "Mids", "High mids", "Treble"];
+  const defaultBandColors = ["#FF2C0C", "#FF7A00", "#FFDC00", "#24FF20", "#00CDFF", "#AA20FF"];
+  const bandColorCache = {};
+  const patternLabels = {
+    center_pulse: "Center glow", mirror_bars: "Mirrored blocks",
+    rainbow_wave: "Rainbow sweep", comet: "Comet tail", retro_vu: "Retro VU meter",
+    live_band: "Six band spectrum", bpm_trace: "Beat timing trace",
+    laser_dance: "Laser dance", kitt_scanner: "Red scanner",
+    inward_diamonds: "Inward diamonds", red_shades: "Red pulse",
+  };
+
+  function configurePatternControls(scope, pattern, bandColors) {
+    const standard = $id(scope + "-standard-colors");
+    const bandContainer = $id(scope + "-band-color-controls");
+    if (!standard || !bandContainer) return;
+    if (Array.isArray(bandColors) && bandColors.length === 6) {
+      bandColorCache[scope] = bandColors.map(function (color) { return color.toUpperCase(); });
+    }
+    if (!bandColorCache[scope]) bandColorCache[scope] = defaultBandColors.slice();
+    if (bandContainer.dataset.pattern === pattern) return;
+    standard.hidden = !twoColorPatterns.has(pattern);
+    bandContainer.hidden = pattern !== "live_band";
+    bandContainer.dataset.pattern = pattern;
+    bandContainer.replaceChildren();
+    if (pattern !== "live_band") return;
+
+    const colors = bandColorCache[scope];
+    bandNames.forEach(function (name, index) {
+      const label = document.createElement("label");
+      label.append(document.createTextNode(name));
+      const input = document.createElement("input");
+      input.type = "color";
+      input.id = scope + "-band-color-" + index;
+      input.value = colors[index];
+      const value = document.createElement("code");
+      value.id = input.id + "-value";
+      value.textContent = input.value.toUpperCase();
+      input.addEventListener("input", function () {
+        value.textContent = input.value.toUpperCase();
+        bandColorCache[scope][index] = input.value.toUpperCase();
+      });
+      label.append(input, value);
+      bandContainer.appendChild(label);
+    });
+  }
+
+  function getBandColors(scope) {
+    if (!bandColorCache[scope]) bandColorCache[scope] = defaultBandColors.slice();
+    bandNames.forEach(function (_, index) {
+      const input = $id(scope + "-band-color-" + index);
+      if (input) bandColorCache[scope][index] = input.value.toUpperCase();
+    });
+    return bandColorCache[scope].slice();
+  }
+
   let previewAnimation = 0;
   let previewLastDraw = 0;
   let currentApp = null;
@@ -108,7 +164,8 @@
     if (source) {
       const state = currentApp.state || {};
       const visualizer = state.music_visualizer || {};
-      const scene = state.state === "music" ? (visualizer.animation || "music") :
+      const pattern = visualizer.animation || "center_pulse";
+      const scene = state.state === "music" ? (patternLabels[pattern] || "Sound reactive") :
         (state.game && state.game.name ? state.game.name : (state.idle_animation || state.state || "idle"));
       source.textContent = "Showing " + scene.toString().replace(/_/g, " ");
     }
@@ -116,6 +173,9 @@
 
   window.MusicPreview = {
     updateColors: updateColors,
+    configurePatternControls: configurePatternControls,
+    getBandColors: getBandColors,
+    patternLabel: function (pattern) { return patternLabels[pattern] || "Sound reactive pattern"; },
     start: function (app) {
       currentApp = app;
       if (!previewAnimation) previewAnimation = requestAnimationFrame(drawMusicPreviews);

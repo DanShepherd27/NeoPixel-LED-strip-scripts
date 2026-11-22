@@ -23,7 +23,7 @@ from config import (
     WEB_MIC_HANDOFF_SECONDS,
     MUSIC_VISUALIZER, MUSIC_SENSITIVITY,
     MUSIC_BEAT_LEAD_MS,
-    MUSIC_PRIMARY_COLOR, MUSIC_ACCENT_COLOR,
+    MUSIC_PRIMARY_COLOR, MUSIC_ACCENT_COLOR, MUSIC_BAND_COLORS,
 )
 from led.hardware import LEDHardware
 from led.audio import AudioInput
@@ -56,6 +56,7 @@ def main():
     music_beat_lead_ms = MUSIC_BEAT_LEAD_MS
     music_primary_color = MUSIC_PRIMARY_COLOR
     music_accent_color = MUSIC_ACCENT_COLOR
+    music_band_colors = list(MUSIC_BAND_COLORS)
     color_red, color_green, color_blue = LED_COLOR_RED, LED_COLOR_GREEN, LED_COLOR_BLUE
     brightness = LED_BRIGHTNESS
     preview_invert_order = False
@@ -72,6 +73,7 @@ def main():
         music_beat_lead_ms = int(saved.get("music_beat_lead_ms", music_beat_lead_ms))
         music_primary_color = saved.get("music_primary_color", music_primary_color)
         music_accent_color = saved.get("music_accent_color", music_accent_color)
+        music_band_colors = saved.get("music_band_colors", music_band_colors)
         color_red = int(saved.get("led_color_red", color_red))
         color_green = int(saved.get("led_color_green", color_green))
         color_blue = int(saved.get("led_color_blue", color_blue))
@@ -99,6 +101,10 @@ def main():
         if not all(isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color)
                    for color in (music_primary_color, music_accent_color)):
             raise ValueError("saved music colors must use #RRGGBB format")
+        if (not isinstance(music_band_colors, list) or len(music_band_colors) != 6 or
+                not all(isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color)
+                        for color in music_band_colors)):
+            raise ValueError("saved music band colors must contain six #RRGGBB values")
     except FileNotFoundError:
         pass
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
@@ -108,6 +114,7 @@ def main():
         music_animation, music_sensitivity = MUSIC_VISUALIZER, MUSIC_SENSITIVITY
         music_beat_lead_ms = MUSIC_BEAT_LEAD_MS
         music_primary_color, music_accent_color = MUSIC_PRIMARY_COLOR, MUSIC_ACCENT_COLOR
+        music_band_colors = list(MUSIC_BAND_COLORS)
         color_red, color_green, color_blue = LED_COLOR_RED, LED_COLOR_GREEN, LED_COLOR_BLUE
         brightness = LED_BRIGHTNESS
         preview_invert_order = False
@@ -126,7 +133,7 @@ def main():
     manager = ArcadeManager(
         LED_COUNT, audio_input, mic_handoff_seconds,
         music_animation, music_sensitivity, music_primary_color, music_accent_color,
-        music_beat_lead_ms,
+        music_beat_lead_ms, music_band_colors,
     )
     manager.preview_invert_order = preview_invert_order
 

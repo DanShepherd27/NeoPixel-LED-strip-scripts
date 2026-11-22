@@ -22,9 +22,7 @@ and usable without internet after installation.
 - Admin LED color balance (`led_color_red/green/blue`) scales each RGB output
   channel globally from 0–200%, applies to all scenes, and persists beside the
   other runtime settings. Defaults are 100% per channel.
-- Free music mode offers eight live-switchable browser UI patterns (center pulse,
-  mirror bars, rainbow wave, comet, retro VU meter, live band spectrum, inward
-  diamonds, red shades), prefers
+- Sound-reactive lighting offers eleven live-switchable browser patterns, prefers
   an opted-in browser microphone and falls back to
   microphone PCM from `arecord` via `led/audio.py`; the ALSA device is
   `LED_AUDIO_DEVICE` (default `default`). Browser audio stays local; only
@@ -34,20 +32,21 @@ and usable without internet after installation.
   settings). Browser mic requires trusted HTTPS on phones; the default LAN
   HTTP address falls back to ALSA. The central renderer remains the sole LED
   writer. Admin settings select the persisted startup pattern and adjust
-  shared visualizer sensitivity from 0.25x to 4x. The music-mode UI also has
-  primary/accent color pickers; Admin Save Settings persists them. Red Shades
-  uses only the red LED channel. The music-mode selector changes the active
+  shared visualizer sensitivity from 0.25x to 4x. The sound-reactive UI shows
+  the color controls supported by each pattern; the six-band spectrum has six
+  independent pickers. Admin Save Settings persists palettes. Red Pulse uses
+  only the red LED channel. The pattern selector changes the active
   pattern and colors immediately. Retro VU maps green, yellow, and red VU zones
   to the vertical strip, with a cyan peak marker that holds 500 ms before
   falling. Its playful RMS curve has an 8-10 LED floor; sample peaks only boost
   it when RMS confirms sound, preventing room noise from pinning the meter.
-  The Live Band Spectrum uses six coarse frequency bands; these represent
-  ranges and do not isolate individual instruments. Music UI checkboxes select
+  The six-band spectrum uses six coarse frequency bands; these represent
+  ranges and do not isolate individual instruments. Sound-reactive checkboxes select
   the bands that render. The strip preview uses the renderer's last 60-pixel
   frame, including peak/beat flashes, with hardware offsets and RGB balance
-  applied; it is horizontal in landscape and vertical in portrait. Live Band
-  Spectrum keeps its frequency colors confined to their bands.
-  Music mode estimates BPM from bass-band onsets, adds a predicted beat pulse
+  applied; it is horizontal in landscape and vertical in portrait. The six-band
+  spectrum keeps its frequency colors confined to their bands.
+  Sound-reactive lighting estimates BPM from bass-band onsets, adds a predicted beat pulse
   to every pattern, and compensates with measured mic/network latency. Admin
   beat-sync timing adds a saved -100 to +200 ms manual trim.
   Keep colors saturated at high levels; the clap flash should not wash the

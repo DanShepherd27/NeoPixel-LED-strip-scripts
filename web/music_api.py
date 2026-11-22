@@ -25,10 +25,11 @@ def register_music_routes(app, manager):
         primary_color = data.get("primary_color", manager.music_primary_color)
         accent_color = data.get("accent_color", manager.music_accent_color)
         enabled_bands = data.get("enabled_bands", manager.music_enabled_bands)
+        band_colors = data.get("band_colors", manager.music_band_colors)
         try:
             manager.set_music_visualizer(
                 animation, manager.music_sensitivity, primary_color, accent_color,
-                enabled_bands,
+                enabled_bands, band_colors,
             )
         except (ValueError, TypeError) as exc:
             return jsonify({"ok": False, "message": str(exc)}), 400
@@ -38,6 +39,7 @@ def register_music_routes(app, manager):
             "primary_color": manager.music_primary_color,
             "accent_color": manager.music_accent_color,
             "enabled_bands": list(manager.music_enabled_bands),
+            "band_colors": list(manager.music_band_colors),
         })
 
     @app.post("/api/music/mic/request")

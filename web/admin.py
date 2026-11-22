@@ -44,6 +44,7 @@ def register_admin_routes(app, manager, hardware):
             "music_beat_lead_ms": manager.music_beat_lead_ms,
             "music_primary_color": manager.music_primary_color,
             "music_accent_color": manager.music_accent_color,
+            "music_band_colors": list(manager.music_band_colors),
             "led_color_red": hardware.color_balance[0],
             "led_color_green": hardware.color_balance[1],
             "led_color_blue": hardware.color_balance[2],
@@ -64,6 +65,7 @@ def register_admin_routes(app, manager, hardware):
         beat_lead_value = data.get("music_beat_lead_ms", manager.music_beat_lead_ms)
         primary_color = data.get("music_primary_color", manager.music_primary_color)
         accent_color = data.get("music_accent_color", manager.music_accent_color)
+        band_colors = data.get("music_band_colors", manager.music_band_colors)
         color_red = data.get("led_color_red", hardware.color_balance[0])
         color_green = data.get("led_color_green", hardware.color_balance[1])
         color_blue = data.get("led_color_blue", hardware.color_balance[2])
@@ -99,6 +101,10 @@ def register_admin_routes(app, manager, hardware):
         if not all(isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color)
                    for color in (primary_color, accent_color)):
             return jsonify({"ok": False, "message": "Choose valid primary and accent colors."}), 400
+        if (not isinstance(band_colors, list) or len(band_colors) != 6 or
+                not all(isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color)
+                        for color in band_colors)):
+            return jsonify({"ok": False, "message": "Choose valid colors for all six frequency bands."}), 400
 
         settings_path = RUNTIME_SETTINGS_FILE
         temporary_path = settings_path + ".tmp"
@@ -113,6 +119,7 @@ def register_admin_routes(app, manager, hardware):
                     "music_beat_lead_ms": beat_lead_value,
                     "music_primary_color": primary_color.upper(),
                     "music_accent_color": accent_color.upper(),
+                    "music_band_colors": [color.upper() for color in band_colors],
                     "led_color_red": color_red,
                     "led_color_green": color_green,
                     "led_color_blue": color_blue,
@@ -132,7 +139,10 @@ def register_admin_routes(app, manager, hardware):
         hardware.set_color_balance(color_red, color_green, color_blue)
         hardware.set_brightness(brightness)
         manager.web_mics.handoff_seconds = handoff_value
-        manager.set_music_visualizer(animation_value, sensitivity, primary_color, accent_color)
+        manager.set_music_visualizer(
+            animation_value, sensitivity, primary_color, accent_color,
+            band_colors=band_colors,
+        )
         manager.music_beat_lead_ms = beat_lead_value
         manager.preview_invert_order = preview_invert_order
         return jsonify({
@@ -143,6 +153,7 @@ def register_admin_routes(app, manager, hardware):
             "music_beat_lead_ms": beat_lead_value,
             "music_primary_color": manager.music_primary_color,
             "music_accent_color": manager.music_accent_color,
+            "music_band_colors": list(manager.music_band_colors),
             "led_color_red": color_red,
             "led_color_green": color_green,
             "led_color_blue": color_blue,

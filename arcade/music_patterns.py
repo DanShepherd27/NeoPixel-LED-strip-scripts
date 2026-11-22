@@ -158,10 +158,6 @@ class MusicPatternMixin:
     def _draw_live_band(self, frame, bands, dt):
         """Render six frequency bands as independent bars along the 1D strip."""
         frame.clear()
-        colors = (
-            (255, 44, 12), (255, 122, 0), (255, 220, 0),
-            (36, 255, 32), (0, 205, 255), (170, 32, 255),
-        )
         bands = [value if self.music_enabled_bands[index] else 0.0
                  for index, value in enumerate(bands)]
         widths = (0.18, 0.16, 0.15, 0.15, 0.16, 0.20)
@@ -182,7 +178,7 @@ class MusicPatternMixin:
                 lit = max(1, lit)
             for offset in range(min(capacity, lit)):
                 intensity = 0.62 + 0.38 * current
-                color = tuple(int(channel * intensity) for channel in colors[band_index])
+                color = tuple(int(channel * intensity) for channel in self._music_band_rgb[band_index])
                 frame.set(start + offset, color)
 
             peak = self._music_band_peaks[band_index]

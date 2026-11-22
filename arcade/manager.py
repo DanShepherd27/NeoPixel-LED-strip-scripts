@@ -43,7 +43,7 @@ class ArcadeManager(MusicRenderingMixin):
     def __init__(self, count=LED_COUNT, audio_input=None, mic_handoff_seconds=120,
                  music_animation="center_pulse", music_sensitivity=1.0,
                  music_primary_color="#00E5FF", music_accent_color="#FF2EA6",
-                 music_beat_lead_ms=0):
+                 music_beat_lead_ms=0, music_band_colors=None):
         self.count = count
         self.audio_input = audio_input
         self.web_mics = WebMicQueue(mic_handoff_seconds)
@@ -54,6 +54,12 @@ class ArcadeManager(MusicRenderingMixin):
         self.music_accent_color = music_accent_color.upper()
         self._music_primary_rgb = _parse_hex_color(self.music_primary_color)
         self._music_accent_rgb = _parse_hex_color(self.music_accent_color)
+        self.music_band_colors = [
+            color.upper() for color in (music_band_colors or (
+                "#FF2C0C", "#FF7A00", "#FFDC00", "#24FF20", "#00CDFF", "#AA20FF",
+            ))
+        ]
+        self._music_band_rgb = [_parse_hex_color(color) for color in self.music_band_colors]
         self.music_beat_lead_ms = int(music_beat_lead_ms)
         self._music_phase = 0.0
         self._music_beat_clock = 0.0
@@ -235,7 +241,7 @@ class ArcadeManager(MusicRenderingMixin):
         return brightness
 
     def set_music_visualizer(self, animation, sensitivity, primary_color=None, accent_color=None,
-                             enabled_bands=None):
+                             enabled_bands=None, band_colors=None):
         if animation not in (
             "center_pulse", "mirror_bars", "rainbow_wave", "comet",
             "retro_vu", "inward_diamonds", "red_shades", "live_band",
@@ -253,6 +259,13 @@ class ArcadeManager(MusicRenderingMixin):
         if (not isinstance(enabled_bands, (list, tuple)) or len(enabled_bands) != 6 or
                 any(not isinstance(value, bool) for value in enabled_bands)):
             raise ValueError("Choose which of the six frequency bands to visualize.")
+        if band_colors is None:
+            band_colors = self.music_band_colors
+        if (not isinstance(band_colors, (list, tuple)) or len(band_colors) != 6 or
+                not all(isinstance(color, str) and len(color) == 7 and color.startswith("#")
+                        for color in band_colors)):
+            raise ValueError("Choose a valid color for each frequency band.")
+        band_rgb = [_parse_hex_color(color) for color in band_colors]
         with self._lock:
             if animation != self.music_animation:
                 self._retro_vu_peak_position = 0.0
@@ -268,6 +281,8 @@ class ArcadeManager(MusicRenderingMixin):
             self._music_primary_rgb = primary_rgb
             self._music_accent_rgb = accent_rgb
             self.music_enabled_bands = list(enabled_bands)
+            self.music_band_colors = [color.upper() for color in band_colors]
+            self._music_band_rgb = band_rgb
 
     def handle_input(self, player_id, action):
         """Queue a player input; processed by the render loop next frame."""
@@ -505,6 +520,7 @@ class ArcadeManager(MusicRenderingMixin):
                     "primary_color": self.music_primary_color,
                     "accent_color": self.music_accent_color,
                     "enabled_bands": list(self.music_enabled_bands),
+                    "band_colors": list(self.music_band_colors),
                     "bpm": (
                         int(round(60.0 / self._music_beat_period))
                         if self._music_beat_period and self._music_beat_confidence >= 0.25

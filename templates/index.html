@@ -5,12 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-long-edge-preview">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-ui-refresh">
 </head>
 <body>
   <header class="app-header">
     <h1 class="logo">NEON&nbsp;<span>ARCADE</span></h1>
-    <div id="connection" class="connection-dot" title="connection status"></div>
+    <div class="header-actions">
+      <div id="connection" class="connection-dot" title="connection status"></div>
+      <button id="open-admin" class="settings-cog" type="button" aria-label="Open admin settings" title="Admin settings">⚙</button>
+    </div>
   </header>
 
   <main class="stage">
@@ -35,24 +38,25 @@
         <p class="muted">Now showing: <strong id="idle-animation">—</strong></p>
         <p class="muted"><span id="player-count">0</span> player(s) online</p>
         <button id="enter-lobby" class="btn btn-primary btn-block">ENTER ARCADE</button>
-        <button id="music-mode-btn" class="btn btn-accent btn-block">START FREE MUSIC MODE</button>
+        <button id="music-mode-btn" class="btn btn-accent btn-block">START SOUND REACTIVE LIGHTING</button>
         <p id="music-message" class="muted" role="status" aria-live="polite"></p>
         <p id="music-visualizer-status" class="muted"></p>
         <div id="web-mic-controls" hidden>
-          <label for="music-animation-select">Visualizer pattern</label>
+          <label for="music-animation-select">Light pattern</label>
           <select id="music-animation-select">
-            <option value="center_pulse">Center pulse</option>
-            <option value="mirror_bars">Mirror bars</option>
-            <option value="rainbow_wave">Rainbow wave</option>
-            <option value="comet">Comet</option>
+            <option value="center_pulse">Center glow</option>
+            <option value="mirror_bars">Mirrored blocks</option>
+            <option value="rainbow_wave">Rainbow sweep</option>
+            <option value="comet">Comet tail</option>
             <option value="retro_vu">Retro VU meter</option>
-            <option value="live_band">Live band spectrum</option>
-            <option value="bpm_trace">BPM latency trace</option>
-            <option value="laser_dance">Laser Dance</option>
-            <option value="kitt_scanner">KITT Scanner</option>
+            <option value="live_band">Six band spectrum</option>
+            <option value="bpm_trace">Beat timing trace</option>
+            <option value="laser_dance">Laser dance</option>
+            <option value="kitt_scanner">Red scanner</option>
             <option value="inward_diamonds">Inward diamonds</option>
-            <option value="red_shades">Red shades</option>
+            <option value="red_shades">Red pulse</option>
           </select>
+          <div id="music-standard-colors">
           <label for="music-live-primary" class="music-control-label">Primary color</label>
           <input id="music-live-primary" type="color" value="#00e5ff">
           <span class="led-color-preview" id="music-live-primary-preview" aria-hidden="true"></span>
@@ -61,11 +65,13 @@
           <input id="music-live-accent" type="color" value="#ff2ea6">
           <span class="led-color-preview" id="music-live-accent-preview" aria-hidden="true"></span>
           <code class="led-color-value" id="music-live-accent-value">#FF2EA6</code>
+          </div>
+          <div id="music-band-color-controls" class="pattern-color-controls" hidden></div>
           <p class="muted">The glowing previews brighten dark colors on screen; the exact RGB values shown are sent to the LEDs.</p>
-          <p class="muted">Live Band Spectrum animates six color-coded frequency zones: sub-bass, bass, low mids, mids, high mids, and treble. They respond independently, so kicks and cymbals can move different parts of the strip; it reacts to frequency ranges rather than identifying individual instruments. Retro VU exaggerates volume and drum peaks, with green, yellow, and red zones. Inward diamonds send shapes from both ends toward the center.</p>
-          <p class="muted">Primary and accent colors apply to Center pulse, Mirror bars, Comet, and Inward diamonds. Rainbow, Retro VU, Live Band Spectrum, and Red Shades keep their own palettes.</p>
+          <p class="muted">Six band spectrum animates color-coded frequency zones: sub-bass, bass, low mids, mids, high mids, and treble. They respond independently, so kicks and cymbals can move different parts of the strip; it reacts to frequency ranges rather than identifying individual instruments. Retro VU exaggerates volume and drum peaks, with green, yellow, and red zones. Inward diamonds send shapes from both ends toward the center.</p>
+          <p class="muted">Each pattern shows the color controls it uses. All six band colors are customizable in Six band spectrum.</p>
           <fieldset id="live-band-controls" class="music-band-controls">
-            <legend>Live Band Spectrum · inspect bands</legend>
+            <legend>Six band spectrum · select bands</legend>
             <div class="music-band-options">
               <label><input type="checkbox" data-band="0" checked> Sub-bass</label>
               <label><input type="checkbox" data-band="1" checked> Bass</label>
@@ -92,69 +98,7 @@
         <p class="muted">Connect to this Wi-Fi and open <strong id="lan-url"></strong></p>
         <div id="qr-code" class="qr"></div>
       </div>
-      <div class="card admin-card">
-        <h3>Admin settings</h3>
-        <form id="admin-login-form">
-          <label for="admin-password">Admin password</label>
-          <input id="admin-password" type="password" autocomplete="current-password"
-                 placeholder="Enter admin password" required>
-          <button type="submit" class="btn btn-ghost btn-block">ADMIN LOGIN</button>
-        </form>
-        <form id="admin-settings-form" hidden>
-          <p class="muted">Number of hidden LEDs at each physical end of the strip.</p>
-          <label for="hidden-start">Hidden at start</label>
-          <input id="hidden-start" type="number" min="0" step="1" required>
-          <label for="hidden-end">Hidden at end</label>
-          <input id="hidden-end" type="number" min="0" step="1" required>
-          <label for="mic-handoff-seconds">Web microphone handoff (seconds)</label>
-          <input id="mic-handoff-seconds" type="number" min="15" max="1800" step="1" required>
-          <p class="muted">When someone is queued, the active web microphone is handed off after this time.</p>
-          <label for="music-animation">Music animation</label>
-          <select id="music-animation">
-            <option value="center_pulse">Center pulse</option>
-            <option value="mirror_bars">Mirror bars</option>
-            <option value="rainbow_wave">Rainbow wave</option>
-            <option value="comet">Comet</option>
-            <option value="retro_vu">Retro VU meter</option>
-            <option value="live_band">Live band spectrum</option>
-            <option value="bpm_trace">BPM latency trace</option>
-            <option value="laser_dance">Laser Dance</option>
-            <option value="kitt_scanner">KITT Scanner</option>
-            <option value="inward_diamonds">Inward diamonds</option>
-            <option value="red_shades">Red shades</option>
-          </select>
-          <label for="music-primary-color">Primary color</label>
-          <input id="music-primary-color" type="color" value="#00e5ff">
-          <span class="led-color-preview" id="music-primary-preview" aria-hidden="true"></span>
-          <code class="led-color-value" id="music-primary-value">#00E5FF</code>
-          <label for="music-accent-color">Accent color</label>
-          <input id="music-accent-color" type="color" value="#ff2ea6">
-          <span class="led-color-preview" id="music-accent-preview" aria-hidden="true"></span>
-          <code class="led-color-value" id="music-accent-value">#FF2EA6</code>
-          <h4>Physical LED color calibration</h4>
-          <p class="muted">Adjust each channel if strip colors differ from the color picker. Applies globally to every pattern and game.</p>
-          <label for="led-brightness">Hardware brightness <output id="led-brightness-value">40</output></label>
-          <input id="led-brightness" type="range" min="0" max="255" step="1" value="40">
-          <p class="muted">Changes the physical strip immediately and persists across restarts. The emulator remains at theoretical RGB values.</p>
-          <label for="led-color-red">Red output <output id="led-color-red-value">100%</output></label>
-          <input id="led-color-red" type="range" min="0" max="200" step="1" value="100">
-          <label for="led-color-green">Green output <output id="led-color-green-value">100%</output></label>
-          <input id="led-color-green" type="range" min="0" max="200" step="1" value="100">
-          <label for="led-color-blue">Blue output <output id="led-color-blue-value">100%</output></label>
-          <input id="led-color-blue" type="range" min="0" max="200" step="1" value="100">
-          <label for="music-sensitivity">Music sensitivity <output id="music-sensitivity-value">1.00×</output></label>
-          <input id="music-sensitivity" type="range" min="0.25" max="4" step="0.25" value="1">
-          <p class="muted">Raise sensitivity for a quiet mic; lower it if sound drives the lights too strongly.</p>
-          <label for="music-beat-lead-ms">Beat sync timing <output id="music-beat-lead-value">0 ms</output></label>
-          <input id="music-beat-lead-ms" type="range" min="-100" max="200" step="10" value="0">
-          <p class="muted">The beat tracker predicts from bass rhythm and estimated mic/network delay. Positive values pulse earlier; negative values pulse later.</p>
-          <label><input id="preview-invert-order" type="checkbox"> Invert LED order in preview</label>
-          <p class="muted">Mirror the emulator’s LED order when the strip appears upside down.</p>
-          <button type="submit" class="btn btn-primary btn-block">SAVE SETTINGS</button>
-          <button id="admin-logout" type="button" class="btn btn-ghost btn-block">ADMIN LOGOUT</button>
-        </form>
-        <p id="admin-message" class="muted" role="status" aria-live="polite"></p>
-      </div>
+
     </section>
 
     <!-- Lobby -->
@@ -224,6 +168,76 @@
     </section>
   </main>
 
+
+  <dialog id="admin-dialog" class="admin-dialog" aria-labelledby="admin-dialog-title">
+    <div class="card admin-card">
+      <div class="admin-card-heading"><h2 id="admin-dialog-title">Admin settings</h2><button id="close-admin" type="button" class="btn btn-ghost" aria-label="Close admin settings">CLOSE</button></div>
+        <form id="admin-login-form">
+          <label for="admin-password">Admin password</label>
+          <input id="admin-password" type="password" autocomplete="current-password"
+                 placeholder="Enter admin password" required>
+          <button type="submit" class="btn btn-ghost btn-block">ADMIN LOGIN</button>
+        </form>
+        <form id="admin-settings-form" hidden>
+          <p class="muted">Number of hidden LEDs at each physical end of the strip.</p>
+          <label for="hidden-start">Hidden at start</label>
+          <input id="hidden-start" type="number" min="0" step="1" required>
+          <label for="hidden-end">Hidden at end</label>
+          <input id="hidden-end" type="number" min="0" step="1" required>
+          <label for="mic-handoff-seconds">Web microphone handoff (seconds)</label>
+          <input id="mic-handoff-seconds" type="number" min="15" max="1800" step="1" required>
+          <p class="muted">When someone is queued, the active web microphone is handed off after this time.</p>
+          <label for="music-animation">Startup light pattern</label>
+          <select id="music-animation">
+            <option value="center_pulse">Center glow</option>
+            <option value="mirror_bars">Mirrored blocks</option>
+            <option value="rainbow_wave">Rainbow sweep</option>
+            <option value="comet">Comet tail</option>
+            <option value="retro_vu">Retro VU meter</option>
+            <option value="live_band">Six band spectrum</option>
+            <option value="bpm_trace">Beat timing trace</option>
+            <option value="laser_dance">Laser dance</option>
+            <option value="kitt_scanner">Red scanner</option>
+            <option value="inward_diamonds">Inward diamonds</option>
+            <option value="red_shades">Red pulse</option>
+          </select>
+          <div id="admin-standard-colors">
+          <label for="music-primary-color">Primary color</label>
+          <input id="music-primary-color" type="color" value="#00e5ff">
+          <span class="led-color-preview" id="music-primary-preview" aria-hidden="true"></span>
+          <code class="led-color-value" id="music-primary-value">#00E5FF</code>
+          <label for="music-accent-color">Accent color</label>
+          <input id="music-accent-color" type="color" value="#ff2ea6">
+          <span class="led-color-preview" id="music-accent-preview" aria-hidden="true"></span>
+          <code class="led-color-value" id="music-accent-value">#FF2EA6</code>
+          </div>
+          <div id="admin-band-color-controls" class="pattern-color-controls" hidden></div>
+          <h4>Physical LED color calibration</h4>
+          <p class="muted">Adjust each channel if strip colors differ from the color picker. Applies globally to every pattern and game.</p>
+          <label for="led-brightness">Hardware brightness <output id="led-brightness-value">40</output></label>
+          <input id="led-brightness" type="range" min="0" max="255" step="1" value="40">
+          <p class="muted">Changes the physical strip immediately and persists across restarts. The emulator remains at theoretical RGB values.</p>
+          <label for="led-color-red">Red output <output id="led-color-red-value">100%</output></label>
+          <input id="led-color-red" type="range" min="0" max="200" step="1" value="100">
+          <label for="led-color-green">Green output <output id="led-color-green-value">100%</output></label>
+          <input id="led-color-green" type="range" min="0" max="200" step="1" value="100">
+          <label for="led-color-blue">Blue output <output id="led-color-blue-value">100%</output></label>
+          <input id="led-color-blue" type="range" min="0" max="200" step="1" value="100">
+          <label for="music-sensitivity">Music sensitivity <output id="music-sensitivity-value">1.00×</output></label>
+          <input id="music-sensitivity" type="range" min="0.25" max="4" step="0.25" value="1">
+          <p class="muted">Raise sensitivity for a quiet mic; lower it if sound drives the lights too strongly.</p>
+          <label for="music-beat-lead-ms">Beat sync timing <output id="music-beat-lead-value">0 ms</output></label>
+          <input id="music-beat-lead-ms" type="range" min="-100" max="200" step="10" value="0">
+          <p class="muted">The beat tracker predicts from bass rhythm and estimated mic/network delay. Positive values pulse earlier; negative values pulse later.</p>
+          <label><input id="preview-invert-order" type="checkbox"> Invert LED order in preview</label>
+          <p class="muted">Mirror the emulator’s LED order when the strip appears upside down.</p>
+          <button type="submit" class="btn btn-primary btn-block">SAVE SETTINGS</button>
+          <button id="admin-logout" type="button" class="btn btn-ghost btn-block">ADMIN LOGOUT</button>
+        </form>
+        <p id="admin-message" class="muted" role="status" aria-live="polite"></p>
+      </div>
+  </dialog>
+
   <aside id="led-preview-dock" class="led-preview-dock" aria-label="Live LED strip preview">
     <div class="led-preview-dock-inner">
       <div class="led-preview-heading"><strong>LED strip · 60 pixels</strong><span id="music-preview-source" class="muted">Waiting for strip state…</span></div>
@@ -231,10 +245,10 @@
     </div>
   </aside>
 
-  <script src="/static/js/music-preview.js?v=20261122-modules"></script>
-  <script src="/static/js/admin-settings.js?v=20261122-modules"></script>
+  <script src="/static/js/music-preview.js?v=20261122-ui-refresh"></script>
+  <script src="/static/js/admin-settings.js?v=20261122-ui-refresh"></script>
   <script src="/static/js/web-mic.js?v=20261122-modules"></script>
-  <script src="/static/js/app.js?v=20261122-web-mic-module"></script>
+  <script src="/static/js/app.js?v=20261122-ui-refresh"></script>
   <script src="/static/js/games.js"></script>
   <script src="/static/js/controller.js"></script>
 </body>

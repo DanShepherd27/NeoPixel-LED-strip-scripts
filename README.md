@@ -93,8 +93,8 @@ Pi instead of as a service, use:
 sudo /home/pi/neopixel-env/bin/python /home/pi/led-arcade/app.py
 ```
 
-The home screen also offers **Free music mode**. The default source is an
-opted-in web user's microphone. The browser computes ambient volume and clap
+The home screen also offers **Sound-reactive lighting**. The default source is
+an opted-in browser microphone. The browser computes ambient volume and clap
 features locally and sends only those values to the Pi; raw audio is not
 recorded or transmitted. Users queue FIFO for exclusive microphone ownership,
 and the admin can configure handoff duration. The Pi's ALSA microphone is used
@@ -106,15 +106,17 @@ run `arecord -l` on the Pi and set
 `LED_AUDIO_DEVICE` in `.deploy.env` (for example `plughw:1,0`) before deploying.
 The home screen reports microphone source and capture errors while the mode is
 active. Admin settings control the web microphone handoff interval (15 to
-1800 seconds); it applies when other users are waiting. The music-mode card
-offers eight live-switchable patterns, including a six-band Live Band Spectrum
+1800 seconds); it applies when other users are waiting. The sound-reactive card
+offers eleven live-switchable light patterns, including a six-band spectrum
 that animates bass through treble independently, a retro VU meter, inward-moving
-shapes, and a full-strip Red Shades pattern that uses red-channel shades only.
+shapes, and a red pulse pattern that uses red-channel shades only.
 The band values represent frequency ranges; they do not isolate instruments.
 Music patterns also track BPM from bass onsets and pulse ahead using estimated
 capture/network delay. Admin settings provide a saved timing trim (-100 to
 +200 ms) if the predicted accents feel early or late.
-The music UI lets you set primary and accent colors for general patterns.
+The pattern controls show the colors used by the selected pattern. The six-band
+spectrum has six independent color pickers; general patterns use primary and
+accent colors.
 Admin settings save the palette and offer a shared sensitivity slider (0.25x
 to 4x). Patterns stay saturated at high levels, with a restrained magenta
 clap flash so loud sound does not wash the strip into white.
