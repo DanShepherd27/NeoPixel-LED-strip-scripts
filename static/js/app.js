@@ -25,6 +25,7 @@
     for (let i = 0; i < screens.length; i++) screens[i].classList.remove("active");
     const el = $id("screen-" + name);
     if (el) el.classList.add("active");
+    if (name !== "game" && window.resetController) window.resetController();
   }
 
   function setConn(on) {

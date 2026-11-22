@@ -30,36 +30,49 @@
     return btn;
   }
 
-  // Hold-to-repeat button for movement (fires repeatedly while held).
+  // Hold-to-repeat button for movement (repeats while the finger stays down).
+  const activeHolds = new Set();
+
+  function releaseAllHolds() {
+    activeHolds.forEach(function (stop) { stop(); });
+  }
+
   function makeHoldButton(label, className, action) {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "control-btn " + (className || "");
+    btn.className = "control-btn control-hold " + (className || "");
     btn.textContent = label;
     let timer = null;
 
     function stop() {
       if (timer) { clearInterval(timer); timer = null; }
+      activeHolds.delete(stop);
       btn.classList.remove("pressed");
     }
 
     btn.addEventListener("pointerdown", function (ev) {
       ev.preventDefault();
+      stop();
+      // Capture keeps the hold alive if the finger drifts off the button.
+      if (btn.setPointerCapture) btn.setPointerCapture(ev.pointerId);
       btn.classList.add("pressed");
       sendInput(action);
       timer = setInterval(function () { sendInput(action); }, 90);
+      activeHolds.add(stop);
     });
-    ["pointerup", "pointerleave", "pointercancel"].forEach(function (evt) {
+    ["pointerup", "pointercancel", "lostpointercapture"].forEach(function (evt) {
       btn.addEventListener(evt, stop);
     });
+    btn.addEventListener("contextmenu", function (ev) { ev.preventDefault(); });
     return btn;
   }
 
-  function renderReaction(el, game) {
-    const label = game.phase === "signal" ? "PRESS!" : "WAIT…";
-    const btn = makeButton(label, "hit", "press");
-    btn.disabled = false;
-    el.appendChild(btn);
+  function renderReaction(el) {
+    el.appendChild(makeButton("WAIT…", "hit", "press"));
+  }
+
+  function updateReaction(el, game) {
+    el.firstChild.textContent = game.phase === "signal" ? "PRESS!" : "WAIT…";
   }
 
   function renderDodge(el) {
@@ -107,13 +120,32 @@
     el.appendChild(hitButton);
   }
 
+  // The controller is rebuilt only when the game (or this player's role)
+  // changes. Rebuilding on every state poll would detach a button the player
+  // is holding, so its pointerup would never arrive.
+  let builtKey = null;
+
+  function controllerKey(game) {
+    const playerId = window.App && window.App.playerId;
+    const mine = (game.players || []).find(function (player) { return player.id === playerId; });
+    return [game.slug, mine ? mine.side : ""].join(":");
+  }
+
   function renderController(s) {
     const game = s.game || {};
     const el = document.getElementById("controller");
+    const key = controllerKey(game);
+
+    if (key === builtKey && el.firstChild) {
+      if (game.slug === "reaction") updateReaction(el, game);
+      return;
+    }
+    releaseAllHolds();
+    builtKey = key;
     el.innerHTML = "";
 
     switch (game.slug) {
-      case "reaction": renderReaction(el, game); break;
+      case "reaction": renderReaction(el); break;
       case "dodge": renderDodge(el); break;
       case "shooter": renderShooter(el); break;
       case "pong": renderPong(el, game); break;
@@ -121,5 +153,9 @@
     }
   }
 
+  window.resetController = function () {
+    releaseAllHolds();
+    builtKey = null;
+  };
   window.renderController = renderController;
 })();
