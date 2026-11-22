@@ -45,14 +45,17 @@
     let timer = null;
 
     function stop() {
+      const wasHeld = timer !== null;
       if (timer) { clearInterval(timer); timer = null; }
       activeHolds.delete(stop);
       btn.classList.remove("pressed");
+      // Dodge keeps drifting until told to stop; other games ignore it.
+      if (wasHeld) sendInput("stop");
     }
 
     btn.addEventListener("pointerdown", function (ev) {
       ev.preventDefault();
-      stop();
+      if (timer) { clearInterval(timer); timer = null; }
       // Capture keeps the hold alive if the finger drifts off the button.
       if (btn.setPointerCapture) btn.setPointerCapture(ev.pointerId);
       btn.classList.add("pressed");
