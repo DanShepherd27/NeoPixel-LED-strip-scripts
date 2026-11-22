@@ -267,6 +267,14 @@
           <label for="music-beat-lead-ms">Beat sync timing <output id="music-beat-lead-value">0 ms</output></label>
           <input id="music-beat-lead-ms" type="range" min="-100" max="200" step="10" value="0">
           <p class="muted">The beat tracker predicts from bass rhythm and estimated mic/network delay. Positive values pulse earlier; negative values pulse later.</p>
+          <h4>Song audio sync</h4>
+          <p class="muted">Lights must be shifted by the delay between starting the Pi player and sound leaving the speaker. The Pi can hear its own speakers, so it can measure that itself.</p>
+          <label for="song-latency-ms">Song audio latency <output id="song-latency-value">250 ms</output></label>
+          <input id="song-latency-ms" type="range" min="0" max="1000" step="1" value="250">
+          <button id="song-calibrate-btn" class="btn btn-accent btn-block" type="button">MEASURE WITH SPEAKER + MIC</button>
+          <canvas id="song-calibration-chart" width="320" height="110" role="img" aria-label="Match quality for each tested latency" hidden></canvas>
+          <p id="song-calibration-status" class="muted" role="status" aria-live="polite">Needs the arcade idle, the speaker audible to the Pi microphone, and about 20 seconds of the song intro.</p>
+          <label><input id="song-auto-sync" type="checkbox" checked> Keep adjusting automatically while the song plays</label>
           <label><input id="preview-invert-order" type="checkbox"> Invert LED order in preview</label>
           <p class="muted">Mirror the emulator’s LED order when the strip appears upside down.</p>
           <button type="submit" class="btn btn-primary btn-block">SAVE SETTINGS</button>
@@ -287,7 +295,8 @@
   <script src="/static/js/admin-settings.js?v=20261122-glitter-interval"></script>
   <script src="/static/js/web-mic.js?v=20261122-modules"></script>
   <script src="/static/js/app.js?v=20261122-live-glitter-controls"></script>
-  <script src="/static/js/song.js?v=20261122-song-show"></script>
+  <script src="/static/js/song.js?v=20261122-song-sync"></script>
+  <script src="/static/js/song-sync.js?v=20261122-song-sync"></script>
   <script src="/static/js/games.js?v=20261122-pong-player-color"></script>
   <script src="/static/js/controller.js?v=20261122-pong-player-color"></script>
 </body>

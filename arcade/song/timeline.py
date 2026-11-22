@@ -1,16 +1,18 @@
 """Musical map of the song: tempo grid and emotional sections.
 
-Tempo (149.8 BPM, 4/4) and the first downbeat were measured from the audio;
-section boundaries are bar numbers (bar 0 starts at BEAT_OFFSET) matched to
+Tempo and the first beat come from tools/analyze_song.py's beat tracker (the
+song is a constant 150.147 BPM; a slightly slower guess drifts half a second
+off by the end). Beat 0 is a downbeat: snare accents land on beats 2 and 4.
+Section boundaries are bar numbers (bar 0 starts at BEAT_OFFSET) matched to
 the arrangement's energy changes and repeated material.
 """
 
 from collections import namedtuple
 
-BPM = 149.8
+BPM = 150.147
 BEAT = 60.0 / BPM
 BAR = BEAT * 4
-BEAT_OFFSET = 0.376
+BEAT_OFFSET = 0.012
 
 Section = namedtuple("Section", "name mood start_bar end_bar cut")
 

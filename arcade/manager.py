@@ -121,6 +121,10 @@ class ArcadeManager(MusicRenderingMixin):
         self._laser_scan = 0.0
         self.state = ArcadeState.IDLE
         self._song = None
+        self.song_audio_latency_ms = SONG_AUDIO_LATENCY_MS
+        self.song_auto_sync = True
+        self.song_calibration = {"status": "idle"}
+        self.on_song_latency_changed = None  # set by the web layer to persist changes
         self.players = PlayerManager()
 
         # Idle effect rotation.
@@ -243,12 +247,28 @@ class ArcadeManager(MusicRenderingMixin):
                 return True
             if self.state != ArcadeState.IDLE:
                 return False
-            self._song = SongSession(
-                self.count, pi_audio, SONG_AUDIO_LATENCY_MS, OUTPUT_AUDIO_DEVICE,
-            )
-            self.state = ArcadeState.SONG
-            log.info("State -> SONG (pi_audio=%s, error=%s)", pi_audio, self._song.pi_audio_error)
+            self._begin_song(pi_audio, calibrate=False)
             return True
+
+    def start_song_calibration(self):
+        """Play the intro and measure speaker-to-microphone latency (idle only)."""
+        with self._lock:
+            if self.state != ArcadeState.IDLE:
+                return False, "Latency can only be measured while the arcade is idle."
+            if self.audio_input is None:
+                return False, "No microphone is configured on the Pi."
+            self.song_calibration = {"status": "running"}
+            self._begin_song(True, calibrate=True)
+            return True, None
+
+    def _begin_song(self, pi_audio, calibrate):
+        self._song = SongSession(
+            self.count, pi_audio, self.song_audio_latency_ms, OUTPUT_AUDIO_DEVICE,
+            mic=self.audio_input, auto_sync=self.song_auto_sync, calibrate=calibrate,
+        )
+        self.state = ArcadeState.SONG
+        log.info("State -> SONG (pi_audio=%s, calibrate=%s, error=%s)",
+                 pi_audio, calibrate, self._song.pi_audio_error)
 
     def stop_song(self):
         with self._lock:
@@ -258,9 +278,30 @@ class ArcadeManager(MusicRenderingMixin):
                 log.info("State -> IDLE (song stopped)")
 
     def _stop_song_session(self):
-        if self._song is not None:
-            self._song.stop()
-            self._song = None
+        song, self._song = self._song, None
+        if song is None:
+            return
+        song.stop()
+        if song.calibrating:
+            self._finish_calibration(song)
+        elif song.sync_enabled and abs(song.latency_ms - self.song_audio_latency_ms) >= 3:
+            # Auto-sync learned a better latency during the song: keep it.
+            self._set_song_latency(song.latency_ms)
+        if self.audio_input is not None and self.state != ArcadeState.MUSIC:
+            self.audio_input.set_enabled(False)
+
+    def _finish_calibration(self, song):
+        result = song.calibration_result or {"ok": False, "message": "Measurement was cancelled."}
+        if result["ok"]:
+            self._set_song_latency(result["latency_ms"])
+            result = dict(result, applied_ms=self.song_audio_latency_ms)
+        self.song_calibration = {"status": "done" if result["ok"] else "error", **result}
+        log.info("Song latency calibration: %s", {k: v for k, v in result.items() if k != "curve"})
+
+    def _set_song_latency(self, milliseconds):
+        self.song_audio_latency_ms = int(round(milliseconds))
+        if self.on_song_latency_changed is not None:
+            self.on_song_latency_changed(self.song_audio_latency_ms)
 
     def start_game(self):
         with self._lock:
@@ -459,10 +500,13 @@ class ArcadeManager(MusicRenderingMixin):
             self._music_led_frame = list(frame.pixels)
 
     def _render_song(self, frame, dt):
-        if self._song is None or self._song.finished:
+        song = self._song
+        if song is not None:
+            song.update()
+        if song is None or song.finished:
             self.stop_song()
             return
-        self._song.render(frame, dt)
+        song.render(frame, dt)
 
     # -- state updates -------------------------------------------------------
     def _update_idle(self, dt):
@@ -594,6 +638,8 @@ class ArcadeManager(MusicRenderingMixin):
                     "glitter_brightness": self.music_glitter_brightness,
                 },
                 "song": self._song.snapshot() if self._song else None,
+                "song_calibration": self.song_calibration,
+                "song_latency_ms": self.song_audio_latency_ms,
                 "music_led_frame": [list(pixel) for pixel in self._music_led_frame],
                 "pi_audio": self.audio_input.snapshot() if self.audio_input else {
                     "status": "unavailable", "error": "No audio input configured.",

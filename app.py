@@ -24,11 +24,13 @@ from config import (
     MUSIC_VISUALIZER, MUSIC_SENSITIVITY,
     MUSIC_BEAT_LEAD_MS,
     MUSIC_PRIMARY_COLOR, MUSIC_ACCENT_COLOR, MUSIC_BAND_COLORS,
+    SONG_AUDIO_LATENCY_MS,
 )
 from led.hardware import LEDHardware
 from led.audio import AudioInput
 from led.renderer import Renderer
 from arcade.manager import ArcadeManager
+from web.runtime_settings import update_runtime_settings
 from web.server import create_app
 
 
@@ -63,6 +65,8 @@ def main():
     color_red, color_green, color_blue = LED_COLOR_RED, LED_COLOR_GREEN, LED_COLOR_BLUE
     brightness = LED_BRIGHTNESS
     preview_invert_order = False
+    song_audio_latency_ms = SONG_AUDIO_LATENCY_MS
+    song_auto_sync = True
     try:
         with open(RUNTIME_SETTINGS_FILE, "r", encoding="utf-8") as settings_file:
             saved = json.load(settings_file)
@@ -85,6 +89,8 @@ def main():
         color_blue = int(saved.get("led_color_blue", color_blue))
         brightness = int(saved.get("led_brightness", brightness))
         preview_invert_order = saved.get("preview_invert_order", preview_invert_order)
+        song_audio_latency_ms = int(saved.get("song_audio_latency_ms", song_audio_latency_ms))
+        song_auto_sync = saved.get("song_auto_sync", song_auto_sync)
         if hidden_start < 0 or hidden_end < 0 or hidden_start + hidden_end > LED_COUNT:
             raise ValueError("saved LED offsets are outside the valid strip range")
         if any(not 0 <= value <= 200 for value in (color_red, color_green, color_blue)):
@@ -93,6 +99,8 @@ def main():
             raise ValueError("saved LED brightness must be between 0 and 255")
         if type(preview_invert_order) is not bool:
             raise ValueError("saved preview order inversion must be a boolean")
+        if not 0 <= song_audio_latency_ms <= 1500 or type(song_auto_sync) is not bool:
+            raise ValueError("saved song latency must be 0-1500 ms and auto-sync a boolean")
         if not 15 <= mic_handoff_seconds <= 1800:
             raise ValueError("saved microphone handoff must be between 15 and 1800 seconds")
         if music_animation not in (
@@ -133,6 +141,7 @@ def main():
         color_red, color_green, color_blue = LED_COLOR_RED, LED_COLOR_GREEN, LED_COLOR_BLUE
         brightness = LED_BRIGHTNESS
         preview_invert_order = False
+        song_audio_latency_ms, song_auto_sync = SONG_AUDIO_LATENCY_MS, True
 
     hardware = LEDHardware(
         LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT,
@@ -152,6 +161,10 @@ def main():
         music_glitter_brightness, music_glitter_every_beats,
     )
     manager.preview_invert_order = preview_invert_order
+    manager.song_audio_latency_ms = song_audio_latency_ms
+    manager.song_auto_sync = song_auto_sync
+    manager.on_song_latency_changed = lambda ms: update_runtime_settings(
+        {"song_audio_latency_ms": ms})
 
     renderer = Renderer(hardware, FPS)
     renderer.set_scene(manager)

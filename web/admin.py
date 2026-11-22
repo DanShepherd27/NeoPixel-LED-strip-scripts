@@ -1,14 +1,13 @@
 """Admin authentication and runtime settings routes."""
 
 import hmac
-import json
 import logging
-import os
 import re
 
 from flask import jsonify, request, session
 
-from config import ADMIN_PASSWORD, LED_COUNT, RUNTIME_SETTINGS_FILE
+from config import ADMIN_PASSWORD, LED_COUNT
+from web.runtime_settings import update_runtime_settings
 
 log = logging.getLogger("web.admin")
 
@@ -53,6 +52,8 @@ def register_admin_routes(app, manager, hardware):
             "led_color_blue": hardware.color_balance[2],
             "led_brightness": hardware.brightness,
             "preview_invert_order": getattr(manager, "preview_invert_order", False),
+            "song_audio_latency_ms": manager.song_audio_latency_ms,
+            "song_auto_sync": manager.song_auto_sync,
         })
 
     @app.put("/api/admin/settings")
@@ -77,12 +78,18 @@ def register_admin_routes(app, manager, hardware):
         color_blue = data.get("led_color_blue", hardware.color_balance[2])
         brightness = data.get("led_brightness", hardware.brightness)
         preview_invert_order = data.get("preview_invert_order", getattr(manager, "preview_invert_order", False))
+        song_latency = data.get("song_audio_latency_ms", manager.song_audio_latency_ms)
+        song_auto_sync = data.get("song_auto_sync", manager.song_auto_sync)
         if type(start_value) is not int or type(end_value) is not int or type(handoff_value) is not int:
             return jsonify({"ok": False, "message": "Enter whole numbers for offsets and microphone handoff."}), 400
         if type(beat_lead_value) is not int or not -100 <= beat_lead_value <= 200:
             return jsonify({"ok": False, "message": "Beat sync timing must be between -100 and 200 milliseconds."}), 400
         if any(type(value) is not int for value in (color_red, color_green, color_blue)):
             return jsonify({"ok": False, "message": "LED color balance values must be whole percentages."}), 400
+        if type(song_latency) is not int or not 0 <= song_latency <= 1500:
+            return jsonify({"ok": False, "message": "Song audio latency must be between 0 and 1500 milliseconds."}), 400
+        if type(song_auto_sync) is not bool:
+            return jsonify({"ok": False, "message": "Song auto-sync must be true or false."}), 400
         if type(brightness) is not int or not 0 <= brightness <= 255:
             return jsonify({"ok": False, "message": "LED brightness must be a whole value from 0 to 255."}), 400
         if type(preview_invert_order) is not bool:
@@ -118,36 +125,29 @@ def register_admin_routes(app, manager, hardware):
                         for color in band_colors)):
             return jsonify({"ok": False, "message": "Choose valid colors for all six frequency bands."}), 400
 
-        settings_path = RUNTIME_SETTINGS_FILE
-        temporary_path = settings_path + ".tmp"
         try:
-            with open(temporary_path, "w", encoding="utf-8") as settings_file:
-                json.dump({
-                    "hidden_start": start,
-                    "hidden_end": end,
-                    "mic_handoff_seconds": handoff_value,
-                    "music_animation": animation_value,
-                    "music_sensitivity": sensitivity,
-                    "music_sound_profile": sound_profile,
-                    "music_glitter_brightness": glitter_brightness,
-                    "music_glitter_every_beats": glitter_every_beats,
-                    "music_beat_lead_ms": beat_lead_value,
-                    "music_primary_color": primary_color.upper(),
-                    "music_accent_color": accent_color.upper(),
-                    "music_band_colors": [color.upper() for color in band_colors],
-                    "led_color_red": color_red,
-                    "led_color_green": color_green,
-                    "led_color_blue": color_blue,
-                    "led_brightness": brightness,
-                    "preview_invert_order": preview_invert_order,
-                }, settings_file)
-            os.replace(temporary_path, settings_path)
+            update_runtime_settings({
+                "hidden_start": start,
+                "hidden_end": end,
+                "mic_handoff_seconds": handoff_value,
+                "music_animation": animation_value,
+                "music_sensitivity": sensitivity,
+                "music_sound_profile": sound_profile,
+                "music_glitter_brightness": glitter_brightness,
+                "music_glitter_every_beats": glitter_every_beats,
+                "music_beat_lead_ms": beat_lead_value,
+                "music_primary_color": primary_color.upper(),
+                "music_accent_color": accent_color.upper(),
+                "music_band_colors": [color.upper() for color in band_colors],
+                "led_color_red": color_red,
+                "led_color_green": color_green,
+                "led_color_blue": color_blue,
+                "led_brightness": brightness,
+                "preview_invert_order": preview_invert_order,
+                "song_audio_latency_ms": song_latency,
+                "song_auto_sync": song_auto_sync,
+            })
         except OSError:
-            log.exception("Could not persist LED offset settings")
-            try:
-                os.remove(temporary_path)
-            except OSError:
-                pass
             return jsonify({"ok": False, "message": "Could not save settings on the server."}), 500
 
         hardware.set_hidden_offsets(start, end)
@@ -163,6 +163,8 @@ def register_admin_routes(app, manager, hardware):
         manager.music_glitter_every_beats = glitter_every_beats
         manager.music_beat_lead_ms = beat_lead_value
         manager.preview_invert_order = preview_invert_order
+        manager.song_audio_latency_ms = song_latency
+        manager.song_auto_sync = song_auto_sync
         return jsonify({
             "ok": True, "hidden_start": start, "hidden_end": end,
             "mic_handoff_seconds": handoff_value,
@@ -180,5 +182,7 @@ def register_admin_routes(app, manager, hardware):
             "led_color_blue": color_blue,
             "led_brightness": brightness,
             "preview_invert_order": preview_invert_order,
+            "song_audio_latency_ms": song_latency,
+            "song_auto_sync": song_auto_sync,
         })
 

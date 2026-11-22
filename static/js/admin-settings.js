@@ -48,6 +48,8 @@
         $id("led-brightness-value").textContent = $id("led-brightness").value;
         App.previewInvertOrder = data.preview_invert_order === true;
         $id("preview-invert-order").checked = App.previewInvertOrder;
+        window.SongSync.setLatency(data.song_audio_latency_ms);
+        $id("song-auto-sync").checked = data.song_auto_sync !== false;
         $id("music-sensitivity-value").textContent = Number($id("music-sensitivity").value).toFixed(2) + "×";
         $id("hidden-start").max = data.led_count;
         $id("hidden-end").max = data.led_count;
@@ -100,6 +102,8 @@
           led_color_blue: Number($id("led-color-blue").value),
           led_brightness: Number($id("led-brightness").value),
           preview_invert_order: $id("preview-invert-order").checked,
+          song_audio_latency_ms: Number($id("song-latency-ms").value),
+          song_auto_sync: $id("song-auto-sync").checked,
         }),
       }).then(function (response) {
         return response.json().then(function (body) {

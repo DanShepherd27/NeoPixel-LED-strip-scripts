@@ -1,6 +1,6 @@
 """Free music mode and browser microphone routes."""
 
-from flask import jsonify, request, send_file
+from flask import jsonify, request, send_file, session
 
 from arcade.song.analysis import SONG_AUDIO
 
@@ -36,6 +36,15 @@ def register_music_routes(app, manager):
     @app.post("/api/song/stop")
     def song_stop():
         manager.stop_song()
+        return jsonify({"ok": True})
+
+    @app.post("/api/song/calibrate")
+    def song_calibrate():
+        if not session.get("is_admin"):
+            return jsonify({"ok": False, "message": "Admin login required."}), 401
+        started, message = manager.start_song_calibration()
+        if not started:
+            return jsonify({"ok": False, "message": message}), 409
         return jsonify({"ok": True})
 
     @app.get("/api/song/audio")

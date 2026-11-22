@@ -5,6 +5,7 @@ needed. The worker computes level, clap, and coarse frequency-band features;
 the central LED renderer remains the sole writer to the strip.
 """
 
+import collections
 import logging
 import math
 import shutil
@@ -20,6 +21,10 @@ class AudioInput:
     SAMPLE_RATE = 16000
     CHUNK_BYTES = 1024
     BAND_CENTERS_HZ = (80, 180, 360, 900, 2400, 6000)
+    # Small ALSA periods keep chunk timestamps within ~20 ms of when sound arrived,
+    # which the speaker-to-microphone latency measurement depends on.
+    LOW_LATENCY_ARGS = ("-F", "20000", "-B", "80000")
+    HISTORY_SECONDS = 60
 
     def __init__(self, device="default"):
         self.device = device or "default"
@@ -37,6 +42,14 @@ class AudioInput:
         self._noise_floor = None
         self._clap_until = 0.0
         self._last_clap = 0.0
+        self._low_latency = True
+        # (monotonic arrival time, rms, seconds covered) per captured chunk.
+        self._history = collections.deque(maxlen=self.HISTORY_SECONDS * 100)
+
+    def history_since(self, start_time):
+        """Loudness chunks that arrived after ``start_time`` (time.monotonic)."""
+        with self._lock:
+            return [chunk for chunk in self._history if chunk[0] >= start_time]
 
     def start(self):
         if self._thread and self._thread.is_alive():
@@ -99,12 +112,14 @@ class AudioInput:
                 continue
 
             process = None
+            started = time.monotonic()
             try:
                 process = subprocess.Popen(
                     [
                         "arecord", "-q", "-D", self.device,
                         "-t", "raw", "-f", "S16_LE", "-c", "1",
                         "-r", str(self.SAMPLE_RATE),
+                        *(self.LOW_LATENCY_ARGS if self._low_latency else ()),
                     ],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -127,6 +142,13 @@ class AudioInput:
                 return_code = process.wait(timeout=1.0)
                 error_output = process.stderr.read().decode("utf-8", errors="replace").strip()
                 self._process = None
+                if (self._low_latency and self._enabled.is_set() and
+                        time.monotonic() - started < 3.0):
+                    # The device rejected the small buffer; use ALSA defaults.
+                    log.warning("arecord failed with low-latency buffers (%s); retrying with defaults",
+                                error_output or return_code)
+                    self._low_latency = False
+                    continue
                 if self._enabled.is_set() and not self._stopping.is_set():
                     detail = error_output or "no ALSA error details were reported"
                     self._set_failure(
@@ -183,6 +205,7 @@ class AudioInput:
                 for magnitude in self._frequency_band_amplitudes(samples)
             ]
             self._rms = rms
+            self._history.append((now, rms, len(samples) / self.SAMPLE_RATE))
 
             is_clap = (
                 rms > max(120.0, floor * 1.35)

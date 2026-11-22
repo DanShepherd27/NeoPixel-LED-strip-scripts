@@ -59,19 +59,29 @@ and usable without internet after installation.
 ## Song light show
 
 "All I Want for Christmas Is You" (`assets/song/`) has a full choreography in
-`arcade/song/`. `timeline.py` holds the measured tempo (149.8 BPM, first
-downbeat 0.376 s) and bar-based sections; `moods.py` holds the looks;
-`choreography.py` maps song time to frames, cross-fading between moods and
-hard-cutting into choruses. Features come from `tools/analyze_song.py` output
-(`*.analysis.json`, 40 Hz bands/kick/snare), not the live mic. Regenerate it
-if the MP3 changes. `SongSession` owns the clock and optional Pi playback
-(`mpg123`, installed by `deploy/install.sh`; ffplay/cvlc/mpv/mplayer are
-fallbacks). `LED_SONG_AUDIO_LATENCY_MS` (default 250) aligns lights with Pi
-sound; `LED_OUTPUT_AUDIO_DEVICE` (default `LED_AUDIO_DEVICE`) is the ALSA
-output, e.g. `plughw:CARD=U192k,DEV=0` for the UMC204HD. Browsers can also stream `/api/song/audio` (range-capable) and
-`static/js/song.js` keeps it within 0.25 s of the server position. Section
-boundaries are inferred from energy/repetition, so refine them in
-`timeline.py` after listening on the Pi.
+`arcade/song/`. `tools/analyze_song.py` (run offline, needs numpy) writes
+`*.analysis.json`: 40 Hz loudness/band features plus a beat-tracked tempo
+(150.147 BPM, first beat 0.012 s, beat 0 = downbeat, snare on beats 2/4) and
+per-beat accent strengths. A constant-tempo guess that is 0.2% off drifts half
+a second across the song, so re-run the tool and copy `BPM`/`BEAT_OFFSET` into
+`timeline.py` if the MP3 changes. `timeline.py` also holds bar-based sections
+(inferred from energy/repetition; refine by ear). `rhythm.py` gives moods beat
+envelopes (`hit`, `offbeat_hit`, `stepped`); `moods.py` (calm) and `peaks.py`
+(build/chorus/bridge/finale) draw on them, so every beat is a visible event.
+`choreography.py` crossfades moods and hard-cuts into choruses.
+
+`SongSession` owns the clock and Pi playback (`mpg123`; `LED_OUTPUT_AUDIO_DEVICE`,
+default `LED_AUDIO_DEVICE`, selects the ALSA output, e.g.
+`plughw:CARD=U192k,DEV=0`). The lights are shifted by the speaker latency
+(`song_audio_latency_ms` in runtime settings, env default
+`LED_SONG_AUDIO_LATENCY_MS`). `arcade/song/latency.py` measures it with the Pi's
+own microphone: it cross-correlates the mic loudness (`AudioInput.history_since`)
+with the song's known loudness. Admin "Measure with speaker + mic" plays the
+first 18 s and saves the result; with auto-sync on, the same estimator runs
+every 3 s during playback and nudges latency (max 30 ms/step, +-300 ms) and
+saves it when the song ends. Estimation runs in a background thread so the
+renderer never stalls. Browsers can also stream `/api/song/audio`
+(range-capable); `static/js/song.js` keeps it within 0.25 s of the server position.
 
 ## Architecture and where to change things
 

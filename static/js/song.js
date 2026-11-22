@@ -37,6 +37,13 @@
     if (player.paused) playDeviceAudio();
   }
 
+  function syncSummary(song) {
+    if (!song.sync || !song.sync.enabled) return "";
+    const labels = { locked: "in sync", adjusting: "tuning", weak: "listening", off: "starting" };
+    return " · latency " + Math.round(song.latency_ms) + " ms (" +
+      (labels[song.sync.state] || song.sync.state) + ")";
+  }
+
   function render(state) {
     const receivedAt = performance.now();
     const song = state.state === "song" ? state.song : null;
@@ -53,7 +60,9 @@
       return;
     }
     $id("song-progress-bar").style.width = (100 * song.position / song.duration) + "%";
-    $id("song-status").textContent = song.pi_audio_error || ("Now: " + song.section);
+    $id("song-status").textContent = song.pi_audio_error || (song.calibrating
+      ? "Measuring speaker delay with the microphone…"
+      : "Now: " + song.section + syncSummary(song));
     syncDeviceAudio(song, receivedAt);
   }
 
