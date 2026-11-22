@@ -1,6 +1,8 @@
 """Free music mode and browser microphone routes."""
 
-from flask import jsonify, request
+from flask import jsonify, request, send_file
+
+from arcade.song.analysis import SONG_AUDIO
 
 
 def register_music_routes(app, manager):
@@ -15,6 +17,26 @@ def register_music_routes(app, manager):
         if not enabled:
             manager.stop_music_mode()
         return jsonify({"ok": True, "enabled": enabled})
+
+    @app.post("/api/song/start")
+    def song_start():
+        data = request.get_json(silent=True) or {}
+        if not manager.start_song(pi_audio=data.get("pi_audio", True) is not False):
+            return jsonify({
+                "ok": False,
+                "message": "The song can only start while the arcade is idle.",
+            }), 409
+        return jsonify({"ok": True})
+
+    @app.post("/api/song/stop")
+    def song_stop():
+        manager.stop_song()
+        return jsonify({"ok": True})
+
+    @app.get("/api/song/audio")
+    def song_audio():
+        # conditional=True enables HTTP range requests so phones can seek.
+        return send_file(SONG_AUDIO, mimetype="audio/mpeg", conditional=True)
 
     @app.post("/api/music/visualizer")
     def set_music_visualizer():

@@ -101,7 +101,7 @@
         if (!response.ok) throw new Error("Arcade server did not respond.");
         return response.json();
       }).then(function (state) {
-        setPollDelay(state.state === "music" ? 125 : 500);
+        setPollDelay(state.state === "music" || state.state === "song" ? 125 : 500);
         if (!socket.connected) {
           socket.connected = true;
           setConn(true);
@@ -213,7 +213,7 @@
       const animationSelect = $id("music-animation-select");
       const selectedPattern = selection.animation || "center_pulse";
       if (animationSelect) animationSelect.value = selectedPattern;
-      $id("live-christmas-glitter-control").hidden = selectedPattern !== "christmas_glitter";
+      $id("music-live-effect-controls").hidden = !musicActive || selectedPattern !== "christmas_glitter";
       $id("music-live-glitter-brightness").value = selection.glitter_brightness == null
         ? 255 : selection.glitter_brightness;
       $id("music-live-glitter-brightness-value").textContent = $id("music-live-glitter-brightness").value;

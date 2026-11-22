@@ -56,6 +56,22 @@ and usable without internet after installation.
   `mock` value means the web process is alive but physical LED control failed;
   inspect `sudo journalctl -u led-arcade`.
 
+## Song light show
+
+"All I Want for Christmas Is You" (`assets/song/`) has a full choreography in
+`arcade/song/`. `timeline.py` holds the measured tempo (149.8 BPM, first
+downbeat 0.376 s) and bar-based sections; `moods.py` holds the looks;
+`choreography.py` maps song time to frames, cross-fading between moods and
+hard-cutting into choruses. Features come from `tools/analyze_song.py` output
+(`*.analysis.json`, 40 Hz bands/kick/snare), not the live mic. Regenerate it
+if the MP3 changes. `SongSession` owns the clock and optional Pi playback
+(`mpg123`, installed by `deploy/install.sh`; ffplay/cvlc/mpv/mplayer are
+fallbacks). `LED_SONG_AUDIO_LATENCY_MS` (default 250) aligns lights with Pi
+sound. Browsers can also stream `/api/song/audio` (range-capable) and
+`static/js/song.js` keeps it within 0.25 s of the server position. Section
+boundaries are inferred from energy/repetition, so refine them in
+`timeline.py` after listening on the Pi.
+
 ## Architecture and where to change things
 
 - `app.py`: loads persisted settings and starts one renderer and the web app.

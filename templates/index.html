@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-pong-phone-ux">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-song-show">
 </head>
 <body>
   <header class="app-header">
@@ -40,7 +40,22 @@
         <button id="enter-lobby" class="btn btn-primary btn-block">ENTER ARCADE</button>
         <button id="music-mode-btn" class="btn btn-accent btn-block">START SOUND REACTIVE LIGHTING</button>
         <p id="music-message" class="muted" role="status" aria-live="polite"></p>
+        <div id="song-card" class="song-card">
+          <h3>🎄 Christmas light show</h3>
+          <p class="muted">Mariah Carey — All I Want for Christmas Is You, choreographed from start to finish.</p>
+          <button id="song-btn" class="btn btn-primary btn-block" type="button">PLAY THE SONG SHOW</button>
+          <label class="song-option"><input id="song-pi-audio" type="checkbox" checked> Play on the Pi speakers</label>
+          <label class="song-option"><input id="song-device-audio" type="checkbox"> Also play on this device</label>
+          <div id="song-progress" class="song-progress" hidden><span id="song-progress-bar"></span></div>
+          <p id="song-status" class="muted" role="status" aria-live="polite"></p>
+        </div>
         <p id="music-visualizer-status" class="muted"></p>
+        <div id="music-live-effect-controls" class="music-live-effect-controls" hidden>
+          <h3>Music effect controls</h3>
+          <label for="music-live-glitter-brightness">Glitter burst overdrive <output id="music-live-glitter-brightness-value">255</output></label>
+          <input id="music-live-glitter-brightness" type="range" min="0" max="255" step="1" value="255">
+          <p class="muted">Adjusts the temporary brightness of Christmas Glitter bursts while music is playing.</p>
+        </div>
         <div id="web-mic-controls" hidden>
           <label for="music-animation-select">Light pattern</label>
           <select id="music-animation-select">
@@ -57,11 +72,6 @@
             <option value="red_shades">Red pulse</option>
             <option value="christmas_glitter">Christmas glitter</option>
           </select>
-          <div id="live-christmas-glitter-control" hidden>
-            <label for="music-live-glitter-brightness">Glitter burst overdrive <output id="music-live-glitter-brightness-value">255</output></label>
-            <input id="music-live-glitter-brightness" type="range" min="0" max="255" step="1" value="255">
-            <p class="muted">Sets the temporary strip brightness for Christmas glitter bursts.</p>
-          </div>
           <div id="music-standard-colors">
           <label for="music-live-primary" class="music-control-label">Primary color</label>
           <input id="music-live-primary" type="color" value="#00e5ff">
@@ -276,7 +286,8 @@
   <script src="/static/js/music-preview.js?v=20261122-christmas-glitter"></script>
   <script src="/static/js/admin-settings.js?v=20261122-glitter-interval"></script>
   <script src="/static/js/web-mic.js?v=20261122-modules"></script>
-  <script src="/static/js/app.js?v=20261122-live-glitter-control"></script>
+  <script src="/static/js/app.js?v=20261122-live-glitter-controls"></script>
+  <script src="/static/js/song.js?v=20261122-song-show"></script>
   <script src="/static/js/games.js?v=20261122-pong-player-color"></script>
   <script src="/static/js/controller.js?v=20261122-pong-player-color"></script>
 </body>

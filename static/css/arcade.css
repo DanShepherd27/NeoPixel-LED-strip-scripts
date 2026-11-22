@@ -123,6 +123,15 @@ html, body {
 .card h2 { font-size: 1.4rem; }
 .card h3 { font-size: 1rem; color: var(--neon); }
 
+.music-live-effect-controls {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(0, 229, 255, 0.04);
+}
+.music-live-effect-controls h3 { margin-bottom: 10px; }
+
 .muted { color: var(--muted); font-size: 0.9rem; }
 
 /* Buttons */
@@ -460,36 +469,29 @@ input[type="text"]:focus {
 .led-preview-heading span { font-size: 0.75rem; }
 .led-preview-dock canvas { display: block; width: 100%; height: 52px; }
 @media (orientation: portrait) {
-  .app-header { padding-right: 82px; }
-  .stage { padding-right: 88px; }
+  /* Slim edge rail: matches the physically vertical strip without eating width. */
+  .app-header { padding-right: 30px; }
+  .stage { padding-right: 30px; }
   .led-preview-dock {
     top: 0;
     right: 0;
     bottom: 0;
     left: auto;
-    width: 68px;
-    padding: 10px 8px;
+    width: 20px;
+    padding: 6px 3px;
     border-top: 0;
     border-left: 1px solid var(--border);
-    box-shadow: -8px 0 28px rgba(0, 0, 0, 0.38);
+    box-shadow: none;
     display: flex;
+    pointer-events: none;
   }
   .led-preview-dock-inner {
     min-height: 0;
     width: 100%;
     display: flex;
     flex-direction: column;
-    align-items: center;
   }
-  .led-preview-heading {
-    flex: 0 0 auto;
-    writing-mode: vertical-rl;
-    align-items: center;
-    gap: 8px;
-    margin: 0 0 8px;
-  }
-  .led-preview-heading strong { font-size: 0.68rem; }
-  .led-preview-heading span { display: none; }
+  .led-preview-heading { display: none; }
   .led-preview-dock canvas {
     flex: 1 1 auto;
     min-height: 0;
@@ -498,6 +500,19 @@ input[type="text"]:focus {
   }
 }
 
+/* Short landscape phones: compact bottom bar without the caption. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .led-preview-dock { padding: 4px 22px 5px; }
+  .led-preview-heading { display: none; }
+  .led-preview-dock canvas { height: 22px; }
+}
+
 @media (max-width: 1024px) and (pointer: coarse) {
   body[data-arcade-state="game"] .led-preview-dock { display: none; }
 }
+
+.song-card { margin: 16px 0; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: rgba(0,0,0,.12); }
+.song-card h3 { margin: 0 0 6px; }
+.song-option { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.85rem; }
+.song-progress { height: 6px; margin-top: 12px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+.song-progress span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #eb0c1c, #ffb018, #00c83c); }

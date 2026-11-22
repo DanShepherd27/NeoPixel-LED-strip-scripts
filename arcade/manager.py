@@ -17,6 +17,7 @@ from arcade.games import GAMES, game_catalog
 from led.effects import EFFECTS
 from led.web_audio import WebMicQueue
 from arcade.music_rendering import MusicRenderingMixin
+from arcade.song.session import SongSession
 
 from config import (
     LED_COUNT,
@@ -25,6 +26,7 @@ from config import (
     COUNTDOWN_SECONDS,
     RESULTS_DURATION,
     LED_ORIENTATION,
+    SONG_AUDIO_LATENCY_MS,
 )
 
 log = logging.getLogger("arcade.manager")
@@ -117,6 +119,7 @@ class ArcadeManager(MusicRenderingMixin):
         self._laser_wave_origin = 0.0
         self._laser_scan = 0.0
         self.state = ArcadeState.IDLE
+        self._song = None
         self.players = PlayerManager()
 
         # Idle effect rotation.
@@ -232,6 +235,30 @@ class ArcadeManager(MusicRenderingMixin):
                 self.state = ArcadeState.IDLE
                 log.info("State -> IDLE (music visualizer stopped)")
 
+    def start_song(self, pi_audio=True):
+        """Start the full-song light show; only possible while idle."""
+        with self._lock:
+            if self.state == ArcadeState.SONG:
+                return True
+            if self.state != ArcadeState.IDLE:
+                return False
+            self._song = SongSession(self.count, pi_audio, SONG_AUDIO_LATENCY_MS)
+            self.state = ArcadeState.SONG
+            log.info("State -> SONG (pi_audio=%s, error=%s)", pi_audio, self._song.pi_audio_error)
+            return True
+
+    def stop_song(self):
+        with self._lock:
+            self._stop_song_session()
+            if self.state == ArcadeState.SONG:
+                self.state = ArcadeState.IDLE
+                log.info("State -> IDLE (song stopped)")
+
+    def _stop_song_session(self):
+        if self._song is not None:
+            self._song.stop()
+            self._song = None
+
     def start_game(self):
         with self._lock:
             if (self.state == ArcadeState.LOBBY and self.selected_game and
@@ -315,6 +342,7 @@ class ArcadeManager(MusicRenderingMixin):
 
     # -- lifecycle transitions (must hold self._lock) ------------------------
     def _enter_idle(self, clear_players=True):
+        self._stop_song_session()
         if self.audio_input is not None:
             self.audio_input.set_enabled(False)
             self._music_pi_enabled = False
@@ -403,6 +431,8 @@ class ArcadeManager(MusicRenderingMixin):
                 self._render_lobby(frame, dt)
             elif self.state == ArcadeState.MUSIC:
                 self._render_music(frame, dt)
+            elif self.state == ArcadeState.SONG:
+                self._render_song(frame, dt)
             elif self.state == ArcadeState.TUTORIAL:
                 self._update_tutorial(dt)
                 if self.state == ArcadeState.TUTORIAL and self.game is not None:
@@ -424,6 +454,12 @@ class ArcadeManager(MusicRenderingMixin):
                 self._update_results(dt)
                 self._render_results(frame, dt)
             self._music_led_frame = list(frame.pixels)
+
+    def _render_song(self, frame, dt):
+        if self._song is None or self._song.finished:
+            self.stop_song()
+            return
+        self._song.render(frame, dt)
 
     # -- state updates -------------------------------------------------------
     def _update_idle(self, dt):
@@ -554,6 +590,7 @@ class ArcadeManager(MusicRenderingMixin):
                     "beat_lead_ms": self.music_beat_lead_ms,
                     "glitter_brightness": self.music_glitter_brightness,
                 },
+                "song": self._song.snapshot() if self._song else None,
                 "music_led_frame": [list(pixel) for pixel in self._music_led_frame],
                 "pi_audio": self.audio_input.snapshot() if self.audio_input else {
                     "status": "unavailable", "error": "No audio input configured.",

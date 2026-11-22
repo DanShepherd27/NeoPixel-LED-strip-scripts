@@ -75,3 +75,7 @@ RUNTIME_SETTINGS_FILE = os.environ.get(
     "LED_ARCADE_SETTINGS_FILE",
     os.path.join(os.path.dirname(__file__), "runtime-settings.json"),
 )
+
+# Full-song light show. Delay between starting the Pi audio player and sound
+# leaving the speakers; raise it if lights lead the music, lower it if they lag.
+SONG_AUDIO_LATENCY_MS = int(os.environ.get("LED_SONG_AUDIO_LATENCY_MS", "250"))
