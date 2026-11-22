@@ -71,6 +71,12 @@ class ArcadeManager(MusicRenderingMixin):
         self._music_beat_confidence = 0.0
         self._music_beat_low = 0.0
         self._music_beat_pulse = 0.0
+        self._music_onset_history = []
+        self._music_onset_sample_clock = 0.0
+        self._music_onset_sample_value = 0.0
+        self._music_tempo_update_clock = 0.0
+        self._music_tempo_candidate = None
+        self._music_tempo_candidate_hits = 0
         self._retro_vu_peak_position = 0.0
         self._retro_vu_peak_hold = 0.0
         self._retro_vu_level = 0.0
@@ -193,6 +199,13 @@ class ArcadeManager(MusicRenderingMixin):
             self._music_beat_confidence = 0.0
             self._music_beat_low = 0.0
             self._music_beat_pulse = 0.0
+            self._music_beat_onset_count = 0
+            self._music_onset_history.clear()
+            self._music_onset_sample_clock = 0.0
+            self._music_onset_sample_value = 0.0
+            self._music_tempo_update_clock = 0.0
+            self._music_tempo_candidate = None
+            self._music_tempo_candidate_hits = 0
             if self.audio_input is not None:
                 self.audio_input.set_enabled(True)
                 self._music_pi_enabled = True

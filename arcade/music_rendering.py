@@ -121,7 +121,7 @@ class MusicRenderingMixin(MusicPatternMixin):
             frame.set(index, tuple(int(channel * factor) for channel in color))
 
     def _update_music_beat(self, bands, latency_ms, dt):
-        """Track bass onsets and pulse slightly ahead of the predicted next beat."""
+        """Estimate tempo from autocorrelation of a rolling bass-onset history."""
         dt = max(0.0, dt)
         self._music_beat_clock += dt
         now = self._music_beat_clock
@@ -131,24 +131,42 @@ class MusicRenderingMixin(MusicPatternMixin):
         rise = self._music_beat_low - previous
         self._music_beat_pulse = max(0.0, self._music_beat_pulse - dt / 0.11)
 
-        onset = self._music_beat_low >= 0.22 and rise >= 0.10
-        if onset and (
-            self._music_beat_last_onset is None
-            or now - self._music_beat_last_onset >= 0.27
-        ):
-            self._music_beat_onset_count += 1
-            if self._music_beat_last_onset is not None:
-                interval = now - self._music_beat_last_onset
-                if 0.30 <= interval <= 1.50:
-                    self._music_beat_period = (
-                        interval if self._music_beat_period is None
-                        else self._music_beat_period * 0.72 + interval * 0.28
-                    )
+        onset_strength = max(0.0, rise)
+        self._music_onset_sample_value = max(
+            self._music_onset_sample_value, onset_strength,
+        )
+        self._music_onset_sample_clock += dt
+        while self._music_onset_sample_clock >= 0.05:
+            self._music_onset_history.append(self._music_onset_sample_value)
+            self._music_onset_sample_value = 0.0
+            self._music_onset_sample_clock -= 0.05
+        if len(self._music_onset_history) > 240:
+            del self._music_onset_history[:-240]
+
+        self._music_tempo_update_clock += dt
+        if self._music_tempo_update_clock >= 0.5:
+            self._music_tempo_update_clock %= 0.5
+            estimate = self._estimate_music_period()
+            if estimate is not None:
+                candidate_period, score = estimate
+                if score >= 0.12:
+                    self._accept_music_tempo(candidate_period)
                     self._music_beat_confidence = min(
-                        1.0, self._music_beat_confidence + 0.28,
+                        1.0, self._music_beat_confidence + 0.12,
                     )
                 else:
-                    self._music_beat_confidence *= 0.5
+                    self._music_beat_confidence = max(
+                        0.0, self._music_beat_confidence - 0.04,
+                    )
+
+        onset = self._music_beat_low >= 0.12 and rise >= max(
+            0.035, previous * 0.12,
+        )
+        if onset and (
+            self._music_beat_last_onset is None
+            or now - self._music_beat_last_onset >= 0.20
+        ):
+            self._music_beat_onset_count += 1
             self._music_beat_last_onset = now
             self._music_beat_pulse = min(1.0, 0.45 + rise * 2.0)
 
@@ -157,7 +175,7 @@ class MusicRenderingMixin(MusicPatternMixin):
         silence = now - self._music_beat_last_onset
         if silence > 2.5:
             self._music_beat_confidence = max(
-                0.0, self._music_beat_confidence - dt * 0.35,
+                0.0, self._music_beat_confidence - dt * 0.2,
             )
             if self._music_beat_confidence == 0.0:
                 self._music_beat_period = None
@@ -182,6 +200,67 @@ class MusicRenderingMixin(MusicPatternMixin):
             predicted_pulse = max(0.0, 1.0 - max(0.0, until_predicted) / 0.11)
             self._music_beat_pulse = max(self._music_beat_pulse, predicted_pulse)
         return self._music_beat_pulse
+
+    def _estimate_music_period(self):
+        """Find the strongest repeating onset interval across several seconds."""
+        history = self._music_onset_history
+        if len(history) < 80:
+            return None
+        energy = sum(value * value for value in history)
+        if energy < 1e-5:
+            return None
+
+        best_period = None
+        best_score = 0.0
+        sample_seconds = 0.05
+        # 6–24 samples represents 50–200 BPM at a 20 Hz analysis rate.
+        for lag in range(6, 25):
+            score = 0.0
+            for harmonic, weight in ((1, 1.0), (2, 0.45), (3, 0.2)):
+                offset = lag * harmonic
+                if offset >= len(history):
+                    continue
+                correlation = sum(
+                    history[index] * history[index - offset]
+                    for index in range(offset, len(history))
+                )
+                score += weight * correlation / energy
+            if score > best_score:
+                best_score = score
+                best_period = lag * sample_seconds
+        if best_period is None:
+            return None
+        return best_period, min(1.0, best_score)
+
+    def _accept_music_tempo(self, candidate_period):
+        """Smooth stable estimates and require repeated support for tempo changes."""
+        current = self._music_beat_period
+        if current is None:
+            self._music_beat_period = candidate_period
+            self._music_tempo_candidate = None
+            self._music_tempo_candidate_hits = 0
+            return
+
+        ratio = candidate_period / current
+        if 0.92 <= ratio <= 1.08:
+            self._music_beat_period += (candidate_period - current) * 0.12
+            self._music_tempo_candidate = None
+            self._music_tempo_candidate_hits = 0
+            return
+        # Half/double tempo aliases are common in onset autocorrelation. Keep
+        # the established meter when a new peak is simply its octave.
+        if abs(ratio - 0.5) <= 0.045 or abs(ratio - 2.0) <= 0.12:
+            return
+
+        previous = self._music_tempo_candidate
+        if previous is not None and abs(candidate_period / previous - 1.0) <= 0.05:
+            self._music_tempo_candidate_hits += 1
+        else:
+            self._music_tempo_candidate = candidate_period
+            self._music_tempo_candidate_hits = 1
+        if self._music_tempo_candidate_hits >= 4:
+            self._music_beat_period += (candidate_period - current) * 0.08
+            self._music_tempo_candidate = candidate_period
 
     def _draw_music_animation(self, frame, level, peak, dt=0.0, bands=None):
         count = self.count
