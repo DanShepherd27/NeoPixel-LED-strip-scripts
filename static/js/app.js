@@ -60,7 +60,7 @@
           join: "/api/join", rejoin: "/api/rejoin", leave: "/api/leave",
           ready: "/api/ready", select_game: "/api/select_game",
           start_game: "/api/start_game", rematch: "/api/rematch",
-          skip_tutorial: "/api/skip_tutorial",
+          skip_tutorial: "/api/skip_tutorial", tutorial_next: "/api/tutorial_next",
           return_to_idle: "/api/return_to_idle", input: "/api/input",
           ping: "/api/ping",
           music_mode: "/api/music_mode",
@@ -389,12 +389,15 @@
     const waiting = !!tutorial.waiting_ready;
     const me = connected.find(function (player) { return player.id === App.playerId; });
     const readyButton = $id("tutorial-ready-btn");
+    readyButton.hidden = !waiting;
+    $id("tutorial-next-btn").hidden = waiting || !tutorial.count;
+    $id("tutorial-next-btn").textContent = tutorial.is_last ? "DONE" : "NEXT";
     readyButton.disabled = !waiting || !me;
     readyButton.textContent = me && me.ready ? "NOT READY" : "READY";
     readyButton.className = "btn btn-block " + (me && me.ready ? "btn-ghost" : "btn-primary");
     $id("tutorial-ready-status").textContent = waiting
       ? readyCount + " of " + connected.length + " players ready. " + (readyCount === connected.length ? "Starting countdown…" : "Waiting for everyone.")
-      : "Read the instructions, then watch the LED demo. You can replay it before marking ready.";
+      : "Watch the LED demo. It repeats until you press " + (tutorial.is_last ? "Done" : "Next") + ".";
     $id("replay-tutorial-btn").hidden = !waiting;
   }
 
@@ -614,6 +617,10 @@
     $id("tutorial-ready-btn").addEventListener("click", function () {
       const me = (App.state.players || []).find(function (p) { return p.id === App.playerId; });
       App.socket.emit("ready", { ready: me ? !me.ready : true });
+    });
+
+    $id("tutorial-next-btn").addEventListener("click", function () {
+      App.socket.emit("tutorial_next");
     });
 
     $id("replay-tutorial-btn").addEventListener("click", function () {

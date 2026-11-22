@@ -334,6 +334,16 @@ class ArcadeManager(MusicRenderingMixin):
             if self.state == ArcadeState.RESULTS and self.selected_game:
                 self._enter_tutorial()
 
+    def tutorial_next(self):
+        """Advance the demo one step; the last step hands over to ready/countdown."""
+        with self._lock:
+            if self.state != ArcadeState.TUTORIAL or self.game_class is None:
+                return
+            if self.tutorial_index >= len(self.game_class.tutorial_steps):
+                return
+            self.tutorial_index += 1
+            self.tutorial_elapsed = 0.0
+
     def skip_tutorial(self):
         with self._lock:
             if self.state == ArcadeState.TUTORIAL and self.game_class:
@@ -535,20 +545,14 @@ class ArcadeManager(MusicRenderingMixin):
             self._next_idle()
 
     def _update_tutorial(self, dt):
+        """Loop the current step's demo until a player presses Next."""
         steps = self.game_class.tutorial_steps
         if self.tutorial_index >= len(steps):
             if self.players.all_ready(self.game_class_min_players()):
                 self._enter_countdown()
             return
-        self.tutorial_elapsed += dt
-        while self.tutorial_index < len(steps):
-            duration = float(steps[self.tutorial_index]["duration"])
-            if self.tutorial_elapsed < duration:
-                return
-            self.tutorial_elapsed -= duration
-            self.tutorial_index += 1
-        self.tutorial_index = len(steps)
-        self.tutorial_elapsed = 0.0
+        duration = max(0.1, float(steps[self.tutorial_index]["duration"]))
+        self.tutorial_elapsed = (self.tutorial_elapsed + dt) % duration
 
     def game_class_min_players(self):
         return int(getattr(self.game_class, "min_players", 1))
@@ -701,5 +705,6 @@ class ArcadeManager(MusicRenderingMixin):
             "count": len(steps),
             "title": step["title"],
             "instruction": step["instruction"],
-            "remaining": round(max(0.0, float(step["duration"]) - self.tutorial_elapsed), 1),
+            "remaining": 0.0,
+            "is_last": self.tutorial_index == len(steps) - 1,
         }

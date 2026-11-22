@@ -63,6 +63,11 @@ def register_socket_handlers(socketio, manager, sanitize_name):
         manager.start_game()
         broadcast_state()
 
+    @socketio.on("tutorial_next")
+    def on_tutorial_next():
+        manager.tutorial_next()
+        broadcast_state()
+
     @socketio.on("skip_tutorial")
     def on_skip_tutorial():
         manager.skip_tutorial()
