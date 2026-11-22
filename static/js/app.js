@@ -21,6 +21,10 @@
   var micNoiseFloor = 0.008;
   var micLastClap = 0;
   var micRole = "idle";
+  var micRequesting = false;
+  var micStatusRequestId = 0;
+  var micNotice = "";
+  var musicAnimationPending = null;
 
   var App = {
     socket: null,
@@ -200,6 +204,25 @@
             ? "Using the Pi microphone fallback (" + (audio.device || "default") + ")."
             : (audio.error || "Waiting for a web microphone or Pi input.")))
         : "Web microphone is the default; the Pi's ALSA input is used only as fallback.";
+      var visualizer = s.music_visualizer || {};
+      var animationNames = {
+        center_pulse: "Center pulse", mirror_bars: "Mirror bars",
+        rainbow_wave: "Rainbow wave", comet: "Comet",
+        retro_vu: "Retro VU meter", inward_diamonds: "Inward diamonds",
+      };
+      var visualizerStatus = $id("music-visualizer-status");
+      if (visualizerStatus) {
+        visualizerStatus.textContent = musicActive
+          ? "Animation: " + (animationNames[visualizer.animation] || "Center pulse") + " · Sensitivity: " +
+            Number(visualizer.sensitivity || 1).toFixed(2) + "×"
+          : "";
+      }
+      var animationSelect = $id("music-animation-select");
+      if (animationSelect && !musicAnimationPending) {
+        animationSelect.value = visualizer.animation || "center_pulse";
+      } else if (animationSelect && musicAnimationPending) {
+        animationSelect.value = musicAnimationPending;
+      }
       $id("web-mic-controls").hidden = !musicActive;
     }
     var orientation = s.led_orientation || "vertical";
@@ -244,35 +267,47 @@
 
   function updateMicStatus(state) {
     if (!state || state.state !== "music") {
-      if (micStream) stopMicCapture();
+      micStatusRequestId += 1;
+      if (micStream || micContext) stopMicCapture();
+      micRequesting = false;
       micToken = null;
       micRole = "idle";
       return;
     }
+    var requestId = ++micStatusRequestId;
     fetch("/api/music/mic/state?client_id=" + encodeURIComponent(micClientId), { cache: "no-store" })
       .then(function (response) { return response.json(); })
       .then(function (status) {
+        // A slow poll must not overwrite a more recent lease response.
+        if (requestId !== micStatusRequestId || !App.state || App.state.state !== "music") return;
         var oldRole = micRole;
         micRole = status.role || "idle";
         micToken = status.token || null;
+        if (oldRole === "owner" && micRole !== "owner" && !micNotice) {
+          micNotice = "Your microphone turn ended. Your browser track has been released.";
+        }
         var statusText = $id("web-mic-status");
         var queueButton = $id("mic-queue-btn");
         var startButton = $id("mic-start-btn");
         var secure = window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
         if (!secure) {
-          statusText.textContent = "Browser microphone needs HTTPS on this LAN address. Use a trusted HTTPS URL, then allow microphone access.";
+          statusText.textContent = micNotice || "Browser microphone needs HTTPS on this LAN address. Use a trusted HTTPS URL, then allow microphone access.";
           queueButton.disabled = true;
           startButton.hidden = true;
         } else if (micRole === "owner") {
-          statusText.textContent = micStream
+          statusText.textContent = micRequesting
+            ? "Requesting microphone permission. Respond to the browser prompt to continue."
+            : micNotice || (micStream
             ? "Your microphone is active. The browser track closes automatically when your turn ends. " +
               (status.handoff_in != null ? "Turn ends in about " + status.handoff_in + " seconds. " : "") +
               (status.queued ? status.queued + " user(s) queued." : "")
-            : "It is your turn. Start the microphone when you are ready.";
+            : "It is your turn. Start the microphone when you are ready.");
           queueButton.textContent = "RELEASE MICROPHONE";
           queueButton.hidden = false;
           queueButton.disabled = false;
           startButton.hidden = !!micStream;
+          startButton.disabled = micRequesting;
+          startButton.textContent = micRequesting ? "WAITING FOR MIC…" : "ALLOW MIC AND VISUALIZE";
         } else if (micRole === "queued") {
           statusText.textContent = "You are number " + status.position + " in the microphone queue. " +
             (status.owner ? status.owner + " is using it." : "Waiting for the current turn.");
@@ -281,15 +316,13 @@
           queueButton.disabled = false;
           startButton.hidden = true;
         } else {
-          statusText.textContent = oldRole === "owner"
-            ? "Your microphone turn ended. Your browser track has been released."
-            : "Join the queue to use this device's microphone.";
+          statusText.textContent = micNotice || "Join the queue to use this device's microphone.";
           queueButton.textContent = "USE THIS DEVICE'S MIC";
           queueButton.hidden = false;
           queueButton.disabled = false;
           startButton.hidden = true;
         }
-        if (micRole !== "owner" && micStream) stopMicCapture();
+        if (micRole !== "owner" && (micStream || micContext)) stopMicCapture();
       }).catch(function () {});
   }
 
@@ -319,22 +352,56 @@
   }
 
   function startMicCapture() {
-    if (micRole !== "owner" || !micToken) return;
-    var AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) {
-      $id("web-mic-status").textContent = "This browser does not support live audio analysis.";
+    var statusText = $id("web-mic-status");
+    var startButton = $id("mic-start-btn");
+    if (micRequesting || micStream) return;
+    if (micRole !== "owner" || !micToken) {
+      micNotice = "Your microphone turn is not ready yet. Wait for the owner status, then tap again.";
+      statusText.textContent = micNotice;
+      updateMicStatus(App.state);
       return;
     }
-    // Create/resume inside the button gesture so mobile browsers allow analysis.
-    micContext = new AudioContextClass();
-    micContext.resume().catch(function () {});
-    navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then(function (stream) {
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      micNotice = "This page cannot request a microphone on HTTP. Open the arcade through trusted HTTPS.";
+      statusText.textContent = micNotice;
+      return;
+    }
+    var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      statusText.textContent = "This browser does not support live audio analysis.";
+      return;
+    }
+    // Invoke getUserMedia directly in the click handler to preserve browser
+    // user activation. Do not await a queue/status request before this call.
+    micRequesting = true;
+    startButton.disabled = true;
+    startButton.textContent = "WAITING FOR MIC…";
+    statusText.textContent = "Requesting microphone permission from your browser…";
+    micNotice = "";
+    var mediaRequest;
+    try {
+      micContext = new AudioContextClass();
+      micContext.resume().catch(function () {});
+      mediaRequest = navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    } catch (error) {
+      micRequesting = false;
+      stopMicCapture();
+      startButton.disabled = false;
+      startButton.textContent = "ALLOW MIC AND VISUALIZE";
+      statusText.textContent = "Browser could not start microphone access: " + (error.message || error.name || "unknown error");
+      return;
+    }
+    mediaRequest.then(function (stream) {
+      micRequesting = false;
       if (micRole !== "owner") {
         stream.getTracks().forEach(function (track) { track.stop(); });
         stopMicCapture();
+        statusText.textContent = "Your microphone turn ended before access was granted. Join the queue again for another turn.";
         return;
       }
       micStream = stream;
+      micNotice = "";
+      statusText.textContent = "Microphone allowed. Visualizing live sound; raw audio stays on this device.";
       stream.getTracks().forEach(function (track) {
         track.addEventListener("ended", releaseMic, { once: true });
       });
@@ -373,10 +440,16 @@
       }
       micFrame = requestAnimationFrame(sample);
     }).catch(function (error) {
+      micRequesting = false;
       var detail = error && error.name === "NotAllowedError"
-        ? "Microphone permission was denied or this page is not HTTPS."
+        ? (window.isSecureContext
+          ? "The browser blocked microphone access. Allow Microphone for this site in its address-bar/site settings, then join the microphone queue again."
+          : "The browser requires HTTPS for microphone access; a private LAN IP over HTTP is not treated as secure.")
         : "Could not open this microphone: " + (error.message || error.name || "unknown error");
-      $id("web-mic-status").textContent = detail + " Using the Pi microphone fallback if available.";
+      micNotice = detail + " Using the Pi microphone fallback if available.";
+      statusText.textContent = micNotice;
+      startButton.disabled = false;
+      startButton.textContent = "ALLOW MIC AND VISUALIZE";
       releaseMic();
     });
   }
@@ -596,6 +669,7 @@
           return body;
         });
       }).then(function (status) {
+        micNotice = "";
         micRole = status.role;
         micToken = status.token;
         updateMicStatus(App.state);
@@ -603,6 +677,32 @@
     });
 
     $id("mic-start-btn").addEventListener("click", startMicCapture);
+
+    $id("music-animation-select").addEventListener("change", function () {
+      var animation = this.value;
+      musicAnimationPending = animation;
+      fetch("/api/music/visualizer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ animation: animation }),
+      }).then(function (response) {
+        return response.json().then(function (body) {
+          if (!response.ok) throw new Error(body.message || "Could not switch visualizer.");
+          return body;
+        });
+      }).then(function (body) {
+        musicAnimationPending = null;
+        $id("music-animation").value = body.animation;
+        if (App.state && App.state.music_visualizer) {
+          App.state.music_visualizer.animation = body.animation;
+        }
+        render();
+      }).catch(function (error) {
+        musicAnimationPending = null;
+        render();
+        $id("music-visualizer-status").textContent = error.message;
+      });
+    });
 
     $id("join-form").addEventListener("submit", function (ev) {
       ev.preventDefault();
@@ -661,6 +761,9 @@
         $id("hidden-start").value = data.hidden_start;
         $id("hidden-end").value = data.hidden_end;
         $id("mic-handoff-seconds").value = data.mic_handoff_seconds;
+        $id("music-animation").value = data.music_animation || "center_pulse";
+        $id("music-sensitivity").value = data.music_sensitivity || 1;
+        $id("music-sensitivity-value").textContent = Number($id("music-sensitivity").value).toFixed(2) + "×";
         $id("hidden-start").max = data.led_count;
         $id("hidden-end").max = data.led_count;
         loginForm.hidden = true;
@@ -698,6 +801,8 @@
           hidden_start: Number($id("hidden-start").value),
           hidden_end: Number($id("hidden-end").value),
           mic_handoff_seconds: Number($id("mic-handoff-seconds").value),
+          music_animation: $id("music-animation").value,
+          music_sensitivity: Number($id("music-sensitivity").value),
         }),
       }).then(function (response) {
         return response.json().then(function (body) {
@@ -706,7 +811,9 @@
         });
       }).then(function (body) {
         showAdminMessage("Saved. " + body.hidden_start + " hidden at start, " +
-          body.hidden_end + " hidden at end; microphone handoff " + body.mic_handoff_seconds + " seconds.");
+          body.hidden_end + " hidden at end; microphone handoff " + body.mic_handoff_seconds +
+          " seconds; " + body.music_animation.split("_").join(" ") + " at " +
+          Number(body.music_sensitivity).toFixed(2) + "× sensitivity.");
       }).catch(function (error) {
         showAdminMessage(error.message);
       });
@@ -719,6 +826,10 @@
         $id("admin-password").value = "";
         showAdminMessage("Logged out.");
       });
+    });
+
+    $id("music-sensitivity").addEventListener("input", function () {
+      $id("music-sensitivity-value").textContent = Number(this.value).toFixed(2) + "×";
     });
 
     loadAdminSettings();

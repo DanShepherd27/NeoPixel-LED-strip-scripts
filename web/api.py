@@ -123,6 +123,17 @@ def register_api(app, manager, hardware):
             manager.stop_music_mode()
         return jsonify({"ok": True, "enabled": enabled})
 
+    @app.post("/api/music/visualizer")
+    def set_music_visualizer():
+        if manager.state.value != "music":
+            return jsonify({"ok": False, "message": "Start free music mode first."}), 409
+        animation = (request.get_json(silent=True) or {}).get("animation")
+        try:
+            manager.set_music_visualizer(animation, manager.music_sensitivity)
+        except (ValueError, TypeError) as exc:
+            return jsonify({"ok": False, "message": str(exc)}), 400
+        return jsonify({"ok": True, "animation": manager.music_animation})
+
     @app.post("/api/music/mic/request")
     def music_mic_request():
         if manager.state.value != "music":
@@ -179,6 +190,8 @@ def register_api(app, manager, hardware):
             "hidden_end": hardware.hidden_end,
             "led_count": LED_COUNT,
             "mic_handoff_seconds": manager.web_mics.handoff_seconds,
+            "music_animation": manager.music_animation,
+            "music_sensitivity": manager.music_sensitivity,
         })
 
     @app.put("/api/admin/settings")
@@ -189,13 +202,25 @@ def register_api(app, manager, hardware):
         start_value = data.get("hidden_start")
         end_value = data.get("hidden_end")
         handoff_value = data.get("mic_handoff_seconds", manager.web_mics.handoff_seconds)
+        animation_value = data.get("music_animation", manager.music_animation)
+        sensitivity_value = data.get("music_sensitivity", manager.music_sensitivity)
         if type(start_value) is not int or type(end_value) is not int or type(handoff_value) is not int:
             return jsonify({"ok": False, "message": "Enter whole numbers for offsets and microphone handoff."}), 400
+        if not isinstance(animation_value, str) or type(sensitivity_value) not in (int, float):
+            return jsonify({"ok": False, "message": "Choose a music animation and numeric sensitivity."}), 400
         start, end = start_value, end_value
         if start < 0 or end < 0 or start + end > LED_COUNT:
             return jsonify({"ok": False, "message": "Offsets must be nonnegative and total no more than the strip length."}), 400
         if not 15 <= handoff_value <= 1800:
             return jsonify({"ok": False, "message": "Microphone handoff must be between 15 and 1800 seconds."}), 400
+        if animation_value not in (
+            "center_pulse", "mirror_bars", "rainbow_wave", "comet",
+            "retro_vu", "inward_diamonds",
+        ):
+            return jsonify({"ok": False, "message": "Choose one of the available music animations."}), 400
+        sensitivity = float(sensitivity_value)
+        if not 0.25 <= sensitivity <= 4.0:
+            return jsonify({"ok": False, "message": "Music sensitivity must be between 0.25 and 4.0."}), 400
 
         settings_path = RUNTIME_SETTINGS_FILE
         temporary_path = settings_path + ".tmp"
@@ -205,6 +230,8 @@ def register_api(app, manager, hardware):
                     "hidden_start": start,
                     "hidden_end": end,
                     "mic_handoff_seconds": handoff_value,
+                    "music_animation": animation_value,
+                    "music_sensitivity": sensitivity,
                 }, settings_file)
             os.replace(temporary_path, settings_path)
         except OSError:
@@ -217,9 +244,12 @@ def register_api(app, manager, hardware):
 
         hardware.set_hidden_offsets(start, end)
         manager.web_mics.handoff_seconds = handoff_value
+        manager.set_music_visualizer(animation_value, sensitivity)
         return jsonify({
             "ok": True, "hidden_start": start, "hidden_end": end,
             "mic_handoff_seconds": handoff_value,
+            "music_animation": animation_value,
+            "music_sensitivity": sensitivity,
         })
 
     def broadcast_state():

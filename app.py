@@ -19,6 +19,7 @@ from config import (
     LED_INVERT, LED_CHANNEL, HOST, PORT, FPS,
     RUNTIME_SETTINGS_FILE, AUDIO_DEVICE,
     WEB_MIC_HANDOFF_SECONDS,
+    MUSIC_VISUALIZER, MUSIC_SENSITIVITY,
 )
 from led.hardware import LEDHardware
 from led.audio import AudioInput
@@ -46,6 +47,8 @@ def main():
 
     hidden_start, hidden_end = LED_HIDDEN_START, LED_HIDDEN_END
     mic_handoff_seconds = WEB_MIC_HANDOFF_SECONDS
+    music_animation = MUSIC_VISUALIZER
+    music_sensitivity = MUSIC_SENSITIVITY
     try:
         with open(RUNTIME_SETTINGS_FILE, "r", encoding="utf-8") as settings_file:
             saved = json.load(settings_file)
@@ -54,16 +57,26 @@ def main():
         hidden_start = int(saved.get("hidden_start", hidden_start))
         hidden_end = int(saved.get("hidden_end", hidden_end))
         mic_handoff_seconds = int(saved.get("mic_handoff_seconds", mic_handoff_seconds))
+        music_animation = saved.get("music_animation", music_animation)
+        music_sensitivity = float(saved.get("music_sensitivity", music_sensitivity))
         if hidden_start < 0 or hidden_end < 0 or hidden_start + hidden_end > LED_COUNT:
             raise ValueError("saved LED offsets are outside the valid strip range")
         if not 15 <= mic_handoff_seconds <= 1800:
             raise ValueError("saved microphone handoff must be between 15 and 1800 seconds")
+        if music_animation not in (
+            "center_pulse", "mirror_bars", "rainbow_wave", "comet",
+            "retro_vu", "inward_diamonds",
+        ):
+            raise ValueError("saved music animation is not supported")
+        if not 0.25 <= music_sensitivity <= 4.0:
+            raise ValueError("saved music sensitivity must be between 0.25 and 4.0")
     except FileNotFoundError:
         pass
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
         log.warning("Ignoring invalid runtime LED settings: %s", exc)
         hidden_start, hidden_end = LED_HIDDEN_START, LED_HIDDEN_END
         mic_handoff_seconds = WEB_MIC_HANDOFF_SECONDS
+        music_animation, music_sensitivity = MUSIC_VISUALIZER, MUSIC_SENSITIVITY
 
     hardware = LEDHardware(
         LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT,
@@ -76,7 +89,10 @@ def main():
 
     audio_input = AudioInput(AUDIO_DEVICE)
     audio_input.start()
-    manager = ArcadeManager(LED_COUNT, audio_input, mic_handoff_seconds)
+    manager = ArcadeManager(
+        LED_COUNT, audio_input, mic_handoff_seconds,
+        music_animation, music_sensitivity,
+    )
 
     renderer = Renderer(hardware, FPS)
     renderer.set_scene(manager)

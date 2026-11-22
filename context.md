@@ -1188,6 +1188,29 @@ Do not configure autostart until the application has been tested manually.
 
 Implement in phases.
 
+### Immediate next step: Vercel + Ably browser microphone path
+
+Make the browser microphone usable without asking each LAN phone to trust a
+locally generated certificate. Host the HTTPS website on Vercel and use Ably
+as the realtime relay. The Raspberry Pi connects outward to Ably, so this
+design must work behind ISP NAT without inbound port forwarding or a public
+home IP address.
+
+Keep the Raspberry Pi as the sole source of truth for arcade/game state and
+the only LED renderer. Capture and analyze microphone audio in the web user's
+browser; send only low-rate normalized level/peak/clap features through Ably,
+never raw audio. The Pi validates microphone ownership/lease messages before
+using features for visualization. Keep any additional browser-to-Pi messages
+limited to what the Vercel-hosted interface needs; do not move game authority
+or LED rendering into Vercel, Ably, or MongoDB Atlas.
+
+Use Vercel server-side authentication to issue short-lived, narrowly scoped
+Ably credentials. Never expose the Ably API key in browser code. Preserve the
+existing single-owner FIFO mic queue and admin handoff duration. Before
+release, check Ably message quotas at the chosen sample rate and ensure the
+website remains usable if the relay is unavailable. This is the immediate
+next implementation task; it is not implemented yet.
+
 ## Phase 1 — Architecture and stability
 
 - Inspect existing prototype
@@ -1346,7 +1369,16 @@ The project should not be considered complete until:
 - [x] Admin can configure the active user's queue handoff duration
 - [x] Handoff notifies the current user, releases their media track, then activates the next queued user
 - [x] Audio is not recorded or retained; only locally computed features are sent
+- [x] Provide multiple selectable LED visualizer patterns
+- [x] Allow live web-UI pattern switching while music mode is active
+- [x] Include a retro green/yellow/red VU color pattern
+- [x] Include mirrored shapes that move inward from both strip ends
+- [x] Provide adjustable visualizer sensitivity for both mic sources
+- [x] Keep loud audio colors saturated; clap accents must not wash the strip white
 - [ ] Provide a trusted HTTPS deployment URL so phone browsers can grant mic access
+- [ ] Host the HTTPS website on Vercel and relay browser mic features to the Pi with Ably
+- [ ] Keep game state and LED rendering authoritative on the Pi; relay no raw audio
+- [ ] Issue short-lived, scoped Ably credentials from a Vercel server-side endpoint
 
 ---
 

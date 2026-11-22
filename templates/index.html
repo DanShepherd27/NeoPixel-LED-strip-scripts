@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css?v=20261121-web-mic">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-music-visualizers">
 </head>
 <body>
   <header class="app-header">
@@ -37,7 +37,18 @@
         <button id="enter-lobby" class="btn btn-primary btn-block">ENTER ARCADE</button>
         <button id="music-mode-btn" class="btn btn-accent btn-block">START FREE MUSIC MODE</button>
         <p id="music-message" class="muted" role="status" aria-live="polite"></p>
+        <p id="music-visualizer-status" class="muted"></p>
         <div id="web-mic-controls" hidden>
+          <label for="music-animation-select">Visualizer pattern</label>
+          <select id="music-animation-select">
+            <option value="center_pulse">Center pulse</option>
+            <option value="mirror_bars">Mirror bars</option>
+            <option value="rainbow_wave">Rainbow wave</option>
+            <option value="comet">Comet</option>
+            <option value="retro_vu">Retro VU meter</option>
+            <option value="inward_diamonds">Inward diamonds</option>
+          </select>
+          <p class="muted">Retro VU is mostly green, with yellow near the top and a small red peak zone. Inward diamonds send colored shapes from both ends toward the center.</p>
           <p id="web-mic-status" class="muted" role="status" aria-live="polite"></p>
           <button id="mic-queue-btn" class="btn btn-ghost btn-block">USE THIS DEVICE'S MIC</button>
           <button id="mic-start-btn" class="btn btn-primary btn-block" hidden>ALLOW MIC AND VISUALIZE</button>
@@ -65,6 +76,18 @@
           <label for="mic-handoff-seconds">Web microphone handoff (seconds)</label>
           <input id="mic-handoff-seconds" type="number" min="15" max="1800" step="1" required>
           <p class="muted">When someone is queued, the active web microphone is handed off after this time.</p>
+          <label for="music-animation">Music animation</label>
+          <select id="music-animation">
+            <option value="center_pulse">Center pulse</option>
+            <option value="mirror_bars">Mirror bars</option>
+            <option value="rainbow_wave">Rainbow wave</option>
+            <option value="comet">Comet</option>
+            <option value="retro_vu">Retro VU meter</option>
+            <option value="inward_diamonds">Inward diamonds</option>
+          </select>
+          <label for="music-sensitivity">Music sensitivity <output id="music-sensitivity-value">1.00×</output></label>
+          <input id="music-sensitivity" type="range" min="0.25" max="4" step="0.25" value="1">
+          <p class="muted">Raise sensitivity for a quiet mic; lower it if sound drives the lights too strongly.</p>
           <button type="submit" class="btn btn-primary btn-block">SAVE SETTINGS</button>
           <button id="admin-logout" type="button" class="btn btn-ghost btn-block">ADMIN LOGOUT</button>
         </form>
@@ -136,7 +159,7 @@
     </section>
   </main>
 
-  <script src="/static/js/app.js?v=20261121-web-mic"></script>
+  <script src="/static/js/app.js?v=20261122-live-patterns"></script>
   <script src="/static/js/games.js"></script>
   <script src="/static/js/controller.js"></script>
 </body>

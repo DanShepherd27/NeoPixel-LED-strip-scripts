@@ -19,14 +19,21 @@ and usable without internet after installation.
 - `LED_HIDDEN_START` and `LED_HIDDEN_END` are global counts of dark pixels at
   the physical ends. Admin changes apply immediately and persist in
   `runtime-settings.json` in the app directory.
-- Free music mode prefers an opted-in browser microphone and falls back to
+- Free music mode offers six live-switchable browser UI patterns (center pulse,
+  mirror bars, rainbow wave, comet, retro VU meter, inward diamonds), prefers
+  an opted-in browser microphone and falls back to
   microphone PCM from `arecord` via `led/audio.py`; the ALSA device is
   `LED_AUDIO_DEVICE` (default `default`). Browser audio stays local; only RMS
   volume/peak/clap features are sent. One browser owns the mic at a time, with
   a FIFO queue and admin-configured handoff (`mic_handoff_seconds` in runtime
   settings). Browser mic requires trusted HTTPS on phones; the default LAN
   HTTP address falls back to ALSA. The central renderer remains the sole LED
-  writer.
+  writer. Admin settings select the persisted startup pattern and adjust
+  shared visualizer sensitivity from 0.25x to 4x. The music-mode selector
+  changes the active pattern immediately. Retro VU uses RMS level bands, not
+  frequency bins; the audio features currently contain level/peak/clap only.
+  Keep colors saturated at high levels; the clap flash should not wash the
+  strip white.
 - The systemd service runs as root because the current GPIO/DMA setup requires
   it. `/healthz` reports `led_hardware`, `led_error`, count and offsets. A
   `mock` value means the web process is alive but physical LED control failed;

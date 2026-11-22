@@ -103,7 +103,13 @@ run `arecord -l` on the Pi and set
 `LED_AUDIO_DEVICE` in `.deploy.env` (for example `plughw:1,0`) before deploying.
 The home screen reports microphone source and capture errors while the mode is
 active. Admin settings control the web microphone handoff interval (15 to
-1800 seconds); it applies when other users are waiting.
+1800 seconds); it applies when other users are waiting. The music-mode card
+offers six live-switchable patterns, including a retro VU meter with a mostly
+green bar, yellow upper zone, and small red peak zone, plus shapes that move
+inward from both ends. Admin settings also offer a
+shared sensitivity slider (0.25x to 4x). Patterns stay saturated at high
+levels, with a restrained magenta clap flash so loud sound does not wash the
+strip into white.
 
 If capture fails, compare the available devices with the configured device:
 

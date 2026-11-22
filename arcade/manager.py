@@ -31,11 +31,15 @@ log = logging.getLogger("arcade.manager")
 
 
 class ArcadeManager:
-    def __init__(self, count=LED_COUNT, audio_input=None, mic_handoff_seconds=120):
+    def __init__(self, count=LED_COUNT, audio_input=None, mic_handoff_seconds=120,
+                 music_animation="center_pulse", music_sensitivity=1.0):
         self.count = count
         self.audio_input = audio_input
         self.web_mics = WebMicQueue(mic_handoff_seconds)
         self._music_pi_enabled = False
+        self.music_animation = music_animation
+        self.music_sensitivity = float(music_sensitivity)
+        self._music_phase = 0.0
         self.state = ArcadeState.IDLE
         self.players = PlayerManager()
 
@@ -159,6 +163,18 @@ class ArcadeManager:
     def set_brightness(self, brightness):
         # Applied by the hardware; kept here for the admin API to route through.
         return brightness
+
+    def set_music_visualizer(self, animation, sensitivity):
+        if animation not in (
+            "center_pulse", "mirror_bars", "rainbow_wave", "comet",
+            "retro_vu", "inward_diamonds",
+        ):
+            raise ValueError("Unknown music animation.")
+        if not 0.25 <= float(sensitivity) <= 4.0:
+            raise ValueError("Music sensitivity must be between 0.25 and 4.0.")
+        with self._lock:
+            self.music_animation = animation
+            self.music_sensitivity = float(sensitivity)
 
     def handle_input(self, player_id, action):
         """Queue a player input; processed by the render loop next frame."""
@@ -288,29 +304,89 @@ class ArcadeManager:
         audio = web_audio if web_audio["active"] else (
             self.audio_input.snapshot() if self.audio_input else {}
         )
-        level = float(audio.get("level", 0.0))
-        half = (self.count + 1) // 2
-        extent = int(round(level * max(0, half - 1)))
-
-        # Show a dim center marker when the room is quiet, then expand outward
-        # as microphone energy rises. Hue shifts from cool to warm with level.
-        for offset in range(max(1, extent + 1)):
-            strength = max(0.18, 1.0 - offset / max(2.0, extent + 1.0) * 0.65)
-            hue = 205.0 - 185.0 * level + offset * 2.5
-            color = hsv_to_rgb(hue, 0.9, strength * (0.28 + level * 0.72))
-            left = half - 1 - offset
-            right = half + offset
-            frame.set(left, color)
-            frame.set(right, color)
+        level = max(0.0, min(1.0, float(audio.get("level", 0.0)) * self.music_sensitivity))
+        peak = max(0.0, min(1.0, float(audio.get("peak", 0.0)) * self.music_sensitivity))
+        self._music_phase += dt
+        self._draw_music_animation(frame, level, peak)
 
         if audio.get("clap"):
-            self._music_clap_flash = 0.20
+            self._music_clap_flash = 0.13
         else:
             self._music_clap_flash = max(0.0, getattr(self, "_music_clap_flash", 0.0) - dt)
         if self._music_clap_flash > 0:
-            amount = min(1.0, self._music_clap_flash / 0.20)
+            amount = min(0.32, self._music_clap_flash / 0.13 * 0.32)
             for index in range(frame.count):
-                frame.blend(index, (255, 255, 255), amount)
+                frame.blend(index, (255, 28, 145), amount)
+
+    def _draw_music_animation(self, frame, level, peak):
+        count = self.count
+        if not count:
+            return
+        brightness = 0.16 + 0.66 * level
+        if self.music_animation == "rainbow_wave":
+            for index in range(count):
+                hue = (index * 360.0 / max(1, count) + self._music_phase * 55.0) % 360.0
+                frame.set(index, hsv_to_rgb(hue, 1.0, brightness))
+            return
+
+        if self.music_animation == "comet":
+            head = int(self._music_phase * (3.0 + level * 16.0)) % count
+            tail = max(3, int(3 + peak * count * 0.30))
+            frame.clear()
+            for offset in range(tail):
+                index = (head - offset) % count
+                amount = (1.0 - offset / tail) * brightness
+                frame.set(index, hsv_to_rgb((205.0 + offset * 7.0 + self._music_phase * 35.0) % 360.0, 1.0, amount))
+            return
+
+        half = (count + 1) // 2
+        extent = int(round(level * max(0, half - 1)))
+        if self.music_animation == "retro_vu":
+            # Classic meter zones: mostly green, yellow near the top, a short
+            # red peak zone on the final few LEDs at each end.
+            frame.clear()
+            for offset in range(max(1, extent + 1)):
+                position = offset / max(1, half - 1)
+                if position >= 0.94:
+                    color = (255, 12, 12)
+                elif position >= 0.78:
+                    color = (255, 210, 0)
+                else:
+                    color = (0, 255, 32)
+                frame.set(half - 1 - offset, color)
+                frame.set(half + offset, color)
+            return
+
+        if self.music_animation == "inward_diamonds":
+            frame.clear()
+            travel = int((self._music_phase * (6.0 + level * 12.0)) % max(1, half))
+            radius = max(2, min(8, 2 + int(peak * 7)))
+            for offset in range(-radius, radius + 1):
+                intensity = (1.0 - abs(offset) / (radius + 1.0)) * (0.28 + 0.62 * level)
+                left = travel + offset
+                right = count - 1 - travel - offset
+                frame.set(left, hsv_to_rgb(178.0, 1.0, intensity))
+                frame.set(right, hsv_to_rgb(320.0, 1.0, intensity))
+            return
+
+        if self.music_animation == "mirror_bars":
+            # Discrete saturated blocks grow from the center with the beat.
+            frame.clear()
+            for offset in range(max(1, extent + 1)):
+                hue = (188.0 + offset * 17.0 + self._music_phase * 24.0) % 360.0
+                color = hsv_to_rgb(hue, 1.0, 0.30 + 0.55 * level)
+                frame.set(half - 1 - offset, color)
+                frame.set(half + offset, color)
+            return
+
+        # Center pulse: a smooth, cool-to-warm gradient expands with volume.
+        frame.clear()
+        for offset in range(max(1, extent + 1)):
+            strength = max(0.18, 1.0 - offset / max(2.0, extent + 1.0) * 0.65)
+            hue = 205.0 - 155.0 * level + offset * 2.5
+            color = hsv_to_rgb(hue, 1.0, strength * brightness)
+            frame.set(half - 1 - offset, color)
+            frame.set(half + offset, color)
 
     def _update_tutorial(self, dt):
         steps = self.game_class.tutorial_steps
@@ -411,6 +487,10 @@ class ArcadeManager:
                 "tutorial": self._tutorial_snapshot(),
                 "audio": self._audio_snapshot(),
                 "web_mic": self.web_mics.snapshot(),
+                "music_visualizer": {
+                    "animation": self.music_animation,
+                    "sensitivity": self.music_sensitivity,
+                },
                 "pi_audio": self.audio_input.snapshot() if self.audio_input else {
                     "status": "unavailable", "error": "No audio input configured.",
                     "level": 0.0, "peak": 0.0, "clap": False,

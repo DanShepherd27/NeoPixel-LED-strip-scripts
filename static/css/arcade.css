@@ -143,6 +143,21 @@ input[type="password"], input[type="number"] {
   color: var(--text);
   margin: 6px 0 10px;
 }
+select {
+  width: 100%;
+  padding: 13px;
+  font-size: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #0e0e18;
+  color: var(--text);
+  margin: 6px 0 10px;
+}
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--neon);
+  margin: 10px 0 14px;
+}
 input[type="password"]:focus, input[type="number"]:focus {
   outline: none;
   border-color: var(--neon);
