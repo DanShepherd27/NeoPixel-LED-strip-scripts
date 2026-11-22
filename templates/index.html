@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-led-calibration">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-led-color-preview">
 </head>
 <body>
   <header class="app-header">
@@ -51,9 +51,14 @@
           </select>
           <label for="music-live-primary" class="music-control-label">Primary color</label>
           <input id="music-live-primary" type="color" value="#00e5ff">
+          <span class="led-color-preview" id="music-live-primary-preview" aria-hidden="true"></span>
+          <code class="led-color-value" id="music-live-primary-value">#00E5FF</code>
           <label for="music-live-accent" class="music-control-label">Accent color</label>
           <input id="music-live-accent" type="color" value="#ff2ea6">
-          <p class="muted">Retro VU uses green at the base, yellow through the middle, and red at the top. Its cyan peak marker holds for 500 ms before falling. Inward diamonds send colored shapes from both ends toward the center.</p>
+          <span class="led-color-preview" id="music-live-accent-preview" aria-hidden="true"></span>
+          <code class="led-color-value" id="music-live-accent-value">#FF2EA6</code>
+          <p class="muted">The glowing previews brighten dark colors on screen; the exact RGB values shown are sent to the LEDs.</p>
+          <p class="muted">Retro VU exaggerates volume and drum peaks for a playful response, with green at the base, yellow through the middle, and red at the top. Its cyan peak marker holds for 500 ms before falling. Inward diamonds send colored shapes from both ends toward the center.</p>
           <p class="muted">Primary and accent colors apply to Center pulse, Mirror bars, Comet, and Inward diamonds. Rainbow, Retro VU, and Red Shades keep their own palettes.</p>
           <p id="web-mic-status" class="muted" role="status" aria-live="polite"></p>
           <button id="mic-queue-btn" class="btn btn-ghost btn-block">USE THIS DEVICE'S MIC</button>
@@ -94,8 +99,12 @@
           </select>
           <label for="music-primary-color">Primary color</label>
           <input id="music-primary-color" type="color" value="#00e5ff">
+          <span class="led-color-preview" id="music-primary-preview" aria-hidden="true"></span>
+          <code class="led-color-value" id="music-primary-value">#00E5FF</code>
           <label for="music-accent-color">Accent color</label>
           <input id="music-accent-color" type="color" value="#ff2ea6">
+          <span class="led-color-preview" id="music-accent-preview" aria-hidden="true"></span>
+          <code class="led-color-value" id="music-accent-value">#FF2EA6</code>
           <h4>Physical LED color calibration</h4>
           <p class="muted">Adjust each channel if strip colors differ from the color picker. Applies globally to every pattern and game.</p>
           <label for="led-color-red">Red output <output id="led-color-red-value">100%</output></label>
@@ -178,7 +187,7 @@
     </section>
   </main>
 
-  <script src="/static/js/app.js?v=20261122-led-calibration"></script>
+  <script src="/static/js/app.js?v=20261122-led-color-preview"></script>
   <script src="/static/js/games.js"></script>
   <script src="/static/js/controller.js"></script>
 </body>

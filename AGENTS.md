@@ -37,8 +37,9 @@ and usable without internet after installation.
   uses only the red LED channel. The music-mode selector changes the active
   pattern and colors immediately. Retro VU maps green, yellow, and red VU zones
   to the vertical strip, with a cyan peak marker that holds 500 ms before
-  falling. It uses RMS level, not frequency bins; audio features contain
-  level/peak/clap.
+  falling. Its playful RMS curve has an 8-10 LED floor; sample peaks only boost
+  it when RMS confirms sound, preventing room noise from pinning the meter.
+  Audio features still contain level/peak/clap rather than frequency bins.
   Keep colors saturated at high levels; the clap flash should not wash the
   strip white.
 - The systemd service runs as root because the current GPIO/DMA setup requires

@@ -62,6 +62,7 @@ class ArcadeManager:
         self._music_phase = 0.0
         self._retro_vu_peak_position = 0.0
         self._retro_vu_peak_hold = 0.0
+        self._retro_vu_level = 0.0
         self.state = ArcadeState.IDLE
         self.players = PlayerManager()
 
@@ -202,6 +203,7 @@ class ArcadeManager:
             if animation != self.music_animation:
                 self._retro_vu_peak_position = 0.0
                 self._retro_vu_peak_hold = 0.0
+                self._retro_vu_level = 0.0
             self.music_animation = animation
             self.music_sensitivity = float(sensitivity)
             self.music_primary_color = primary_color.upper()
@@ -361,6 +363,13 @@ class ArcadeManager:
         count = self.count
         if not count:
             return
+        if self.music_animation in ("center_pulse", "mirror_bars", "comet", "inward_diamonds"):
+            # These patterns previously used raw RMS directly, which left
+            # their sparse shapes nearly invisible at ordinary listening
+            # levels. Expand the low/mid range without changing configured
+            # sensitivity or the other full-strip patterns.
+            level = min(1.0, (level * 1.5) ** 0.82)
+            peak = min(1.0, (peak * 1.5) ** 0.82)
         brightness = 0.16 + 0.66 * level
         if self.music_animation == "red_shades":
             for index in range(count):
@@ -377,12 +386,12 @@ class ArcadeManager:
 
         if self.music_animation == "comet":
             head = int(self._music_phase * (3.0 + level * 16.0)) % count
-            tail = max(3, int(3 + peak * count * 0.30))
+            tail = max(6, int(6 + peak * count * 0.30))
             frame.clear()
             for offset in range(tail):
                 index = (head - offset) % count
-                amount = (1.0 - offset / tail) * brightness
-                color = _blend_rgb(self.music_primary_rgb, self.music_accent_rgb, offset / max(1, tail - 1))
+                amount = (1.0 - offset / tail) * (0.42 + 0.50 * level)
+                color = _blend_rgb(self._music_primary_rgb, self._music_accent_rgb, offset / max(1, tail - 1))
                 frame.set(index, tuple(int(channel * amount) for channel in color))
             return
 
@@ -390,9 +399,19 @@ class ArcadeManager:
         extent = int(round(level * max(0, half - 1)))
         if self.music_animation == "retro_vu":
             # A vertical strip is a single equalizer column: build it from
-            # the bottom with a saturated multicolor VU gradient.
+            # the bottom with a saturated multicolor VU gradient. Keep a
+            # small 8-10 LED idle floor, then exaggerate RMS changes
+            # for a playful response. Raw sample peaks can be high in room
+            # noise, so only let them boost the bar when RMS confirms sound.
             frame.clear()
-            strip_extent = int(round(level * max(0, count - 1)))
+            energy = level
+            if level >= 0.035:
+                energy = max(energy, peak * 0.65)
+            target_level = 0.14 + 0.86 * (min(1.0, energy) ** 0.62)
+            response = 0.04 if target_level > self._retro_vu_level else 0.10
+            blend = min(1.0, max(0.0, dt) / response)
+            self._retro_vu_level += (target_level - self._retro_vu_level) * blend
+            strip_extent = int(round(self._retro_vu_level * max(0, count - 1)))
             for index in range(max(1, strip_extent + 1)):
                 position = index / max(1, count - 1)
                 if position >= 0.78:
@@ -406,7 +425,7 @@ class ArcadeManager:
             # Peak marker follows the strongest recent volume. It holds for
             # half a second, then falls at a steady rate until the live level
             # catches it again.
-            peak_extent = max(level, peak) * max(0, count - 1)
+            peak_extent = max(self._retro_vu_level, target_level) * max(0, count - 1)
             if peak_extent >= self._retro_vu_peak_position:
                 self._retro_vu_peak_position = peak_extent
                 self._retro_vu_peak_hold = 0.5
@@ -424,33 +443,34 @@ class ArcadeManager:
         if self.music_animation == "inward_diamonds":
             frame.clear()
             travel = int((self._music_phase * (6.0 + level * 12.0)) % max(1, half))
-            radius = max(2, min(8, 2 + int(peak * 7)))
+            radius = max(3, min(8, 3 + int(peak * 6)))
             for offset in range(-radius, radius + 1):
-                intensity = (1.0 - abs(offset) / (radius + 1.0)) * (0.28 + 0.62 * level)
+                intensity = (1.0 - abs(offset) / (radius + 1.0)) * (0.45 + 0.50 * level)
                 left = travel + offset
                 right = count - 1 - travel - offset
-                frame.set(left, tuple(int(channel * intensity) for channel in self.music_primary_rgb))
-                frame.set(right, tuple(int(channel * intensity) for channel in self.music_accent_rgb))
+                frame.set(left, tuple(int(channel * intensity) for channel in self._music_primary_rgb))
+                frame.set(right, tuple(int(channel * intensity) for channel in self._music_accent_rgb))
             return
 
         if self.music_animation == "mirror_bars":
             # Discrete saturated blocks grow from the center with the beat.
             frame.clear()
             for offset in range(max(1, extent + 1)):
-                color = _blend_rgb(self.music_primary_rgb, self.music_accent_rgb,
+                color = _blend_rgb(self._music_primary_rgb, self._music_accent_rgb,
                                    offset / max(1, half - 1))
-                color = tuple(int(channel * (0.30 + 0.55 * level)) for channel in color)
+                color = tuple(int(channel * (0.48 + 0.48 * level)) for channel in color)
                 frame.set(half - 1 - offset, color)
                 frame.set(half + offset, color)
             return
 
         # Center pulse: a smooth, cool-to-warm gradient expands with volume.
         frame.clear()
+        pulse_brightness = 0.34 + 0.62 * level
         for offset in range(max(1, extent + 1)):
-            strength = max(0.18, 1.0 - offset / max(2.0, extent + 1.0) * 0.65)
-            color = _blend_rgb(self.music_primary_rgb, self.music_accent_rgb,
+            strength = max(0.30, 1.0 - offset / max(2.0, extent + 1.0) * 0.60)
+            color = _blend_rgb(self._music_primary_rgb, self._music_accent_rgb,
                                offset / max(1, half - 1))
-            color = tuple(int(channel * strength * brightness) for channel in color)
+            color = tuple(int(channel * strength * pulse_brightness) for channel in color)
             frame.set(half - 1 - offset, color)
             frame.set(half + offset, color)
 

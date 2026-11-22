@@ -164,6 +164,18 @@ input[type="color"] {
   margin: 4px 8px 10px 0;
 }
 .music-control-label { display: block; color: var(--muted); font-size: 0.85rem; }
+.led-color-preview {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  margin: 4px 8px 10px 0;
+  vertical-align: middle;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  background: #00e5ff;
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.65), inset 0 0 8px rgba(255, 255, 255, 0.24);
+}
+.led-color-value { display: inline-block; vertical-align: middle; margin: 0 0 10px; }
 input[type="range"] {
   width: 100%;
   accent-color: var(--neon);

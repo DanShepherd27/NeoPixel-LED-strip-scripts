@@ -25,6 +25,7 @@
   var micStatusRequestId = 0;
   var micNotice = "";
   var musicVisualizerPending = null;
+  var musicVisualizerDraft = null;
   var musicVisualizerRequestId = 0;
 
   var App = {
@@ -36,6 +37,32 @@
   };
 
   function $id(id) { return document.getElementById(id); }
+
+  function updateColorPreview(inputId, previewId, valueId) {
+    var input = $id(inputId);
+    var preview = $id(previewId);
+    var value = $id(valueId);
+    if (!input || !preview || !value) return;
+    var hex = input.value;
+    var channels = [1, 3, 5].map(function (offset) {
+      var channel = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+      // Approximate the extra apparent brightness of an emissive LED against
+      // the dark page. This changes only the preview, never the sent RGB.
+      return Math.round(Math.pow(channel, 0.68) * 255);
+    });
+    var cssColor = "rgb(" + channels.join(", ") + ")";
+    preview.style.backgroundColor = cssColor;
+    preview.style.boxShadow = "0 0 16px rgba(" + channels.join(", ") + ", 0.68), " +
+      "inset 0 0 8px rgba(255, 255, 255, 0.24)";
+    value.textContent = hex.toUpperCase();
+  }
+
+  function updateMusicColorPreviews() {
+    updateColorPreview("music-live-primary", "music-live-primary-preview", "music-live-primary-value");
+    updateColorPreview("music-live-accent", "music-live-accent-preview", "music-live-accent-value");
+    updateColorPreview("music-primary-color", "music-primary-preview", "music-primary-value");
+    updateColorPreview("music-accent-color", "music-accent-preview", "music-accent-value");
+  }
 
   function showScreen(name) {
     var screens = document.querySelectorAll(".screen");
@@ -219,11 +246,12 @@
             Number(visualizer.sensitivity || 1).toFixed(2) + "×"
           : "";
       }
-      var selection = musicVisualizerPending || visualizer;
+      var selection = musicVisualizerPending || musicVisualizerDraft || visualizer;
       var animationSelect = $id("music-animation-select");
       if (animationSelect) animationSelect.value = selection.animation || "center_pulse";
       $id("music-live-primary").value = selection.primary_color || "#00e5ff";
       $id("music-live-accent").value = selection.accent_color || "#ff2ea6";
+      updateMusicColorPreviews();
       $id("web-mic-controls").hidden = !musicActive;
     }
     var orientation = s.led_orientation || "vertical";
@@ -699,6 +727,7 @@
       }).then(function (body) {
         if (requestId !== musicVisualizerRequestId) return;
         musicVisualizerPending = null;
+        musicVisualizerDraft = null;
         $id("music-animation").value = body.animation;
         $id("music-primary-color").value = body.primary_color;
         $id("music-accent-color").value = body.accent_color;
@@ -711,14 +740,40 @@
       }).catch(function (error) {
         if (requestId !== musicVisualizerRequestId) return;
         musicVisualizerPending = null;
+        musicVisualizerDraft = null;
         render();
         $id("music-visualizer-status").textContent = error.message;
       });
     }
 
+    function rememberMusicVisualizerDraft() {
+      musicVisualizerDraft = {
+        animation: $id("music-animation-select").value,
+        primary_color: $id("music-live-primary").value,
+        accent_color: $id("music-live-accent").value,
+      };
+    }
+
     $id("music-animation-select").addEventListener("change", submitMusicVisualizer);
-    $id("music-live-primary").addEventListener("change", submitMusicVisualizer);
-    $id("music-live-accent").addEventListener("change", submitMusicVisualizer);
+    ["music-live-primary", "music-live-accent"].forEach(function (id) {
+      var picker = $id(id);
+      picker.addEventListener("focus", rememberMusicVisualizerDraft);
+      picker.addEventListener("input", rememberMusicVisualizerDraft);
+      picker.addEventListener("change", function () {
+        rememberMusicVisualizerDraft();
+        submitMusicVisualizer();
+      });
+      picker.addEventListener("blur", function () {
+        window.setTimeout(function () {
+          if (!musicVisualizerPending) {
+            musicVisualizerDraft = null;
+            render();
+          }
+        }, 0);
+      });
+      picker.addEventListener("input", updateMusicColorPreviews);
+      picker.addEventListener("change", updateMusicColorPreviews);
+    });
 
     $id("join-form").addEventListener("submit", function (ev) {
       ev.preventDefault();
@@ -781,6 +836,7 @@
         $id("music-sensitivity").value = data.music_sensitivity || 1;
         $id("music-primary-color").value = data.music_primary_color || "#00e5ff";
         $id("music-accent-color").value = data.music_accent_color || "#ff2ea6";
+        updateMusicColorPreviews();
         ["red", "green", "blue"].forEach(function (channel) {
           var value = data["led_color_" + channel] == null ? 100 : data["led_color_" + channel];
           $id("led-color-" + channel).value = value;
@@ -865,6 +921,10 @@
       $id("led-color-" + channel).addEventListener("input", function () {
         $id("led-color-" + channel + "-value").textContent = this.value + "%";
       });
+    });
+    ["music-primary-color", "music-accent-color"].forEach(function (id) {
+      $id(id).addEventListener("input", updateMusicColorPreviews);
+      $id(id).addEventListener("change", updateMusicColorPreviews);
     });
 
     loadAdminSettings();
