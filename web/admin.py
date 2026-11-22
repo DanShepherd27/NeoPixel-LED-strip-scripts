@@ -41,6 +41,7 @@ def register_admin_routes(app, manager, hardware):
             "mic_handoff_seconds": manager.web_mics.handoff_seconds,
             "music_animation": manager.music_animation,
             "music_sensitivity": manager.music_sensitivity,
+            "music_sound_profile": manager.music_sound_profile,
             "music_beat_lead_ms": manager.music_beat_lead_ms,
             "music_primary_color": manager.music_primary_color,
             "music_accent_color": manager.music_accent_color,
@@ -62,6 +63,7 @@ def register_admin_routes(app, manager, hardware):
         handoff_value = data.get("mic_handoff_seconds", manager.web_mics.handoff_seconds)
         animation_value = data.get("music_animation", manager.music_animation)
         sensitivity_value = data.get("music_sensitivity", manager.music_sensitivity)
+        sound_profile = data.get("music_sound_profile", manager.music_sound_profile)
         beat_lead_value = data.get("music_beat_lead_ms", manager.music_beat_lead_ms)
         primary_color = data.get("music_primary_color", manager.music_primary_color)
         accent_color = data.get("music_accent_color", manager.music_accent_color)
@@ -98,6 +100,8 @@ def register_admin_routes(app, manager, hardware):
         sensitivity = float(sensitivity_value)
         if not 0.25 <= sensitivity <= 4.0:
             return jsonify({"ok": False, "message": "Music sensitivity must be between 0.25 and 4.0."}), 400
+        if sound_profile not in ("balanced", "small_speakers", "bass_forward"):
+            return jsonify({"ok": False, "message": "Choose a supported speaker profile."}), 400
         if not all(isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color)
                    for color in (primary_color, accent_color)):
             return jsonify({"ok": False, "message": "Choose valid primary and accent colors."}), 400
@@ -116,6 +120,7 @@ def register_admin_routes(app, manager, hardware):
                     "mic_handoff_seconds": handoff_value,
                     "music_animation": animation_value,
                     "music_sensitivity": sensitivity,
+                    "music_sound_profile": sound_profile,
                     "music_beat_lead_ms": beat_lead_value,
                     "music_primary_color": primary_color.upper(),
                     "music_accent_color": accent_color.upper(),
@@ -143,6 +148,7 @@ def register_admin_routes(app, manager, hardware):
             animation_value, sensitivity, primary_color, accent_color,
             band_colors=band_colors,
         )
+        manager.music_sound_profile = sound_profile
         manager.music_beat_lead_ms = beat_lead_value
         manager.preview_invert_order = preview_invert_order
         return jsonify({
@@ -150,6 +156,7 @@ def register_admin_routes(app, manager, hardware):
             "mic_handoff_seconds": handoff_value,
             "music_animation": animation_value,
             "music_sensitivity": sensitivity,
+            "music_sound_profile": sound_profile,
             "music_beat_lead_ms": beat_lead_value,
             "music_primary_color": manager.music_primary_color,
             "music_accent_color": manager.music_accent_color,

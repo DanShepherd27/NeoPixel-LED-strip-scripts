@@ -226,6 +226,13 @@
           <label for="music-sensitivity">Music sensitivity <output id="music-sensitivity-value">1.00×</output></label>
           <input id="music-sensitivity" type="range" min="0.25" max="4" step="0.25" value="1">
           <p class="muted">Raise sensitivity for a quiet mic; lower it if sound drives the lights too strongly.</p>
+          <label for="music-sound-profile">Speaker profile</label>
+          <select id="music-sound-profile">
+            <option value="balanced">Balanced</option>
+            <option value="small_speakers">Small speakers · boost low-mid kick cues</option>
+            <option value="bass_forward">Bass-forward · emphasize available bass</option>
+          </select>
+          <p class="muted">Small speakers can lose sub-bass; this profile lets low-mid kick harmonics drive bass-reactive effects. It cannot recreate frequencies the mic does not capture.</p>
           <label for="music-beat-lead-ms">Beat sync timing <output id="music-beat-lead-value">0 ms</output></label>
           <input id="music-beat-lead-ms" type="range" min="-100" max="200" step="10" value="0">
           <p class="muted">The beat tracker predicts from bass rhythm and estimated mic/network delay. Positive values pulse earlier; negative values pulse later.</p>
@@ -246,7 +253,7 @@
   </aside>
 
   <script src="/static/js/music-preview.js?v=20261122-eq-input-fallback"></script>
-  <script src="/static/js/admin-settings.js?v=20261122-eq-reset"></script>
+  <script src="/static/js/admin-settings.js?v=20261122-speaker-profile"></script>
   <script src="/static/js/web-mic.js?v=20261122-modules"></script>
   <script src="/static/js/app.js?v=20261122-name-edit"></script>
   <script src="/static/js/games.js"></script>

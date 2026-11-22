@@ -43,13 +43,15 @@ class ArcadeManager(MusicRenderingMixin):
     def __init__(self, count=LED_COUNT, audio_input=None, mic_handoff_seconds=120,
                  music_animation="center_pulse", music_sensitivity=1.0,
                  music_primary_color="#00E5FF", music_accent_color="#FF2EA6",
-                 music_beat_lead_ms=0, music_band_colors=None):
+                 music_beat_lead_ms=0, music_band_colors=None,
+                 music_sound_profile="small_speakers"):
         self.count = count
         self.audio_input = audio_input
         self.web_mics = WebMicQueue(mic_handoff_seconds)
         self._music_pi_enabled = False
         self.music_animation = music_animation
         self.music_sensitivity = float(music_sensitivity)
+        self.music_sound_profile = music_sound_profile
         self.music_primary_color = music_primary_color.upper()
         self.music_accent_color = music_accent_color.upper()
         self._music_primary_rgb = _parse_hex_color(self.music_primary_color)

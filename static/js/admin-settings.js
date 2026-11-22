@@ -31,6 +31,7 @@
           "admin", $id("music-animation").value, data.music_band_colors,
         );
         $id("music-sensitivity").value = data.music_sensitivity || 1;
+        $id("music-sound-profile").value = data.music_sound_profile || "small_speakers";
         $id("music-primary-color").value = data.music_primary_color || "#00e5ff";
         $id("music-accent-color").value = data.music_accent_color || "#ff2ea6";
         window.MusicPreview.updateColors();
@@ -83,6 +84,7 @@
           mic_handoff_seconds: Number($id("mic-handoff-seconds").value),
           music_animation: $id("music-animation").value,
           music_sensitivity: Number($id("music-sensitivity").value),
+          music_sound_profile: $id("music-sound-profile").value,
           music_beat_lead_ms: Number($id("music-beat-lead-ms").value),
           music_primary_color: $id("music-primary-color").value,
           music_accent_color: $id("music-accent-color").value,
@@ -102,7 +104,8 @@
         showAdminMessage("Saved. " + body.hidden_start + " hidden at start, " +
           body.hidden_end + " hidden at end; microphone handoff " + body.mic_handoff_seconds +
           " seconds; " + window.MusicPreview.patternLabel(body.music_animation) + " at " +
-          Number(body.music_sensitivity).toFixed(2) + "× sensitivity; colors " +
+          Number(body.music_sensitivity).toFixed(2) + "× sensitivity; speaker profile " +
+          $id("music-sound-profile").selectedOptions[0].textContent + "; colors " +
           body.music_primary_color + " / " + body.music_accent_color + "; LED balance R/G/B " +
           body.led_color_red + "% / " + body.led_color_green + "% / " + body.led_color_blue + "%. ");
         App.previewInvertOrder = body.preview_invert_order === true;

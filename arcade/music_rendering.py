@@ -31,6 +31,19 @@ class MusicRenderingMixin(MusicPatternMixin):
             for value in bands
         ]
         enabled = self.music_enabled_bands
+        if self.music_sound_profile == "small_speakers":
+            # Small speakers often lose sub-bass. Let low-mid kick harmonics
+            # stand in for it, while respecting the user's selected bands.
+            low_mid = bands[2] if enabled[2] else 0.0
+            if enabled[0]:
+                bands[0] = min(1.0, max(bands[0] * 1.45, low_mid * 0.72))
+            if enabled[1]:
+                bands[1] = min(1.0, max(bands[1] * 1.3, low_mid * 0.55))
+        elif self.music_sound_profile == "bass_forward":
+            if enabled[0]:
+                bands[0] = min(1.0, bands[0] * 1.35)
+            if enabled[1]:
+                bands[1] = min(1.0, bands[1] * 1.2)
         total_energy = sum(value * value for value in bands)
         selected_energy = sum(
             value * value for value, is_enabled in zip(bands, enabled) if is_enabled
@@ -179,11 +192,10 @@ class MusicRenderingMixin(MusicPatternMixin):
                     continue
                 strength = max(0.0, 1.0 - abs(offset) / 4.0)
                 strength = strength * strength
-                # Pure KITT red. A transient brightens the head and its two
-                # nearest neighbours, like a short spoken emphasis, without
-                # coloring any unlit pixels or changing toward amber.
-                emphasis = self._kitt_speak if abs(offset) <= 1 else 0.0
-                red = int(255 * strength * (0.64 + 0.36 * emphasis))
+                # Pure KITT red. Bass beat pulses drive a quick flash followed
+                # by a near-dark gap, while the scanner keeps sweeping.
+                pulse_brightness = 0.035 + 0.965 * self._kitt_speak
+                red = int(255 * strength * pulse_brightness)
                 frame.set(index, (red, 0, 0))
             return
         if self.music_animation == "laser_dance":
