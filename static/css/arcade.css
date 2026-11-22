@@ -292,6 +292,10 @@ input[type="text"]:focus {
   text-align: center;
 }
 .queue-banner[hidden] { display: none; }
+.kick-btn { padding: 4px 10px; font-size: 0.8rem; min-height: 0; }
+.kick-card { margin-top: 12px; }
+.kick-card summary { cursor: pointer; color: var(--muted); }
+.kick-card[hidden] { display: none; }
 .ready-badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 999px; }
 .ready-badge.ready { background: var(--ok); color: #04240f; }
 .ready-badge.waiting { background: #2a2a3c; color: var(--muted); }

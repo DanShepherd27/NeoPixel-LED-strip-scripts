@@ -4,6 +4,8 @@ The server owns game state and scoring; browser clients send intents only.
 Admin settings, music controls, and socket handlers live in focused modules.
 """
 
+import time
+
 from flask import request, jsonify
 from flask_socketio import SocketIO
 from web.socket_api import register_socket_handlers
@@ -14,6 +16,9 @@ from web.music_api import register_music_routes
 from web.songs_api import register_song_routes
 from arcade.song.importer import ImportJobs
 from arcade.song.library import USER_SONG_DIR
+
+# A player removed by vote cannot rejoin from the same device for a while.
+KICK_LOCKOUT_SECONDS = 120
 
 # Characters we strip from player names to avoid layout/HTML abuse.
 _INVALID_NAME_CHARS = '<>&"\''
@@ -36,6 +41,12 @@ def register_api(app, manager, hardware):
     manager.import_jobs = ImportJobs(USER_SONG_DIR)
     register_song_routes(app, manager, manager.import_jobs)
 
+    player_addresses = {}   # player_id -> client address
+    lockouts = {}           # client address -> time.monotonic() until which joining is refused
+
+    def locked_out():
+        return lockouts.get(request.remote_addr, 0) > time.monotonic()
+
     # HTTP polling/control fallback. It keeps the arcade usable on an isolated
     # LAN without requiring a separately hosted Socket.IO browser bundle.
     @app.post("/api/join")
@@ -43,7 +54,10 @@ def register_api(app, manager, hardware):
         name = _sanitize_name((request.get_json(silent=True) or {}).get("name", ""))
         if not name:
             return jsonify({"message": "Please enter a name."}), 400
+        if locked_out():
+            return jsonify({"message": "You were removed by a vote. Try again in a couple of minutes."}), 403
         player = manager.join_player(name)
+        player_addresses[player.id] = request.remote_addr
         manager.touch(player.id)
         return jsonify({"player_id": player.id, "player": player.to_dict()})
 
@@ -68,6 +82,16 @@ def register_api(app, manager, hardware):
         data = request.get_json(silent=True) or {}
         if isinstance(data.get("player_id"), str):
             manager.set_ready(data["player_id"], bool(data.get("ready", True)))
+        return jsonify({"ok": True})
+
+    @app.post("/api/vote_kick")
+    def http_vote_kick():
+        data = request.get_json(silent=True) or {}
+        voter_id, target_id = data.get("player_id"), data.get("target_id")
+        if isinstance(voter_id, str) and isinstance(target_id, str):
+            removed = manager.vote_kick(voter_id, target_id)
+            if removed is not None:
+                lockouts[player_addresses.pop(target_id, None)] = time.monotonic() + KICK_LOCKOUT_SECONDS
         return jsonify({"ok": True})
 
     @app.post("/api/select_game")

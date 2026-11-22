@@ -154,6 +154,7 @@ class ArcadeManager(MusicRenderingMixin):
         self.tutorial_elapsed = 0.0
 
         self._presence_timer = 0.0
+        self.kicked_ids = []        # recently vote-kicked players, so their phone can say why
         self._lock = threading.RLock()
         self._input_queue = queue.Queue()
 
@@ -181,10 +182,36 @@ class ArcadeManager(MusicRenderingMixin):
     def leave_player(self, player_id):
         with self._lock:
             self.players.remove_player(player_id)
-            if self.state == ArcadeState.LOBBY and self.players.count() == 0:
-                self._enter_idle()
-            elif self.state in self._GAME_STATES and not self._participants_present():
-                self._enter_idle()
+            self._after_departure()
+
+    def vote_kick(self, voter_id, target_id):
+        """Toggle a vote to remove a player; a majority of the others removes them.
+
+        Returns the removed player, or None while the vote is still open.
+        """
+        with self._lock:
+            if self.state in (ArcadeState.IDLE, ArcadeState.MUSIC, ArcadeState.SONG):
+                return None
+            target = self.players.get(target_id)
+            if target is None or not self.players.toggle_kick_vote(voter_id, target_id):
+                return None
+            log.info("Vote kick removed %s (%s)", target.name, target_id)
+            self.kicked_ids.append(target_id)
+            del self.kicked_ids[:-20]
+            self.leave_player(target_id)
+            return target
+
+    def _after_departure(self):
+        """Keep the lifecycle consistent after someone leaves or is dropped."""
+        if self.state not in (ArcadeState.LOBBY, *self._GAME_STATES, ArcadeState.RESULTS):
+            return
+        if self.players.count() == 0:
+            self._enter_idle()
+        elif self.state in self._GAME_STATES and not self._participants_present():
+            # Nobody left who can play this game: give the seats to the queue.
+            self.game = None
+            self.game_class = None
+            self._enter_lobby()
 
     _GAME_STATES = (ArcadeState.TUTORIAL, ArcadeState.COUNTDOWN, ArcadeState.GAME)
 
@@ -591,10 +618,8 @@ class ArcadeManager(MusicRenderingMixin):
             return
         self._presence_timer = 1.0
         dropped = self.players.refresh_presence(PLAYER_AWAY_SECONDS, PLAYER_DROP_SECONDS)
-        if dropped and self.state in (ArcadeState.LOBBY, *self._GAME_STATES):
-            if self.players.count() == 0 or (
-                    self.state in self._GAME_STATES and not self._participants_present()):
-                self._enter_idle()
+        if dropped:
+            self._after_departure()
 
     def _render_song(self, frame, dt):
         song = self._song
@@ -716,6 +741,7 @@ class ArcadeManager(MusicRenderingMixin):
                 "state": self.state.value,
                 "players": self._players_snapshot(),
                 "ready_required": self._ready_required(),
+                "kicked": list(self.kicked_ids),
                 "idle_animation": self.current_idle_name,
                 "led_orientation": LED_ORIENTATION,
                 "preview_invert_order": getattr(self, "preview_invert_order", False),

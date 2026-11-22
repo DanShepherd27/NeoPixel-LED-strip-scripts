@@ -128,6 +128,7 @@
 
     </section>
 
+    <p id="kick-notice" class="queue-banner" role="alert" hidden></p>
     <p id="queue-banner" class="queue-banner" role="status" aria-live="polite" hidden></p>
 
     <!-- Lobby -->
@@ -183,6 +184,11 @@
         <div id="game-hud" class="hud"></div>
       </div>
       <div id="controller" class="controller"></div>
+      <details class="card kick-card">
+        <summary>Someone hogging the controller?</summary>
+        <p class="muted">A majority of the other players can vote to remove a player.</p>
+        <ul id="kick-list" class="player-list"></ul>
+      </details>
     </section>
 
     <!-- Results -->

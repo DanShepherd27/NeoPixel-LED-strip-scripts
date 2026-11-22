@@ -63,13 +63,14 @@
           start_game: "/api/start_game", rematch: "/api/rematch",
           skip_tutorial: "/api/skip_tutorial", tutorial_next: "/api/tutorial_next",
           return_to_idle: "/api/return_to_idle", input: "/api/input",
+          vote_kick: "/api/vote_kick",
           ping: "/api/ping",
           music_mode: "/api/music_mode",
         };
         const route = routes[event];
         if (!route) return;
         const payload = Object.assign({}, data || {});
-        if (["leave", "ping", "ready", "input", "tutorial_next", "skip_tutorial"].indexOf(event) >= 0) {
+        if (["leave", "ping", "ready", "input", "tutorial_next", "skip_tutorial", "vote_kick"].indexOf(event) >= 0) {
           payload.player_id = App.playerId;
         }
         fetch(route, {
@@ -164,6 +165,10 @@
 
   function onState(state) {
     App.state = state;
+
+    if (App.playerId && (state.kicked || []).indexOf(App.playerId) >= 0) {
+      showNotice("You were removed from the arcade by a vote of the other players.");
+    }
 
     // If our player id is no longer registered (e.g. returned to idle), reset.
     if (App.playerId && state.players && !state.players.some(function (p) {
@@ -268,6 +273,46 @@
     }
   }
 
+  let noticeTimer = null;
+
+  function showNotice(message) {
+    const notice = $id("kick-notice");
+    notice.textContent = message;
+    notice.hidden = false;
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(function () { notice.hidden = true; }, 10000);
+  }
+
+  // One "vote kick" button per other player, showing progress toward a majority.
+  function kickButton(p, s) {
+    const voted = (p.kick_voters || []).indexOf(App.playerId) >= 0;
+    const others = (s.players || []).filter(function (o) { return o.connected && o.id !== p.id; }).length;
+    const needed = Math.floor(others / 2) + 1;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-ghost kick-btn";
+    btn.textContent = (voted ? "Withdraw vote " : "Vote kick ") + (p.kick_voters || []).length + "/" + needed;
+    btn.addEventListener("click", function () {
+      App.socket.emit("vote_kick", { target_id: p.id });
+    });
+    return btn;
+  }
+
+  function renderKickList(list, s) {
+    list.innerHTML = "";
+    (s.players || []).forEach(function (p) {
+      if (p.id === App.playerId) return;
+      const li = document.createElement("li");
+      const name = document.createElement("span");
+      name.className = "player-name";
+      name.textContent = p.name + (p.queued ? " (queued)" : "");
+      li.appendChild(name);
+      li.appendChild(kickButton(p, s));
+      list.appendChild(li);
+    });
+    list.parentElement.hidden = list.children.length === 0;
+  }
+
   function me(s) {
     return (s.players || []).find(function (p) { return p.id === App.playerId; });
   }
@@ -312,6 +357,7 @@
       li.appendChild(chip);
       li.appendChild(name);
       li.appendChild(badge);
+      if (p.id !== App.playerId) li.appendChild(kickButton(p, s));
       list.appendChild(li);
     });
 
@@ -433,9 +479,11 @@
     if (mine && mine.queued) {
       $id("game-hud").textContent = "";
       $id("controller").textContent = "";
+      renderKickList($id("kick-list"), s);
       if (window.resetController) window.resetController();
       return;
     }
+    renderKickList($id("kick-list"), s);
     if (typeof renderHud === "function") renderHud(s);
     if (typeof renderController === "function") renderController(s);
   }

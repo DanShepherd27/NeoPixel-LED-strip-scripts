@@ -135,5 +135,41 @@ class LobbyFlowTests(unittest.TestCase):
         self.assertEqual(self.manager.state, ArcadeState.TUTORIAL)
 
 
+class VoteKickTests(unittest.TestCase):
+    def setUp(self):
+        self.manager = ArcadeManager(count=60)
+        self.a, self.b, self.c = (self.manager.join_player(name) for name in "ABC")
+
+    def test_a_majority_of_the_others_removes_the_player(self):
+        self.assertIsNone(self.manager.vote_kick(self.a.id, self.c.id))
+        self.assertIsNotNone(self.manager.players.get(self.c.id))
+        removed = self.manager.vote_kick(self.b.id, self.c.id)
+        self.assertEqual(removed.id, self.c.id)
+        self.assertIsNone(self.manager.players.get(self.c.id))
+        self.assertIn(self.c.id, self.manager.get_state()["kicked"])
+
+    def test_votes_can_be_withdrawn_and_do_not_count_for_oneself(self):
+        self.manager.vote_kick(self.a.id, self.c.id)
+        self.manager.vote_kick(self.a.id, self.c.id)                      # withdraw
+        self.assertIsNone(self.manager.vote_kick(self.b.id, self.c.id))
+        self.assertIsNone(self.manager.vote_kick(self.c.id, self.c.id))
+        self.assertEqual(self.manager.players.get(self.c.id).kick_votes, {self.b.id})
+
+    def test_kicking_the_only_player_of_a_running_game_hands_over_to_the_queue(self):
+        self.manager.select_game("dodge")                                  # one seat: A plays
+        self.manager.start_game()
+        self.assertEqual(self.manager.state, ArcadeState.TUTORIAL)
+        self.manager.vote_kick(self.b.id, self.a.id)
+        self.manager.vote_kick(self.c.id, self.a.id)
+        self.assertIsNone(self.manager.players.get(self.a.id))
+        self.assertEqual(self.manager.state, ArcadeState.LOBBY)
+        self.assertEqual(self.manager.players.count(), 2)
+
+    def test_voting_is_only_for_connected_voters(self):
+        self.b.connected = False
+        self.assertIsNone(self.manager.vote_kick(self.b.id, self.c.id))
+        self.assertEqual(self.manager.players.get(self.c.id).kick_votes, set())
+
+
 if __name__ == "__main__":
     unittest.main()

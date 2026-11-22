@@ -26,6 +26,7 @@ class Player:
         self.ready = False
         self.score = 0
         self.extra = {}
+        self.kick_votes = set()
         self.last_seen = time.time()
 
     def to_dict(self):
@@ -37,6 +38,7 @@ class Player:
             "ready": self.ready,
             "score": self.score,
             "connected": self.connected,
+            "kick_voters": sorted(self.kick_votes),
         }
 
 
@@ -59,6 +61,8 @@ class PlayerManager:
         with self._lock:
             player = self._players.pop(player_id, None)
             if player:
+                for other in self._players.values():
+                    other.kick_votes.discard(player_id)
                 self._reassign_colors()
                 log.info("Player left: %s (%s)", player.name, player_id)
             return player
@@ -146,6 +150,26 @@ class PlayerManager:
                 self.remove_player(pid)
                 log.info("Dropped silent player %s", pid)
             return stale
+
+    # -- vote kick ----------------------------------------------------------
+    def kick_needed(self, target_id):
+        """Votes required to remove a player: a majority of the other connected players."""
+        with self._lock:
+            voters = [p for p in self.connected_players() if p.id != target_id]
+            return len(voters) // 2 + 1
+
+    def toggle_kick_vote(self, voter_id, target_id):
+        """Add or withdraw a vote; returns True once the target has enough votes."""
+        with self._lock:
+            voter, target = self._players.get(voter_id), self._players.get(target_id)
+            if voter is None or target is None or voter_id == target_id or not voter.connected:
+                return False
+            if voter_id in target.kick_votes:
+                target.kick_votes.discard(voter_id)
+            else:
+                target.kick_votes.add(voter_id)
+            live = {p.id for p in self.connected_players()}
+            return len(target.kick_votes & live) >= self.kick_needed(target_id)
 
     def send_to_back(self, player_ids):
         """Move players to the end of the join order, keeping their relative order."""
