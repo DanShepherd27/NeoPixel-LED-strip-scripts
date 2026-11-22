@@ -97,6 +97,10 @@ class ArcadeManager:
         self._laser_snare = 0.0
         self._laser_last_kick = -10.0
         self._laser_last_snare = -10.0
+        self._laser_volume = 0.0
+        self._laser_wave = 0.0
+        self._laser_wave_origin = 0.0
+        self._laser_scan = 0.0
         self.state = ArcadeState.IDLE
         self.players = PlayerManager()
 
@@ -662,12 +666,7 @@ class ArcadeManager:
             frame.set(half + offset, color)
 
     def _draw_laser_dance(self, frame, bands, dt):
-        """Sparse, phrase-based choreography driven by drum-like onsets.
-
-        This is intentionally an interpretation rather than instrument
-        separation: low-band attacks are kick-like and mid/high attacks are
-        snare-like. Other band energy provides the quieter connective motion.
-        """
+        """Red-led, full-strip choreography driven by musical transients."""
         frame.clear()
         count = self.count
         bands = [max(0.0, min(1.0, float(value))) for value in bands]
@@ -702,34 +701,48 @@ class ArcadeManager:
         selected = [value for index, value in enumerate(enabled)
                     if self.music_enabled_bands[index]]
         target_energy = sum(selected) / max(1, len(selected))
+        volume_jump = target_energy - self._laser_volume
+        self._laser_volume += (target_energy - self._laser_volume) * min(
+            1.0, max(0.0, dt) / (0.075 if target_energy > self._laser_volume else 0.34)
+        )
         rate = 0.14 if target_energy > self._laser_energy else 1.45
         self._laser_energy += (target_energy - self._laser_energy) * min(1.0, max(0.0, dt) / rate)
 
         phrase_index = int(now / period) // 8
         if phrase_index != self._laser_phrase_index:
             self._laser_phrase_index = phrase_index
-            # Resolume-style clip changes occur on an eight-beat phrase
-            # boundary. Energy changes which scene is eligible for the cue.
-            self._laser_phrase = (phrase_index + int(self._laser_energy > 0.58)) % 4
+            self._laser_phrase = (phrase_index + int(self._laser_energy > 0.58)) % 5
             self._laser_call_side = phrase_index % 2
-            self._laser_color_index = (phrase_index + int(max(enabled[3:]) > enabled[0])) % 4
+            self._laser_color_index = phrase_index % 3
 
-        # Moody fixture palettes: deep cyan, indigo, violet, and wine red.
-        # Their blend shifts with the spectrum but remains stable through a cue.
-        palettes = ((0, 88, 148), (34, 18, 108), (98, 22, 126), (142, 0, 42))
-        base_color = palettes[self._laser_color_index]
-        color_tilt = max(0.0, min(1.0, max(enabled[3:]) - enabled[0] * 0.35))
-        lead_color = _blend_rgb(base_color, palettes[(self._laser_color_index + 1) % 4], color_tilt * 0.48)
-        answer_color = _blend_rgb(base_color, palettes[(self._laser_color_index + 2) % 4], 0.52)
-        soft_color = tuple(int(channel * 0.48) for channel in base_color)
+        # The strip stays in a saturated fire palette; white is reserved for
+        # the center of a strong transient so red remains the dominant color.
+        red = (255, 10, 0)
+        orange = (255, 72, 0)
+        ember = (170, 8, 0)
+        white = (255, 190, 120)
+        colors = (red, orange, ember)
+        lead_color = colors[self._laser_color_index]
+        answer_color = orange if lead_color == red else red
+        soft_color = ember
         section = max(1, count // 4)
+
+        if kick_hit:
+            self._laser_wave = max(self._laser_wave, 1.0)
+            self._laser_wave_origin = self._laser_motion
+        elif volume_jump >= 0.11:
+            self._laser_wave = max(self._laser_wave, min(0.9, 0.42 + volume_jump * 2.0))
+            self._laser_wave_origin = self._laser_motion
+        else:
+            self._laser_wave = max(0.0, self._laser_wave - max(0.0, dt) * 1.7)
 
         # Eased kick steps provide musical motion without a beat-by-beat flash.
         paths = (
-            (2, 9, 18, 29, 40, 51, 57, 48, 37, 26, 15, 6),  # long chase
-            (2, 6, 10, 13, 9, 5),                            # call side
-            (2, 5, 9, 13, 10, 6),                            # mirror sides
-            (3, 6, 10, 13, 10, 6),                           # grouped run
+            (2, 9, 18, 29, 40, 51, 57, 48, 37, 26, 15, 6),
+            (2, 7, 13, 19, 25, 31, 37, 43, 49, 55, 49, 43, 37, 31, 25, 19, 13, 7),
+            (2, 5, 9, 13, 10, 6),
+            (3, 6, 10, 13, 10, 6),
+            (2, 8, 15, 22, 29, 36, 43, 50, 57, 50, 43, 36, 29, 22, 15, 8),
         )
         path = paths[self._laser_phrase]
         target = path[self._laser_step % len(path)]
@@ -749,40 +762,59 @@ class ArcadeManager:
                     frame.set(pixel, tuple(int(channel * strength * (0.62 + edge * 0.38))
                                            for channel in color))
 
+        beat_drive = max(self._laser_kick, self._laser_snare * 0.72, self._laser_energy * 0.45)
+        scan_width = 2 + int(beat_drive * 4)
+        self._laser_scan = (self._laser_scan + max(0.0, dt) * (9.0 + self._laser_energy * 15.0)) % count
+        scan = int(self._laser_scan)
+        # Every phrase has several active clumps so the whole 60-pixel strip
+        # reads as a moving light sculpture rather than isolated points.
         if self._laser_phrase == 0:
-            # Atmospheric horizon chase: a single fixture traces the room.
-            paint_run(lead, 1, lead_color)
-            if self._laser_snare > 0.16:
-                paint_run(max(0, lead - 2), 1, answer_color, self._laser_snare * 0.45)
+            for offset, size in ((0, 5), (-13, 3), (14, 3)):
+                paint_run((lead + offset) % count, size, lead_color if offset == 0 else answer_color, 0.90)
+            paint_run(scan, scan_width, orange, 0.62)
         elif self._laser_phrase == 1:
-            # Call and answer from two distant ceiling positions. The middle
-            # thirty LEDs are intentionally unused for spatial separation.
-            paint_run(lead, 1, lead_color)
-            if self._laser_snare > 0.10:
-                paint_run(count - 1 - lead, 1, answer_color, self._laser_snare * 0.85)
+            for offset, size in ((0, 4), (12, 4), (24, 2)):
+                position = (lead + offset) % count
+                paint_run(position, size, lead_color if offset == 0 else answer_color, 0.92)
+                paint_run(count - 1 - position, size, answer_color, 0.78)
         elif self._laser_phrase == 2:
-            # Mirrored laser sweep: paired sources stay in outer quarters.
             outer = min(section - 1, max(0, lead))
-            paint_run(outer, 1, lead_color)
-            paint_run(count - 1 - outer, 1, answer_color, 0.78)
-        else:
-            # Chorus cue: one compact group sweeps an outer quarter, then a
-            # single distant reply arrives on a snare. Never fill the strip.
+            for offset, size in ((0, 5), (7, 3), (14, 2)):
+                paint_run((outer + offset) % section, size, lead_color, 0.95)
+                paint_run(count - 1 - ((outer + offset) % section), size, answer_color, 0.85)
+        elif self._laser_phrase == 3:
             side_start = 0 if self._laser_call_side == 0 else count - section
             local = min(section - 2, max(1, lead - side_start))
             group = side_start + local
-            group_size = 3 if self._laser_energy > 0.52 else 1
-            paint_run(group, group_size, lead_color)
-            if self._laser_snare > 0.16:
-                paint_run(count - 1 - group, 1, answer_color, self._laser_snare * 0.70)
+            paint_run(group, 7, lead_color)
+            paint_run((group + 9) % count, 4, orange, 0.88)
+            paint_run(count - 1 - group, 5, answer_color, 0.88)
+            paint_run(scan, 2, red, 0.65)
+        else:
+            # Counter-scanning combs cross in both directions.
+            paint_run(scan, 4, lead_color, 0.92)
+            paint_run(count - 1 - scan, 3, answer_color, 0.9)
+            for offset in (15, 30, 45):
+                paint_run((scan + offset) % count, 2, orange, 0.74)
 
-        # A slow melodic accent occupies one separate middle quarter only in
-        # a drum rest. This keeps an atmospheric base without visual clutter.
+        # Kick or sudden loudness sends a bright wave away from its launch point.
+        if self._laser_wave > 0.03:
+            radius = int((1.0 - self._laser_wave) * (count * 0.56))
+            origin = int(round(self._laser_wave_origin))
+            wave_strength = self._laser_wave * (0.75 + self._laser_energy * 0.25)
+            for direction in (-1, 1):
+                position = (origin + direction * radius) % count
+                paint_run(position, 3 if wave_strength < 0.72 else 5,
+                          white if wave_strength > 0.72 else orange, wave_strength)
+
         mid_energy = max(enabled[2:]) if enabled[2:] else 0.0
-        if self._laser_phrase in (0, 3) and self._laser_kick < 0.12 and self._laser_snare < 0.12 and mid_energy > 0.20:
-            middle_start = section if self._laser_call_side == 0 else section * 2
-            drift = int((math.sin(now * 0.58) + 1.0) * 0.5 * (section - 1))
-            paint_run(middle_start + drift, 1, soft_color, min(0.55, mid_energy * 0.65))
+        if self._laser_snare > 0.12:
+            for offset in (-12, 0, 12):
+                paint_run((lead + offset) % count, 2, white if offset == 0 else orange,
+                          self._laser_snare * (0.92 if offset == 0 else 0.62))
+        elif mid_energy > 0.14:
+            drift = int((math.sin(now * 1.6) + 1.0) * 0.5 * (count - 1))
+            paint_run(drift, 2, soft_color, min(0.58, mid_energy * 0.72))
 
     def _draw_live_band(self, frame, bands, dt):
         """Render six frequency bands as independent bars along the 1D strip."""
