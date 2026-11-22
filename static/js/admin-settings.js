@@ -3,9 +3,9 @@
   "use strict";
   function $id(id) { return document.getElementById(id); }
   function init(App) {
-    var loginForm = $id("admin-login-form");
-    var settingsForm = $id("admin-settings-form");
-    var adminMessage = $id("admin-message");
+    const loginForm = $id("admin-login-form");
+    const settingsForm = $id("admin-settings-form");
+    const adminMessage = $id("admin-message");
 
     function showAdminMessage(message) {
       adminMessage.textContent = message || "";
@@ -27,7 +27,7 @@
         $id("music-accent-color").value = data.music_accent_color || "#ff2ea6";
         window.MusicPreview.updateColors();
         ["red", "green", "blue"].forEach(function (channel) {
-          var value = data["led_color_" + channel] == null ? 100 : data["led_color_" + channel];
+          const value = data["led_color_" + channel] == null ? 100 : data["led_color_" + channel];
           $id("led-color-" + channel).value = value;
           $id("led-color-" + channel + "-value").textContent = value + "%";
         });

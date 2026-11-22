@@ -59,7 +59,6 @@ and usable without internet after installation.
 
 ## Architecture and where to change things
 
-- clean code is desired, SOLID principles should be followed, files longer than 200 lines should raise suspicion for refactoring
 - `app.py`: loads persisted settings and starts one renderer and the web app.
 - `led/hardware.py`: sole `rpi_ws281x` wrapper; only `led/renderer.py` writes
   frames to hardware. Do not call `strip.show()` from routes or games.
@@ -76,6 +75,26 @@ and usable without internet after installation.
   does not serve the browser client bundle, and the Pi must work offline.
 - `templates/`, `static/js/`, `static/css/`: mobile browser UI. Static asset
   URLs use version query strings when necessary to bypass stale browser cache.
+
+## Coding style
+
+- Prefer clear, direct code and single-purpose functions or modules. Keep each
+  module focused on one responsibility and use SOLID principles where they
+  improve separation without adding unnecessary abstraction.
+- Treat files over 200 lines as a prompt to review their responsibilities and
+  consider a focused extraction. This is a review signal, not a strict limit;
+  keep cohesive code together when splitting would make dependencies harder to
+  follow.
+- In JavaScript, use `const` by default and `let` only for bindings that are
+  reassigned. Do not introduce `var`. Keep browser code compatible with current
+  mobile browsers and usable offline; avoid adding runtime dependencies without
+  a clear need.
+- In Python, follow the surrounding style and standard library conventions.
+  Keep hardware access behind `led/hardware.py` and preserve the renderer as
+  the sole LED frame writer.
+- Prefer existing project helpers and dependencies over duplicate utilities or
+  new packages. Name values and functions for their purpose, and remove stale
+  comments or documentation when behavior changes.
 
 Lifecycle currently is `IDLE -> LOBBY -> TUTORIAL -> COUNTDOWN -> GAME -> RESULTS`.
 Every connected lobby player must mark ready before the tutorial starts. Games

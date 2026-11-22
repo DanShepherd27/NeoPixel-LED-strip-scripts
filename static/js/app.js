@@ -3,33 +3,13 @@
 (function () {
   "use strict";
 
-  var STORAGE_ID = "led_arcade_player_id";
-  var STORAGE_NAME = "led_arcade_player_name";
-  var MIC_CLIENT_KEY = "led_arcade_mic_client";
-  var micClientId = localStorage.getItem(MIC_CLIENT_KEY);
-  if (!micClientId) {
-    micClientId = (window.crypto && crypto.randomUUID)
-      ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
-    localStorage.setItem(MIC_CLIENT_KEY, micClientId);
-  }
-  var micToken = null;
-  var micStream = null;
-  var micContext = null;
-  var micAnalyser = null;
-  var micFrame = 0;
-  var micLastSend = 0;
-  var micNoiseFloor = 0.008;
-  var micLastClap = 0;
-  var micRttMs = 40;
-  var micRole = "idle";
-  var micRequesting = false;
-  var micStatusRequestId = 0;
-  var micNotice = "";
-  var musicVisualizerPending = null;
-  var musicVisualizerDraft = null;
-  var musicVisualizerRequestId = 0;
+  const STORAGE_ID = "led_arcade_player_id";
+  const STORAGE_NAME = "led_arcade_player_name";
+  let musicVisualizerPending = null;
+  let musicVisualizerDraft = null;
+  let musicVisualizerRequestId = 0;
 
-  var App = {
+  const App = {
     socket: null,
     playerId: localStorage.getItem(STORAGE_ID) || null,
     playerName: localStorage.getItem(STORAGE_NAME) || null,
@@ -41,14 +21,14 @@
   function $id(id) { return document.getElementById(id); }
 
   function showScreen(name) {
-    var screens = document.querySelectorAll(".screen");
-    for (var i = 0; i < screens.length; i++) screens[i].classList.remove("active");
-    var el = $id("screen-" + name);
+    const screens = document.querySelectorAll(".screen");
+    for (let i = 0; i < screens.length; i++) screens[i].classList.remove("active");
+    const el = $id("screen-" + name);
     if (el) el.classList.add("active");
   }
 
   function setConn(on) {
-    var dot = $id("connection");
+    const dot = $id("connection");
     dot.classList.toggle("on", !!on);
     dot.classList.toggle("off", !on);
   }
@@ -69,14 +49,14 @@
 
   // ---- socket -------------------------------------------------------------
   function createPollingSocket() {
-    var handlers = {};
-    var socket = {
+    const handlers = {};
+    const socket = {
       connected: false,
       on: function (event, callback) {
         (handlers[event] = handlers[event] || []).push(callback);
       },
       emit: function (event, data) {
-        var routes = {
+        const routes = {
           join: "/api/join", rejoin: "/api/rejoin", leave: "/api/leave",
           ready: "/api/ready", select_game: "/api/select_game",
           start_game: "/api/start_game", rematch: "/api/rematch",
@@ -85,9 +65,9 @@
           ping: "/api/ping",
           music_mode: "/api/music_mode",
         };
-        var route = routes[event];
+        const route = routes[event];
         if (!route) return;
-        var payload = Object.assign({}, data || {});
+        const payload = Object.assign({}, data || {});
         if (["leave", "ping", "ready", "input"].indexOf(event) >= 0) {
           payload.player_id = App.playerId;
         }
@@ -137,8 +117,8 @@
       });
     }
     poll();
-    var pollDelay = 500;
-    var pollTimer = setInterval(poll, pollDelay);
+    let pollDelay = 500;
+    let pollTimer = setInterval(poll, pollDelay);
     function setPollDelay(delay) {
       if (pollDelay === delay) return;
       pollDelay = delay;
@@ -165,10 +145,10 @@
     });
 
     App.socket.on("error", function (data) {
-      var err = $id("join-error");
+      const err = $id("join-error");
       err.textContent = data && data.message ? data.message : "Something went wrong.";
       err.hidden = false;
-      var musicError = $id("music-message");
+      const musicError = $id("music-message");
       if (musicError) musicError.textContent = err.textContent;
     });
 
@@ -192,24 +172,24 @@
     }
 
     render();
-    updateMicStatus(state);
+    window.WebMic.updateStatus(state);
   }
 
   // ---- rendering ----------------------------------------------------------
   function render() {
-    var s = App.state;
+    const s = App.state;
     if (!s) return;
     if (s.preview_invert_order != null) App.previewInvertOrder = s.preview_invert_order === true;
 
     $id("idle-animation").textContent = s.idle_animation || "—";
     $id("player-count").textContent = (s.players || []).length;
     $id("lan-url").textContent = window.location.host;
-    var musicButton = $id("music-mode-btn");
-    var musicMessage = $id("music-message");
+    const musicButton = $id("music-mode-btn");
+    const musicMessage = $id("music-message");
     if (musicButton) {
-      var musicActive = s.state === "music";
+      const musicActive = s.state === "music";
       musicButton.textContent = musicActive ? "STOP MUSIC MODE" : "START FREE MUSIC MODE";
-      var audio = s.audio || {};
+      const audio = s.audio || {};
       musicMessage.textContent = musicActive
         ? (audio.source === "web"
           ? "Listening to the opted-in web microphone; only volume features are sent to the Pi."
@@ -217,15 +197,15 @@
             ? "Using the Pi microphone fallback (" + (audio.device || "default") + ")."
             : (audio.error || "Waiting for a web microphone or Pi input.")))
         : "Web microphone is the default; the Pi's ALSA input is used only as fallback.";
-      var visualizer = s.music_visualizer || {};
-      var animationNames = {
+      const visualizer = s.music_visualizer || {};
+      const animationNames = {
         center_pulse: "Center pulse", mirror_bars: "Mirror bars",
         rainbow_wave: "Rainbow wave", comet: "Comet",
         retro_vu: "Retro VU meter", inward_diamonds: "Inward diamonds",
         red_shades: "Red shades", live_band: "Live band spectrum",
         kitt_scanner: "KITT Scanner",
       };
-      var visualizerStatus = $id("music-visualizer-status");
+      const visualizerStatus = $id("music-visualizer-status");
       if (visualizerStatus) {
         visualizerStatus.textContent = musicActive
           ? "Animation: " + (animationNames[visualizer.animation] || "Center pulse") + " · Sensitivity: " +
@@ -235,20 +215,20 @@
       if (musicActive && visualizer.bpm && visualizerStatus) {
         visualizerStatus.textContent += " | Beat sync: " + visualizer.bpm + " BPM";
       }
-      var selection = musicVisualizerPending || musicVisualizerDraft || visualizer;
-      var animationSelect = $id("music-animation-select");
+      const selection = musicVisualizerPending || musicVisualizerDraft || visualizer;
+      const animationSelect = $id("music-animation-select");
       if (animationSelect) animationSelect.value = selection.animation || "center_pulse";
       $id("music-live-primary").value = selection.primary_color || "#00e5ff";
       $id("music-live-accent").value = selection.accent_color || "#ff2ea6";
-      var enabledBands = selection.enabled_bands || [true, true, true, true, true, true];
+      const enabledBands = selection.enabled_bands || [true, true, true, true, true, true];
       document.querySelectorAll("#live-band-controls [data-band]").forEach(function (input) {
         input.checked = enabledBands[Number(input.dataset.band)] !== false;
       });
       window.MusicPreview.updateColors();
       $id("web-mic-controls").hidden = !musicActive;
     }
-    var orientation = s.led_orientation || "vertical";
-    var orientationLabel = $id("strip-orientation");
+    const orientation = s.led_orientation || "vertical";
+    const orientationLabel = $id("strip-orientation");
     if (orientationLabel) orientationLabel.textContent = orientation;
 
     if (!App.playerId) {
@@ -287,250 +267,25 @@
     }
   }
 
-  function updateMicStatus(state) {
-    if (!state || state.state !== "music") {
-      micStatusRequestId += 1;
-      if (micStream || micContext) stopMicCapture();
-      micRequesting = false;
-      micToken = null;
-      micRole = "idle";
-      return;
-    }
-    var requestId = ++micStatusRequestId;
-    fetch("/api/music/mic/state?client_id=" + encodeURIComponent(micClientId), { cache: "no-store" })
-      .then(function (response) { return response.json(); })
-      .then(function (status) {
-        // A slow poll must not overwrite a more recent lease response.
-        if (requestId !== micStatusRequestId || !App.state || App.state.state !== "music") return;
-        var oldRole = micRole;
-        micRole = status.role || "idle";
-        micToken = status.token || null;
-        if (oldRole === "owner" && micRole !== "owner" && !micNotice) {
-          micNotice = "Your microphone turn ended. Your browser track has been released.";
-        }
-        var statusText = $id("web-mic-status");
-        var queueButton = $id("mic-queue-btn");
-        var startButton = $id("mic-start-btn");
-        var secure = window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
-        if (!secure) {
-          statusText.textContent = micNotice || "Browser microphone needs HTTPS on this LAN address. Use a trusted HTTPS URL, then allow microphone access.";
-          queueButton.disabled = true;
-          startButton.hidden = true;
-        } else if (micRole === "owner") {
-          statusText.textContent = micRequesting
-            ? "Requesting microphone permission. Respond to the browser prompt to continue."
-            : micNotice || (micStream
-            ? "Your microphone is active. The browser track closes automatically when your turn ends. " +
-              (status.handoff_in != null ? "Turn ends in about " + status.handoff_in + " seconds. " : "") +
-              (status.queued ? status.queued + " user(s) queued." : "")
-            : "It is your turn. Start the microphone when you are ready.");
-          queueButton.textContent = "RELEASE MICROPHONE";
-          queueButton.hidden = false;
-          queueButton.disabled = false;
-          startButton.hidden = !!micStream;
-          startButton.disabled = micRequesting;
-          startButton.textContent = micRequesting ? "WAITING FOR MIC…" : "ALLOW MIC AND VISUALIZE";
-        } else if (micRole === "queued") {
-          statusText.textContent = "You are number " + status.position + " in the microphone queue. " +
-            (status.owner ? status.owner + " is using it." : "Waiting for the current turn.");
-          queueButton.textContent = "LEAVE MIC QUEUE";
-          queueButton.hidden = false;
-          queueButton.disabled = false;
-          startButton.hidden = true;
-        } else {
-          statusText.textContent = micNotice || "Join the queue to use this device's microphone.";
-          queueButton.textContent = "USE THIS DEVICE'S MIC";
-          queueButton.hidden = false;
-          queueButton.disabled = false;
-          startButton.hidden = true;
-        }
-        if (micRole !== "owner" && (micStream || micContext)) stopMicCapture();
-      }).catch(function () {});
-  }
-
-  function stopMicCapture() {
-    if (micFrame) cancelAnimationFrame(micFrame);
-    micFrame = 0;
-    if (micStream) micStream.getTracks().forEach(function (track) { track.stop(); });
-    micStream = null;
-    if (micContext) micContext.close().catch(function () {});
-    micContext = null;
-    micAnalyser = null;
-  }
-
-  function releaseMic() {
-    stopMicCapture();
-    var token = micToken;
-    var shouldLeave = micRole !== "idle" || !!token;
-    micToken = null;
-    if (shouldLeave) {
-      fetch("/api/music/mic/leave", {
-        method: "POST", keepalive: true,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ client_id: micClientId, token: token }),
-      }).catch(function () {});
-    }
-    micRole = "idle";
-  }
-
-  function startMicCapture() {
-    var statusText = $id("web-mic-status");
-    var startButton = $id("mic-start-btn");
-    if (micRequesting || micStream) return;
-    if (micRole !== "owner" || !micToken) {
-      micNotice = "Your microphone turn is not ready yet. Wait for the owner status, then tap again.";
-      statusText.textContent = micNotice;
-      updateMicStatus(App.state);
-      return;
-    }
-    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      micNotice = "This page cannot request a microphone on HTTP. Open the arcade through trusted HTTPS.";
-      statusText.textContent = micNotice;
-      return;
-    }
-    var AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) {
-      statusText.textContent = "This browser does not support live audio analysis.";
-      return;
-    }
-    // Invoke getUserMedia directly in the click handler to preserve browser
-    // user activation. Do not await a queue/status request before this call.
-    micRequesting = true;
-    startButton.disabled = true;
-    startButton.textContent = "WAITING FOR MIC…";
-    statusText.textContent = "Requesting microphone permission from your browser…";
-    micNotice = "";
-    var mediaRequest;
-    try {
-      micContext = new AudioContextClass();
-      micContext.resume().catch(function () {});
-      mediaRequest = navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    } catch (error) {
-      micRequesting = false;
-      stopMicCapture();
-      startButton.disabled = false;
-      startButton.textContent = "ALLOW MIC AND VISUALIZE";
-      statusText.textContent = "Browser could not start microphone access: " + (error.message || error.name || "unknown error");
-      return;
-    }
-    mediaRequest.then(function (stream) {
-      micRequesting = false;
-      if (micRole !== "owner") {
-        stream.getTracks().forEach(function (track) { track.stop(); });
-        stopMicCapture();
-        statusText.textContent = "Your microphone turn ended before access was granted. Join the queue again for another turn.";
-        return;
-      }
-      micStream = stream;
-      micNotice = "";
-      statusText.textContent = "Microphone allowed. Visualizing live sound; raw audio stays on this device.";
-      stream.getTracks().forEach(function (track) {
-        track.addEventListener("ended", releaseMic, { once: true });
-      });
-      var source = micContext.createMediaStreamSource(stream);
-      micAnalyser = micContext.createAnalyser();
-      micAnalyser.fftSize = 2048;
-      micAnalyser.minDecibels = -90;
-      micAnalyser.maxDecibels = -20;
-      micAnalyser.smoothingTimeConstant = 0.35;
-      source.connect(micAnalyser);
-      var samples = new Float32Array(micAnalyser.fftSize);
-      var frequencyData = new Uint8Array(micAnalyser.frequencyBinCount);
-      var frequencyBands = [
-        [40, 150], [150, 300], [300, 600],
-        [600, 1500], [1500, 4000], [4000, 10000],
-      ];
-      var bandGains = [1.55, 1.4, 1.15, 1.05, 1.1, 1.25];
-      function sample(now) {
-        if (!micAnalyser || !micToken || micRole !== "owner") return;
-        micAnalyser.getFloatTimeDomainData(samples);
-        micAnalyser.getByteFrequencyData(frequencyData);
-        var squares = 0;
-        var peak = 0;
-        for (var i = 0; i < samples.length; i++) {
-          var value = Math.abs(samples[i]);
-          squares += value * value;
-          if (value > peak) peak = value;
-        }
-        var rms = Math.sqrt(squares / samples.length);
-        if (rms < micNoiseFloor) micNoiseFloor += (rms - micNoiseFloor) * 0.08;
-        else if (rms < micNoiseFloor * 2) micNoiseFloor += (rms - micNoiseFloor) * 0.004;
-        var level = Math.max(0, Math.min(1, (rms - micNoiseFloor) / Math.max(0.025, micNoiseFloor * 5)));
-        var binHz = micContext.sampleRate / micAnalyser.fftSize;
-        var bands = frequencyBands.map(function (range, bandIndex) {
-          var firstBin = Math.max(1, Math.floor(range[0] / binHz));
-          var lastBin = Math.min(frequencyData.length - 1, Math.ceil(range[1] / binHz));
-          var values = [];
-          for (var bin = firstBin; bin <= lastBin; bin++) {
-            values.push(frequencyData[bin] / 255);
-          }
-          if (!values.length) return 0;
-          values.sort(function (a, b) { return b - a; });
-          var selectedCount = Math.max(1, Math.ceil(values.length * 0.35));
-          var power = 0;
-          for (var vi = 0; vi < selectedCount; vi++) power += values[vi] * values[vi];
-          var bandLevel = Math.sqrt(power / selectedCount);
-          bandLevel = Math.max(0, Math.min(1, (bandLevel - 0.18) / 0.42));
-          return Math.max(0, Math.min(1, Math.pow(bandLevel, 0.8) * bandGains[bandIndex]));
-        });
-        var clap = rms > Math.max(0.018, micNoiseFloor * 1.35) && peak > 0.12 &&
-          peak / Math.max(0.001, rms) > 3 && now - micLastClap > 160;
-        if (clap) micLastClap = now;
-        if (now - micLastSend > 50) {
-          micLastSend = now;
-          var requestStarted = performance.now();
-          var captureLatency = (micAnalyser.fftSize / micContext.sampleRate) * 500;
-          fetch("/api/music/mic/audio", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              token: micToken, level: level, peak: peak, clap: clap, bands: bands,
-              latency_ms: captureLatency + micRttMs / 2,
-            }),
-          }).then(function (response) {
-            if (response.status === 409) releaseMic();
-            else if (response.ok) {
-              var observedRtt = performance.now() - requestStarted;
-              micRttMs = micRttMs * 0.8 + observedRtt * 0.2;
-            }
-          }).catch(function () {});
-        }
-        micFrame = requestAnimationFrame(sample);
-      }
-      micFrame = requestAnimationFrame(sample);
-    }).catch(function (error) {
-      micRequesting = false;
-      var detail = error && error.name === "NotAllowedError"
-        ? (window.isSecureContext
-          ? "The browser blocked microphone access. Allow Microphone for this site in its address-bar/site settings, then join the microphone queue again."
-          : "The browser requires HTTPS for microphone access; a private LAN IP over HTTP is not treated as secure.")
-        : "Could not open this microphone: " + (error.message || error.name || "unknown error");
-      micNotice = detail + " Using the Pi microphone fallback if available.";
-      statusText.textContent = micNotice;
-      startButton.disabled = false;
-      startButton.textContent = "ALLOW MIC AND VISUALIZE";
-      releaseMic();
-    });
-  }
-
   function renderLobby(s) {
-    var list = $id("player-list");
-    var players = s.players || [];
+    const list = $id("player-list");
+    const players = s.players || [];
     list.innerHTML = "";
 
     players.forEach(function (p) {
-      var li = document.createElement("li");
-      var rgb = "rgb(" + p.color.join(",") + ")";
+      const li = document.createElement("li");
+      const rgb = "rgb(" + p.color.join(",") + ")";
 
-      var chip = document.createElement("span");
+      const chip = document.createElement("span");
       chip.className = "color-chip";
       chip.style.background = rgb;
       chip.style.color = rgb;
 
-      var name = document.createElement("span");
+      const name = document.createElement("span");
       name.className = "player-name";
       name.textContent = p.name + (p.id === App.playerId ? " (you)" : "");
 
-      var badge = document.createElement("span");
+      const badge = document.createElement("span");
       badge.className = "ready-badge " + (p.ready ? "ready" : "waiting");
       badge.textContent = p.ready ? "READY" : "WAITING";
 
@@ -541,14 +296,14 @@
     });
 
     // Ready button reflects own state.
-    var me = players.find(function (p) { return p.id === App.playerId; });
-    var readyBtn = $id("ready-btn");
+    const me = players.find(function (p) { return p.id === App.playerId; });
+    const readyBtn = $id("ready-btn");
     if (me) {
       readyBtn.textContent = me.ready ? "NOT READY" : "READY";
       readyBtn.className = "btn " + (me.ready ? "btn-ghost" : "btn-primary");
     }
-    var readyCount = players.filter(function (player) { return player.connected && player.ready; }).length;
-    var connectedCount = players.filter(function (player) { return player.connected; }).length;
+    const readyCount = players.filter(function (player) { return player.connected && player.ready; }).length;
+    const connectedCount = players.filter(function (player) { return player.connected; }).length;
     $id("lobby-ready-status").textContent = readyCount + " of " + connectedCount + " players ready. Everyone must be ready to start.";
 
     renderGameList(s);
@@ -556,26 +311,26 @@
   }
 
   function renderGameList(s) {
-    var container = $id("game-list");
-    var games = s.games || [];
+    const container = $id("game-list");
+    const games = s.games || [];
     container.innerHTML = "";
 
     games.forEach(function (g) {
-      var btn = document.createElement("button");
+      const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "game-option" + (g.slug === s.selected_game ? " selected" : "");
 
-      var name = document.createElement("div");
+      const name = document.createElement("div");
       name.className = "game-name";
       name.textContent = g.name;
       btn.appendChild(name);
 
-      var desc = document.createElement("div");
+      const desc = document.createElement("div");
       desc.className = "game-desc";
       desc.textContent = g.description;
       btn.appendChild(desc);
 
-      var layouts = document.createElement("div");
+      const layouts = document.createElement("div");
       layouts.className = "game-meta";
       layouts.textContent = "Layouts: " + (g.layouts || ["horizontal", "vertical"])
         .map(function (layout) {
@@ -583,9 +338,9 @@
         }).join(" · ");
       btn.appendChild(layouts);
 
-      var meta = document.createElement("div");
+      const meta = document.createElement("div");
       meta.className = "game-meta";
-      var players = g.max_players == null
+      const players = g.max_players == null
         ? g.min_players + "+ players"
         : (g.min_players === g.max_players
           ? g.min_players + " player" + (g.min_players === 1 ? "" : "s")
@@ -602,39 +357,39 @@
   }
 
   function updateStartButton(s) {
-    var players = s.players || [];
-    var startBtn = $id("start-btn");
-    var selected = (s.games || []).find(function (g) { return g.slug === s.selected_game; });
-    var connected = players.filter(function (player) { return player.connected; });
-    var enough = selected && connected.length >= selected.min_players;
-    var everyoneReady = connected.length > 0 && connected.every(function (player) { return player.ready; });
+    const players = s.players || [];
+    const startBtn = $id("start-btn");
+    const selected = (s.games || []).find(function (g) { return g.slug === s.selected_game; });
+    const connected = players.filter(function (player) { return player.connected; });
+    const enough = selected && connected.length >= selected.min_players;
+    const everyoneReady = connected.length > 0 && connected.every(function (player) { return player.ready; });
     startBtn.disabled = !(s.selected_game && enough && everyoneReady);
   }
 
   function renderCountdown(s) {
-    var n = Math.max(1, Math.ceil(s.countdown || 0));
+    const n = Math.max(1, Math.ceil(s.countdown || 0));
     $id("countdown-number").textContent = n;
-    var game = (s.games || []).find(function (g) { return g.slug === s.selected_game; });
+    const game = (s.games || []).find(function (g) { return g.slug === s.selected_game; });
     $id("countdown-game").textContent = game ? game.name : "";
   }
 
   function renderTutorial(s) {
-    var game = (s.games || []).find(function (item) { return item.slug === s.selected_game; });
-    var tutorial = s.tutorial || {};
+    const game = (s.games || []).find(function (item) { return item.slug === s.selected_game; });
+    const tutorial = s.tutorial || {};
     $id("tutorial-game-name").textContent = game ? game.name : "Game tutorial";
     $id("tutorial-title").textContent = tutorial.title || "Get ready";
     $id("tutorial-instruction").textContent = tutorial.instruction || "Watch the LED strip.";
     $id("tutorial-step").textContent = tutorial.count
       ? "Step " + tutorial.index + " of " + tutorial.count
       : "Starting soon";
-    var progress = tutorial.count ? (tutorial.index / tutorial.count) * 100 : 100;
+    const progress = tutorial.count ? (tutorial.index / tutorial.count) * 100 : 100;
     $id("tutorial-progress").style.width = progress + "%";
-    var players = s.players || [];
-    var connected = players.filter(function (player) { return player.connected; });
-    var readyCount = connected.filter(function (player) { return player.ready; }).length;
-    var waiting = !!tutorial.waiting_ready;
-    var me = connected.find(function (player) { return player.id === App.playerId; });
-    var readyButton = $id("tutorial-ready-btn");
+    const players = s.players || [];
+    const connected = players.filter(function (player) { return player.connected; });
+    const readyCount = connected.filter(function (player) { return player.ready; }).length;
+    const waiting = !!tutorial.waiting_ready;
+    const me = connected.find(function (player) { return player.id === App.playerId; });
+    const readyButton = $id("tutorial-ready-btn");
     readyButton.disabled = !waiting || !me;
     readyButton.textContent = me && me.ready ? "NOT READY" : "READY";
     readyButton.className = "btn btn-block " + (me && me.ready ? "btn-ghost" : "btn-primary");
@@ -645,7 +400,7 @@
   }
 
   function renderGame(s) {
-    var game = s.game || {};
+    const game = s.game || {};
     $id("game-title").textContent = game.name || "Game";
     $id("game-subtitle").textContent = "";
     if (typeof renderHud === "function") renderHud(s);
@@ -653,10 +408,10 @@
   }
 
   function renderResults(s) {
-    var title = $id("results-title");
-    var body = $id("results-body");
-    var players = s.players || [];
-    var game = s.game || {};
+    const title = $id("results-title");
+    const body = $id("results-body");
+    const players = s.players || [];
+    const game = s.game || {};
 
     if (game.winner_name) {
       title.textContent = game.winner_name + " wins!";
@@ -665,34 +420,34 @@
     }
 
     // Rank players by score (descending).
-    var ranked = players.slice().sort(function (a, b) { return b.score - a.score; });
+    const ranked = players.slice().sort(function (a, b) { return b.score - a.score; });
     body.innerHTML = "";
 
-    var list = document.createElement("div");
+    const list = document.createElement("div");
     list.className = "results-list";
 
     ranked.forEach(function (p, i) {
-      var row = document.createElement("div");
+      const row = document.createElement("div");
       row.className = "result-row" + (i === 0 ? " winner" : "");
 
-      var place = document.createElement("span");
+      const place = document.createElement("span");
       place.className = "result-place";
       place.textContent = "#" + (i + 1);
       row.appendChild(place);
 
-      var chip = document.createElement("span");
+      const chip = document.createElement("span");
       chip.className = "color-chip";
-      var rgb = "rgb(" + p.color.join(",") + ")";
+      const rgb = "rgb(" + p.color.join(",") + ")";
       chip.style.background = rgb;
       chip.style.color = rgb;
       row.appendChild(chip);
 
-      var name = document.createElement("span");
+      const name = document.createElement("span");
       name.className = "player-name";
       name.textContent = p.name;
       row.appendChild(name);
 
-      var score = document.createElement("span");
+      const score = document.createElement("span");
       score.className = "result-score";
       score.textContent = formatScore(p, game, s);
       row.appendChild(score);
@@ -713,7 +468,7 @@
 
   function formatScore(p, game, s) {
     if (game && game.slug === "reaction" && game.results && game.results.totals_ms) {
-      var total = game.results.totals_ms[p.id];
+      const total = game.results.totals_ms[p.id];
       if (total != null) return Math.round(total) + " ms";
     }
     return p.score;
@@ -727,36 +482,15 @@
     });
 
     $id("music-mode-btn").addEventListener("click", function () {
-      if (!App.state || App.state.state !== "music") releaseMic();
+      if (!App.state || App.state.state !== "music") window.WebMic.release();
       App.socket.emit("music_mode", { enabled: !App.state || App.state.state !== "music" });
     });
 
-    $id("mic-queue-btn").addEventListener("click", function () {
-      if (micRole === "queued" || micRole === "owner") {
-        releaseMic();
-        return;
-      }
-      fetch("/api/music/mic/request", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ client_id: micClientId, name: App.playerName || "Guest" }),
-      }).then(function (response) {
-        return response.json().then(function (body) {
-          if (!response.ok) throw new Error(body.message || "Could not join microphone queue.");
-          return body;
-        });
-      }).then(function (status) {
-        micNotice = "";
-        micRole = status.role;
-        micToken = status.token;
-        updateMicStatus(App.state);
-      }).catch(function (error) { $id("web-mic-status").textContent = error.message; });
-    });
-
-    $id("mic-start-btn").addEventListener("click", startMicCapture);
+    window.WebMic.bindControls(App);
 
     function submitMusicVisualizer() {
-      var requestId = ++musicVisualizerRequestId;
-      var selection = {
+      const requestId = ++musicVisualizerRequestId;
+      const selection = {
         animation: $id("music-animation-select").value,
         primary_color: $id("music-live-primary").value,
         accent_color: $id("music-live-accent").value,
@@ -811,7 +545,7 @@
       input.addEventListener("change", submitMusicVisualizer);
     });
     ["music-live-primary", "music-live-accent"].forEach(function (id) {
-      var picker = $id(id);
+      const picker = $id(id);
       picker.addEventListener("focus", rememberMusicVisualizerDraft);
       picker.addEventListener("input", rememberMusicVisualizerDraft);
       picker.addEventListener("change", function () {
@@ -832,7 +566,7 @@
 
     $id("join-form").addEventListener("submit", function (ev) {
       ev.preventDefault();
-      var name = $id("name-input").value.trim();
+      const name = $id("name-input").value.trim();
       if (!name) return;
       $id("join-error").hidden = true;
       setPlayerName(name);
@@ -840,7 +574,7 @@
     });
 
     $id("ready-btn").addEventListener("click", function () {
-      var me = (App.state.players || []).find(function (p) { return p.id === App.playerId; });
+      const me = (App.state.players || []).find(function (p) { return p.id === App.playerId; });
       App.socket.emit("ready", { ready: me ? !me.ready : true });
     });
 
@@ -854,7 +588,7 @@
     });
 
     $id("tutorial-ready-btn").addEventListener("click", function () {
-      var me = (App.state.players || []).find(function (p) { return p.id === App.playerId; });
+      const me = (App.state.players || []).find(function (p) { return p.id === App.playerId; });
       App.socket.emit("ready", { ready: me ? !me.ready : true });
     });
 
@@ -892,5 +626,5 @@
     window.MusicPreview.start(App);
   });
 
-  window.addEventListener("pagehide", releaseMic);
+  window.addEventListener("pagehide", window.WebMic.release);
 })();

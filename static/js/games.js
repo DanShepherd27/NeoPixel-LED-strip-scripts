@@ -13,9 +13,9 @@
   }
 
   function renderHud(s) {
-    var game = s.game || {};
-    var hud = document.getElementById("game-hud");
-    var html = "";
+    const game = s.game || {};
+    const hud = document.getElementById("game-hud");
+    let html = "";
 
     switch (game.slug) {
       case "reaction":
@@ -32,9 +32,9 @@
           "<div class='hud-line'>Enemies: " + game.enemies + "</div>";
         break;
       case "pong":
-        var scores = game.scores || {};
-        var vals = [];
-        for (var k in scores) vals.push(scores[k]);
+        const scores = game.scores || {};
+        const vals = [];
+        for (const k in scores) vals.push(scores[k]);
         html = "<div class='hud-line'>" + (vals[0] || 0) + " — " + (vals[1] || 0) + "</div>";
         break;
     }
@@ -43,19 +43,19 @@
   }
 
   function renderResultsDetail(s, body) {
-    var game = s.game || {};
+    const game = s.game || {};
     if (game.slug !== "reaction" || !game.results) return;
 
-    var players = s.players || [];
-    var detail = document.createElement("div");
+    const players = s.players || [];
+    const detail = document.createElement("div");
     detail.className = "muted";
     detail.style.marginTop = "8px";
 
-    var html = "";
+    let html = "";
     players.forEach(function (p) {
-      var times = (game.results.reaction_times_ms || {})[p.id] || [];
-      var total = (game.results.totals_ms || {})[p.id];
-      var falseStarts = (game.results.false_starts || {})[p.id] || 0;
+      const times = (game.results.reaction_times_ms || {})[p.id] || [];
+      const total = (game.results.totals_ms || {})[p.id];
+      const falseStarts = (game.results.false_starts || {})[p.id] || 0;
       html += "<div>" + p.name + ": " +
         times.map(function (t) { return Math.round(t) + "ms"; }).join(", ") +
         (falseStarts ? " · " + falseStarts + " false start" +

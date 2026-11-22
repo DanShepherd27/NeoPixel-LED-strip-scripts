@@ -10,7 +10,7 @@
   }
 
   function makeButton(label, className, action) {
-    var btn = document.createElement("button");
+    const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "control-btn " + (className || "");
     btn.textContent = label;
@@ -32,11 +32,11 @@
 
   // Hold-to-repeat button for movement (fires repeatedly while held).
   function makeHoldButton(label, className, action) {
-    var btn = document.createElement("button");
+    const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "control-btn " + (className || "");
     btn.textContent = label;
-    var timer = null;
+    let timer = null;
 
     function stop() {
       if (timer) { clearInterval(timer); timer = null; }
@@ -56,20 +56,20 @@
   }
 
   function renderReaction(el, game) {
-    var label = game.phase === "signal" ? "PRESS!" : "WAIT…";
-    var btn = makeButton(label, "hit", "press");
+    const label = game.phase === "signal" ? "PRESS!" : "WAIT…";
+    const btn = makeButton(label, "hit", "press");
     btn.disabled = false;
     el.appendChild(btn);
   }
 
   function renderDodge(el) {
-    var row = document.createElement("div");
+    const row = document.createElement("div");
     row.className = "control-row";
     row.appendChild(makeHoldButton("← LEFT", "", "left"));
     row.appendChild(makeHoldButton("RIGHT →", "", "right"));
     el.appendChild(row);
 
-    var hint = document.createElement("div");
+    const hint = document.createElement("div");
     hint.className = "control-hint";
     hint.textContent = "Hold to move your avatar";
     el.appendChild(hint);
@@ -78,7 +78,7 @@
   function renderShooter(el) {
     el.appendChild(makeButton("FIRE", "fire", "fire"));
 
-    var row = document.createElement("div");
+    const row = document.createElement("div");
     row.className = "control-row";
     row.appendChild(makeHoldButton("←", "", "left"));
     row.appendChild(makeHoldButton("→", "", "right"));
@@ -90,8 +90,8 @@
   }
 
   function renderController(s) {
-    var game = s.game || {};
-    var el = document.getElementById("controller");
+    const game = s.game || {};
+    const el = document.getElementById("controller");
     el.innerHTML = "";
 
     switch (game.slug) {
