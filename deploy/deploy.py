@@ -7,6 +7,7 @@ import getpass
 import os
 from pathlib import Path
 import shlex
+import socket
 import subprocess
 import tarfile
 import tempfile
@@ -51,6 +52,17 @@ def ask(values, key, prompt, default=""):
     return value
 
 
+def ensure_resolvable_host(host):
+    try:
+        socket.getaddrinfo(host, 22)
+    except socket.gaierror as exc:
+        raise ValueError(
+            f"Cannot resolve Pi host '{host}'. Enter its LAN IP address. "
+            "On the Pi, run hostname -I; alternatively check the router's "
+            "DHCP client list. The .local name may need mDNS/Bonjour on Windows."
+        ) from exc
+
+
 def build_archive(destination):
     with tarfile.open(destination, "w:gz") as archive:
         for current, dirs, files in os.walk(ROOT):
@@ -71,6 +83,14 @@ def systemd_env_value(value):
 def main():
     values = read_env_file()
     host = ask(values, "PI_HOST", "Raspberry Pi IP or hostname")
+    try:
+        ensure_resolvable_host(host)
+    except ValueError as exc:
+        print(exc)
+        host = input("Enter a resolvable Pi IP address or hostname: ").strip()
+        if not host:
+            raise ValueError("A resolvable Raspberry Pi address is required") from exc
+        ensure_resolvable_host(host)
     user = ask(values, "PI_USER", "Pi login username", "pi")
     app_dir = ask(values, "REMOTE_APP_DIR", "Remote install directory", f"/home/{user}/led-arcade")
     venv = ask(values, "REMOTE_VENV", "Python environment directory", f"/home/{user}/neopixel-env")
