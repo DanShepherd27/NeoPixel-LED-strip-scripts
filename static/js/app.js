@@ -229,7 +229,6 @@
     if (!App.playerId) {
       // Keep the nickname form open while a visitor is deciding to join.
       showScreen(App.screen === "join" ? "join" : "home");
-      if (App.playerName) $id("name-input").value = App.playerName;
       return;
     }
 
