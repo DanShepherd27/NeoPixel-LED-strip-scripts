@@ -204,6 +204,15 @@
             <option value="christmas_glitter">Christmas glitter</option>
           </select>
           <div id="christmas-glitter-control" hidden>
+            <label for="music-glitter-every-beats">Glitter burst interval</label>
+            <select id="music-glitter-every-beats">
+              <option value="2">Every 2 beats</option>
+              <option value="4">Every 4 beats</option>
+              <option value="8" selected>Every 8 beats</option>
+              <option value="16">Every 16 beats</option>
+              <option value="32">Every 32 beats</option>
+            </select>
+            <p class="muted">Candy cane blocks respond to the music between bursts. Glitter accents the selected beat only when its kick is strong.</p>
             <label for="music-glitter-brightness">Glitter burst brightness <output id="music-glitter-brightness-value">255</output></label>
             <input id="music-glitter-brightness" type="range" min="0" max="255" step="1" value="255">
             <p class="muted">Temporarily overrides hardware brightness during the glitter burst; candy cane blocks keep the main hardware setting.</p>
@@ -260,7 +269,7 @@
   </aside>
 
   <script src="/static/js/music-preview.js?v=20261122-christmas-glitter"></script>
-  <script src="/static/js/admin-settings.js?v=20261122-glitter-brightness"></script>
+  <script src="/static/js/admin-settings.js?v=20261122-glitter-interval"></script>
   <script src="/static/js/web-mic.js?v=20261122-modules"></script>
   <script src="/static/js/app.js?v=20261122-name-edit"></script>
   <script src="/static/js/games.js"></script>

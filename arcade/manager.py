@@ -45,7 +45,7 @@ class ArcadeManager(MusicRenderingMixin):
                  music_primary_color="#00E5FF", music_accent_color="#FF2EA6",
                  music_beat_lead_ms=0, music_band_colors=None,
                  music_sound_profile="small_speakers",
-                 music_glitter_brightness=255):
+                 music_glitter_brightness=255, music_glitter_every_beats=8):
         self.count = count
         self.audio_input = audio_input
         self.web_mics = WebMicQueue(mic_handoff_seconds)
@@ -54,6 +54,7 @@ class ArcadeManager(MusicRenderingMixin):
         self.music_sensitivity = float(music_sensitivity)
         self.music_sound_profile = music_sound_profile
         self.music_glitter_brightness = max(0, min(255, int(music_glitter_brightness)))
+        self.music_glitter_every_beats = music_glitter_every_beats
         self.music_primary_color = music_primary_color.upper()
         self.music_accent_color = music_accent_color.upper()
         self._music_primary_rgb = _parse_hex_color(self.music_primary_color)

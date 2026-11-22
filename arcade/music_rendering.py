@@ -96,18 +96,26 @@ class MusicRenderingMixin(MusicPatternMixin):
         if period is None or self._music_beat_confidence < 0.25:
             period = 0.65
         if self._music_beat_last_onset is None:
-            beat_position = self._music_beat_clock / period
+            beat_position = 0.0
+            since_onset = float("inf")
         else:
-            elapsed = max(0.0, self._music_beat_clock - self._music_beat_last_onset)
-            beat_position = self._music_beat_onset_count + elapsed / period
-        cycle_position = beat_position % 4.0
-        glitter_phase = beat_position >= 4.0 and cycle_position < 0.38
+            since_onset = max(0.0, self._music_beat_clock - self._music_beat_last_onset)
+            beat_position = self._music_beat_onset_count + since_onset / period
+        burst_interval = self.music_glitter_every_beats
+        scheduled_burst = (
+            beat_position >= burst_interval
+            and beat_position % burst_interval < 0.24
+            and self._music_beat_pulse >= 0.6
+        )
+        first_beat = self._music_beat_onset_count == 1 and since_onset < 0.16
+        glitter_phase = first_beat or scheduled_burst
         if glitter_phase:
             # Burst brightness is independently calibrated in Admin settings.
             frame.brightness_override = self.music_glitter_brightness
         beat = min(1.0, self._music_beat_pulse)
         stripe_shift = int(beat_position / 2.0)
-        base_brightness = min(1.0, 0.58 + level * 0.28 + beat * 0.14)
+        bass = min(1.0, self._music_beat_low * 2.5)
+        base_brightness = min(1.0, 0.26 + level * 0.22 + bass * 0.3 + beat * 0.55)
         glitter_brightness = min(1.0, 0.72 + level * 0.2 + peak * 0.08)
         glitter_tick = int(self._music_beat_clock * 18.0)
 

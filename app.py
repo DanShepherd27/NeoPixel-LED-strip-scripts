@@ -55,6 +55,7 @@ def main():
     music_sensitivity = MUSIC_SENSITIVITY
     music_sound_profile = "small_speakers"
     music_glitter_brightness = 255
+    music_glitter_every_beats = 8
     music_beat_lead_ms = MUSIC_BEAT_LEAD_MS
     music_primary_color = MUSIC_PRIMARY_COLOR
     music_accent_color = MUSIC_ACCENT_COLOR
@@ -74,6 +75,7 @@ def main():
         music_sensitivity = float(saved.get("music_sensitivity", music_sensitivity))
         music_sound_profile = saved.get("music_sound_profile", music_sound_profile)
         music_glitter_brightness = int(saved.get("music_glitter_brightness", music_glitter_brightness))
+        music_glitter_every_beats = int(saved.get("music_glitter_every_beats", music_glitter_every_beats))
         music_beat_lead_ms = int(saved.get("music_beat_lead_ms", music_beat_lead_ms))
         music_primary_color = saved.get("music_primary_color", music_primary_color)
         music_accent_color = saved.get("music_accent_color", music_accent_color)
@@ -104,6 +106,8 @@ def main():
             raise ValueError("saved sound profile is not supported")
         if not 0 <= music_glitter_brightness <= 255:
             raise ValueError("saved glitter brightness must be between 0 and 255")
+        if music_glitter_every_beats not in (2, 4, 8, 16, 32):
+            raise ValueError("saved glitter interval must be 2, 4, 8, 16, or 32 beats")
         if not -100 <= music_beat_lead_ms <= 200:
             raise ValueError("saved music beat offset must be between -100 and 200 milliseconds")
         if not all(isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color)
@@ -122,6 +126,7 @@ def main():
         music_animation, music_sensitivity = MUSIC_VISUALIZER, MUSIC_SENSITIVITY
         music_sound_profile = "small_speakers"
         music_glitter_brightness = 255
+        music_glitter_every_beats = 8
         music_beat_lead_ms = MUSIC_BEAT_LEAD_MS
         music_primary_color, music_accent_color = MUSIC_PRIMARY_COLOR, MUSIC_ACCENT_COLOR
         music_band_colors = list(MUSIC_BAND_COLORS)
@@ -144,7 +149,7 @@ def main():
         LED_COUNT, audio_input, mic_handoff_seconds,
         music_animation, music_sensitivity, music_primary_color, music_accent_color,
         music_beat_lead_ms, music_band_colors, music_sound_profile,
-        music_glitter_brightness,
+        music_glitter_brightness, music_glitter_every_beats,
     )
     manager.preview_invert_order = preview_invert_order
 

@@ -34,6 +34,7 @@
         $id("music-sound-profile").value = data.music_sound_profile || "small_speakers";
         $id("music-glitter-brightness").value = data.music_glitter_brightness == null ? 255 : data.music_glitter_brightness;
         $id("music-glitter-brightness-value").textContent = $id("music-glitter-brightness").value;
+        $id("music-glitter-every-beats").value = data.music_glitter_every_beats || 8;
         $id("christmas-glitter-control").hidden = $id("music-animation").value !== "christmas_glitter";
         $id("music-primary-color").value = data.music_primary_color || "#00e5ff";
         $id("music-accent-color").value = data.music_accent_color || "#ff2ea6";
@@ -89,6 +90,7 @@
           music_sensitivity: Number($id("music-sensitivity").value),
           music_sound_profile: $id("music-sound-profile").value,
           music_glitter_brightness: Number($id("music-glitter-brightness").value),
+          music_glitter_every_beats: Number($id("music-glitter-every-beats").value),
           music_beat_lead_ms: Number($id("music-beat-lead-ms").value),
           music_primary_color: $id("music-primary-color").value,
           music_accent_color: $id("music-accent-color").value,
@@ -110,7 +112,7 @@
           " seconds; " + window.MusicPreview.patternLabel(body.music_animation) + " at " +
           Number(body.music_sensitivity).toFixed(2) + "× sensitivity; speaker profile " +
           $id("music-sound-profile").selectedOptions[0].textContent + "; glitter burst " +
-          body.music_glitter_brightness + "/255; colors " +
+          body.music_glitter_brightness + "/255 every " + body.music_glitter_every_beats + " beats; colors " +
           body.music_primary_color + " / " + body.music_accent_color + "; LED balance R/G/B " +
           body.led_color_red + "% / " + body.led_color_green + "% / " + body.led_color_blue + "%. ");
         App.previewInvertOrder = body.preview_invert_order === true;
