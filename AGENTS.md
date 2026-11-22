@@ -43,6 +43,9 @@ and usable without internet after installation.
   it when RMS confirms sound, preventing room noise from pinning the meter.
   The Live Band Spectrum uses six coarse frequency bands; these represent
   ranges and do not isolate individual instruments.
+  Music mode estimates BPM from bass-band onsets, adds a predicted beat pulse
+  to every pattern, and compensates with measured mic/network latency. Admin
+  beat-sync timing adds a saved -100 to +200 ms manual trim.
   Keep colors saturated at high levels; the clap flash should not wash the
   strip white.
 - The systemd service runs as root because the current GPIO/DMA setup requires

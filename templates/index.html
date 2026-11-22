@@ -118,6 +118,9 @@
           <label for="music-sensitivity">Music sensitivity <output id="music-sensitivity-value">1.00×</output></label>
           <input id="music-sensitivity" type="range" min="0.25" max="4" step="0.25" value="1">
           <p class="muted">Raise sensitivity for a quiet mic; lower it if sound drives the lights too strongly.</p>
+          <label for="music-beat-lead-ms">Beat sync timing <output id="music-beat-lead-value">0 ms</output></label>
+          <input id="music-beat-lead-ms" type="range" min="-100" max="200" step="10" value="0">
+          <p class="muted">The beat tracker predicts from bass rhythm and estimated mic/network delay. Positive values pulse earlier; negative values pulse later.</p>
           <button type="submit" class="btn btn-primary btn-block">SAVE SETTINGS</button>
           <button id="admin-logout" type="button" class="btn btn-ghost btn-block">ADMIN LOGOUT</button>
         </form>
@@ -189,7 +192,7 @@
     </section>
   </main>
 
-  <script src="/static/js/app.js?v=20261122-live-band-spectrum"></script>
+  <script src="/static/js/app.js?v=20261122-bpm-sync"></script>
   <script src="/static/js/games.js"></script>
   <script src="/static/js/controller.js"></script>
 </body>

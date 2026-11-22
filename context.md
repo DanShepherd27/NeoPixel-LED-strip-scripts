@@ -1198,8 +1198,8 @@ home IP address.
 
 Keep the Raspberry Pi as the sole source of truth for arcade/game state and
 the only LED renderer. Capture and analyze microphone audio in the web user's
-browser; send only low-rate normalized level/peak/clap and coarse frequency
-band features through Ably, never raw audio. The Pi validates microphone
+browser; send only low-rate normalized level/peak/clap, coarse frequency-band,
+and latency estimate features through Ably, never raw audio. The Pi validates microphone
 ownership/lease messages before
 using features for visualization. Keep any additional browser-to-Pi messages
 limited to what the Vercel-hosted interface needs; do not move game authority
@@ -1371,12 +1371,17 @@ The project should not be considered complete until:
 - [x] Handoff notifies the current user, releases their media track, then activates the next queued user
 - [x] Audio is not recorded or retained; only locally computed features are sent
 - [x] Provide multiple selectable LED visualizer patterns
+- [x] Add a six-band frequency spectrum for browser and Pi microphones
+- [x] Estimate BPM from bass onsets and predict visual pulses using mic/network delay
+- [x] Allow admin adjustment of predicted beat timing
 - [x] Allow live web-UI pattern switching while music mode is active
 - [x] Include a retro green/yellow/red VU color pattern
 - [x] Include mirrored shapes that move inward from both strip ends
 - [x] Include a full-strip pattern using shades of red only
 - [x] Let users choose primary/accent colors from the music UI
 - [x] Provide adjustable visualizer sensitivity for both mic sources
+- [x] Estimate BPM from bass-band onsets and predict beat accents using mic/network latency
+- [x] Add an admin timing trim for music beat prediction
 - [x] Keep loud audio colors saturated; clap accents must not wash the strip white
 - [ ] Provide a trusted HTTPS deployment URL so phone browsers can grant mic access
 - [ ] Host the HTTPS website on Vercel and relay browser mic features to the Pi with Ably

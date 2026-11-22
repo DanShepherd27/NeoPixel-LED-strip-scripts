@@ -22,6 +22,7 @@ from config import (
     RUNTIME_SETTINGS_FILE, AUDIO_DEVICE,
     WEB_MIC_HANDOFF_SECONDS,
     MUSIC_VISUALIZER, MUSIC_SENSITIVITY,
+    MUSIC_BEAT_LEAD_MS,
     MUSIC_PRIMARY_COLOR, MUSIC_ACCENT_COLOR,
 )
 from led.hardware import LEDHardware
@@ -52,6 +53,7 @@ def main():
     mic_handoff_seconds = WEB_MIC_HANDOFF_SECONDS
     music_animation = MUSIC_VISUALIZER
     music_sensitivity = MUSIC_SENSITIVITY
+    music_beat_lead_ms = MUSIC_BEAT_LEAD_MS
     music_primary_color = MUSIC_PRIMARY_COLOR
     music_accent_color = MUSIC_ACCENT_COLOR
     color_red, color_green, color_blue = LED_COLOR_RED, LED_COLOR_GREEN, LED_COLOR_BLUE
@@ -65,6 +67,7 @@ def main():
         mic_handoff_seconds = int(saved.get("mic_handoff_seconds", mic_handoff_seconds))
         music_animation = saved.get("music_animation", music_animation)
         music_sensitivity = float(saved.get("music_sensitivity", music_sensitivity))
+        music_beat_lead_ms = int(saved.get("music_beat_lead_ms", music_beat_lead_ms))
         music_primary_color = saved.get("music_primary_color", music_primary_color)
         music_accent_color = saved.get("music_accent_color", music_accent_color)
         color_red = int(saved.get("led_color_red", color_red))
@@ -83,6 +86,8 @@ def main():
             raise ValueError("saved music animation is not supported")
         if not 0.25 <= music_sensitivity <= 4.0:
             raise ValueError("saved music sensitivity must be between 0.25 and 4.0")
+        if not -100 <= music_beat_lead_ms <= 200:
+            raise ValueError("saved music beat offset must be between -100 and 200 milliseconds")
         if not all(isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color)
                    for color in (music_primary_color, music_accent_color)):
             raise ValueError("saved music colors must use #RRGGBB format")
@@ -93,6 +98,7 @@ def main():
         hidden_start, hidden_end = LED_HIDDEN_START, LED_HIDDEN_END
         mic_handoff_seconds = WEB_MIC_HANDOFF_SECONDS
         music_animation, music_sensitivity = MUSIC_VISUALIZER, MUSIC_SENSITIVITY
+        music_beat_lead_ms = MUSIC_BEAT_LEAD_MS
         music_primary_color, music_accent_color = MUSIC_PRIMARY_COLOR, MUSIC_ACCENT_COLOR
         color_red, color_green, color_blue = LED_COLOR_RED, LED_COLOR_GREEN, LED_COLOR_BLUE
 
@@ -110,6 +116,7 @@ def main():
     manager = ArcadeManager(
         LED_COUNT, audio_input, mic_handoff_seconds,
         music_animation, music_sensitivity, music_primary_color, music_accent_color,
+        music_beat_lead_ms,
     )
 
     renderer = Renderer(hardware, FPS)

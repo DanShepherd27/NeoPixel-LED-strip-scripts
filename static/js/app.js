@@ -20,6 +20,7 @@
   var micLastSend = 0;
   var micNoiseFloor = 0.008;
   var micLastClap = 0;
+  var micRttMs = 40;
   var micRole = "idle";
   var micRequesting = false;
   var micStatusRequestId = 0;
@@ -245,6 +246,9 @@
           ? "Animation: " + (animationNames[visualizer.animation] || "Center pulse") + " · Sensitivity: " +
             Number(visualizer.sensitivity || 1).toFixed(2) + "×"
           : "";
+      }
+      if (musicActive && visualizer.bpm && visualizerStatus) {
+        visualizerStatus.textContent += " | Beat sync: " + visualizer.bpm + " BPM";
       }
       var selection = musicVisualizerPending || musicVisualizerDraft || visualizer;
       var animationSelect = $id("music-animation-select");
@@ -483,13 +487,22 @@
         var clap = rms > Math.max(0.018, micNoiseFloor * 1.35) && peak > 0.12 &&
           peak / Math.max(0.001, rms) > 3 && now - micLastClap > 160;
         if (clap) micLastClap = now;
-        if (now - micLastSend > 100) {
+        if (now - micLastSend > 50) {
           micLastSend = now;
+          var requestStarted = performance.now();
+          var captureLatency = (micAnalyser.fftSize / micContext.sampleRate) * 500;
           fetch("/api/music/mic/audio", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: micToken, level: level, peak: peak, clap: clap, bands: bands }),
+            body: JSON.stringify({
+              token: micToken, level: level, peak: peak, clap: clap, bands: bands,
+              latency_ms: captureLatency + micRttMs / 2,
+            }),
           }).then(function (response) {
             if (response.status === 409) releaseMic();
+            else if (response.ok) {
+              var observedRtt = performance.now() - requestStarted;
+              micRttMs = micRttMs * 0.8 + observedRtt * 0.2;
+            }
           }).catch(function () {});
         }
         micFrame = requestAnimationFrame(sample);
@@ -859,6 +872,8 @@
         $id("hidden-start").value = data.hidden_start;
         $id("hidden-end").value = data.hidden_end;
         $id("mic-handoff-seconds").value = data.mic_handoff_seconds;
+        $id("music-beat-lead-ms").value = data.music_beat_lead_ms || 0;
+        $id("music-beat-lead-value").textContent = (data.music_beat_lead_ms || 0) + " ms";
         $id("music-animation").value = data.music_animation || "center_pulse";
         $id("music-sensitivity").value = data.music_sensitivity || 1;
         $id("music-primary-color").value = data.music_primary_color || "#00e5ff";
@@ -909,6 +924,7 @@
           mic_handoff_seconds: Number($id("mic-handoff-seconds").value),
           music_animation: $id("music-animation").value,
           music_sensitivity: Number($id("music-sensitivity").value),
+          music_beat_lead_ms: Number($id("music-beat-lead-ms").value),
           music_primary_color: $id("music-primary-color").value,
           music_accent_color: $id("music-accent-color").value,
           led_color_red: Number($id("led-color-red").value),
@@ -952,6 +968,10 @@
     ["music-primary-color", "music-accent-color"].forEach(function (id) {
       $id(id).addEventListener("input", updateMusicColorPreviews);
       $id(id).addEventListener("change", updateMusicColorPreviews);
+    });
+
+    $id("music-beat-lead-ms").addEventListener("input", function () {
+      $id("music-beat-lead-value").textContent = this.value + " ms";
     });
 
     loadAdminSettings();

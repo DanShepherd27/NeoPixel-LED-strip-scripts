@@ -48,7 +48,8 @@ def _blend_rgb(start, end, amount):
 class ArcadeManager:
     def __init__(self, count=LED_COUNT, audio_input=None, mic_handoff_seconds=120,
                  music_animation="center_pulse", music_sensitivity=1.0,
-                 music_primary_color="#00E5FF", music_accent_color="#FF2EA6"):
+                 music_primary_color="#00E5FF", music_accent_color="#FF2EA6",
+                 music_beat_lead_ms=0):
         self.count = count
         self.audio_input = audio_input
         self.web_mics = WebMicQueue(mic_handoff_seconds)
@@ -59,7 +60,14 @@ class ArcadeManager:
         self.music_accent_color = music_accent_color.upper()
         self._music_primary_rgb = _parse_hex_color(self.music_primary_color)
         self._music_accent_rgb = _parse_hex_color(self.music_accent_color)
+        self.music_beat_lead_ms = int(music_beat_lead_ms)
         self._music_phase = 0.0
+        self._music_beat_clock = 0.0
+        self._music_beat_last_onset = None
+        self._music_beat_period = None
+        self._music_beat_confidence = 0.0
+        self._music_beat_low = 0.0
+        self._music_beat_pulse = 0.0
         self._retro_vu_peak_position = 0.0
         self._retro_vu_peak_hold = 0.0
         self._retro_vu_level = 0.0
@@ -143,6 +151,12 @@ class ArcadeManager:
             self.selected_game = None
             self.game = None
             self.game_class = None
+            self._music_beat_clock = 0.0
+            self._music_beat_last_onset = None
+            self._music_beat_period = None
+            self._music_beat_confidence = 0.0
+            self._music_beat_low = 0.0
+            self._music_beat_pulse = 0.0
             if self.audio_input is not None:
                 self.audio_input.set_enabled(True)
                 self._music_pi_enabled = True
@@ -355,7 +369,19 @@ class ArcadeManager:
             for value in bands
         ]
         self._music_phase += dt
+        beat_pulse = self._update_music_beat(
+            bands, audio.get("latency_ms", 16), dt,
+        )
         self._draw_music_animation(frame, level, peak, dt, bands)
+
+        if beat_pulse > 0:
+            flash_color = (
+                (255, 70, 0) if self.music_animation in ("retro_vu", "live_band")
+                else self._music_accent_rgb
+            )
+            amount = min(0.28, 0.28 * beat_pulse)
+            for index in range(frame.count):
+                frame.blend(index, flash_color, amount)
 
         if audio.get("clap"):
             self._music_clap_flash = 0.13
@@ -371,6 +397,68 @@ class ArcadeManager:
                 flash_color = self._music_accent_rgb
             for index in range(frame.count):
                 frame.blend(index, flash_color, amount)
+
+    def _update_music_beat(self, bands, latency_ms, dt):
+        """Track bass onsets and pulse slightly ahead of the predicted next beat."""
+        dt = max(0.0, dt)
+        self._music_beat_clock += dt
+        now = self._music_beat_clock
+        bass = max(bands[0], bands[1] * 0.88)
+        previous = self._music_beat_low
+        self._music_beat_low += (bass - previous) * min(1.0, dt / 0.045)
+        rise = self._music_beat_low - previous
+        self._music_beat_pulse = max(0.0, self._music_beat_pulse - dt / 0.11)
+
+        onset = self._music_beat_low >= 0.22 and rise >= 0.10
+        if onset and (
+            self._music_beat_last_onset is None
+            or now - self._music_beat_last_onset >= 0.27
+        ):
+            if self._music_beat_last_onset is not None:
+                interval = now - self._music_beat_last_onset
+                if 0.30 <= interval <= 1.50:
+                    self._music_beat_period = (
+                        interval if self._music_beat_period is None
+                        else self._music_beat_period * 0.72 + interval * 0.28
+                    )
+                    self._music_beat_confidence = min(
+                        1.0, self._music_beat_confidence + 0.28,
+                    )
+                else:
+                    self._music_beat_confidence *= 0.5
+            self._music_beat_last_onset = now
+            self._music_beat_pulse = min(1.0, 0.45 + rise * 2.0)
+
+        if self._music_beat_last_onset is None:
+            return self._music_beat_pulse
+        silence = now - self._music_beat_last_onset
+        if silence > 2.5:
+            self._music_beat_confidence = max(
+                0.0, self._music_beat_confidence - dt * 0.35,
+            )
+            if self._music_beat_confidence == 0.0:
+                self._music_beat_period = None
+
+        period = self._music_beat_period
+        if period is None or self._music_beat_confidence < 0.25 or silence > 2.5:
+            return self._music_beat_pulse
+
+        try:
+            mic_latency_ms = max(0.0, min(500.0, float(latency_ms)))
+        except (TypeError, ValueError):
+            mic_latency_ms = 16.0
+        lead = max(-0.15, min(
+            0.35, (mic_latency_ms + 25.0 + self.music_beat_lead_ms) / 1000.0,
+        ))
+        beat_number = max(
+            1, int((now + lead - self._music_beat_last_onset) / period) + 1,
+        )
+        beat_time = self._music_beat_last_onset + beat_number * period
+        until_predicted = beat_time - lead - now
+        if -0.025 <= until_predicted <= 0.11:
+            predicted_pulse = max(0.0, 1.0 - max(0.0, until_predicted) / 0.11)
+            self._music_beat_pulse = max(self._music_beat_pulse, predicted_pulse)
+        return self._music_beat_pulse
 
     def _draw_music_animation(self, frame, level, peak, dt=0.0, bands=None):
         count = self.count
@@ -636,6 +724,12 @@ class ArcadeManager:
                     "sensitivity": self.music_sensitivity,
                     "primary_color": self.music_primary_color,
                     "accent_color": self.music_accent_color,
+                    "bpm": (
+                        int(round(60.0 / self._music_beat_period))
+                        if self._music_beat_period and self._music_beat_confidence >= 0.25
+                        else None
+                    ),
+                    "beat_lead_ms": self.music_beat_lead_ms,
                 },
                 "pi_audio": self.audio_input.snapshot() if self.audio_input else {
                     "status": "unavailable", "error": "No audio input configured.",

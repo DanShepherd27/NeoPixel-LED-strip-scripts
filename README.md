@@ -47,6 +47,9 @@ From the project folder, run the interactive deployment script:
 python deploy/deploy.py
 ```
 
+Use the Pi's LAN IP if raspberrypi.local does not resolve on Windows. Find the
+address on the Pi with hostname -I or in the router's DHCP client list.
+
 It prompts for the Pi hostname/IP and SSH username. If SSH key authentication
 is not set up, OpenSSH prompts for the Pi login password during file copy and
 installation. The default remote paths are `/home/<user>/led-arcade` and
@@ -108,6 +111,9 @@ offers eight live-switchable patterns, including a six-band Live Band Spectrum
 that animates bass through treble independently, a retro VU meter, inward-moving
 shapes, and a full-strip Red Shades pattern that uses red-channel shades only.
 The band values represent frequency ranges; they do not isolate instruments.
+Music patterns also track BPM from bass onsets and pulse ahead using estimated
+capture/network delay. Admin settings provide a saved timing trim (-100 to
++200 ms) if the predicted accents feel early or late.
 The music UI lets you set primary and accent colors for general patterns.
 Admin settings save the palette and offer a shared sensitivity slider (0.25x
 to 4x). Patterns stay saturated at high levels, with a restrained magenta

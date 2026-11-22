@@ -172,7 +172,7 @@ def register_api(app, manager, hardware):
         data = request.get_json(silent=True) or {}
         if manager.state.value != "music" or not manager.web_mics.update(
             data.get("token"), data.get("level"), data.get("peak"),
-            data.get("clap"), data.get("bands"),
+            data.get("clap"), data.get("bands"), data.get("latency_ms", 40),
         ):
             return jsonify({"ok": False, "message": "Microphone lease is no longer active."}), 409
         return jsonify({"ok": True})
@@ -204,6 +204,7 @@ def register_api(app, manager, hardware):
             "mic_handoff_seconds": manager.web_mics.handoff_seconds,
             "music_animation": manager.music_animation,
             "music_sensitivity": manager.music_sensitivity,
+            "music_beat_lead_ms": manager.music_beat_lead_ms,
             "music_primary_color": manager.music_primary_color,
             "music_accent_color": manager.music_accent_color,
             "led_color_red": hardware.color_balance[0],
@@ -221,6 +222,7 @@ def register_api(app, manager, hardware):
         handoff_value = data.get("mic_handoff_seconds", manager.web_mics.handoff_seconds)
         animation_value = data.get("music_animation", manager.music_animation)
         sensitivity_value = data.get("music_sensitivity", manager.music_sensitivity)
+        beat_lead_value = data.get("music_beat_lead_ms", manager.music_beat_lead_ms)
         primary_color = data.get("music_primary_color", manager.music_primary_color)
         accent_color = data.get("music_accent_color", manager.music_accent_color)
         color_red = data.get("led_color_red", hardware.color_balance[0])
@@ -228,6 +230,8 @@ def register_api(app, manager, hardware):
         color_blue = data.get("led_color_blue", hardware.color_balance[2])
         if type(start_value) is not int or type(end_value) is not int or type(handoff_value) is not int:
             return jsonify({"ok": False, "message": "Enter whole numbers for offsets and microphone handoff."}), 400
+        if type(beat_lead_value) is not int or not -100 <= beat_lead_value <= 200:
+            return jsonify({"ok": False, "message": "Beat sync timing must be between -100 and 200 milliseconds."}), 400
         if any(type(value) is not int for value in (color_red, color_green, color_blue)):
             return jsonify({"ok": False, "message": "LED color balance values must be whole percentages."}), 400
         if any(not 0 <= value <= 200 for value in (color_red, color_green, color_blue)):
@@ -261,6 +265,7 @@ def register_api(app, manager, hardware):
                     "mic_handoff_seconds": handoff_value,
                     "music_animation": animation_value,
                     "music_sensitivity": sensitivity,
+                    "music_beat_lead_ms": beat_lead_value,
                     "music_primary_color": primary_color.upper(),
                     "music_accent_color": accent_color.upper(),
                     "led_color_red": color_red,
@@ -280,11 +285,13 @@ def register_api(app, manager, hardware):
         hardware.set_color_balance(color_red, color_green, color_blue)
         manager.web_mics.handoff_seconds = handoff_value
         manager.set_music_visualizer(animation_value, sensitivity, primary_color, accent_color)
+        manager.music_beat_lead_ms = beat_lead_value
         return jsonify({
             "ok": True, "hidden_start": start, "hidden_end": end,
             "mic_handoff_seconds": handoff_value,
             "music_animation": animation_value,
             "music_sensitivity": sensitivity,
+            "music_beat_lead_ms": beat_lead_value,
             "music_primary_color": manager.music_primary_color,
             "music_accent_color": manager.music_accent_color,
             "led_color_red": color_red,

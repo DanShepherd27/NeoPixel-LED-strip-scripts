@@ -82,6 +82,9 @@ class AudioInput:
                 "level": round(self._level, 3),
                 "peak": round(self._peak, 3),
                 "bands": list(self._bands),
+                "latency_ms": round(
+                    (self.CHUNK_BYTES / 2) / self.SAMPLE_RATE * 500.0, 1,
+                ),
                 "noise_floor": round(self._noise_floor or 0.0, 1),
                 "clap": time.monotonic() < self._clap_until,
             }
