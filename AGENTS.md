@@ -137,11 +137,19 @@ Browsers can also stream `/api/song/audio`
   comments or documentation when behavior changes.
 
 Lifecycle currently is `IDLE -> LOBBY -> TUTORIAL -> COUNTDOWN -> GAME -> RESULTS`.
-Every connected lobby player must mark ready before the tutorial starts. Games
-define `tutorial_steps` and `render_tutorial(...)`; the manager synchronizes
-tutorial time and pixels for all players. After the demo, the game waits
-without a timer until every connected player marks ready; players can replay
-the demo, which resets readiness. Current games are Reaction Race, Dodge,
+The players taking part (first to join, up to the game's `max_players`) must
+mark ready before the tutorial starts, unless only one person is playing: solo
+play skips both ready checks. Extra players queue first come first served, see
+their position, cannot steer or advance the demo, and get the next game
+(`_finish_results` moves the players to the back of the queue). Silent phones
+(no input/heartbeat for 20 s) count as away and are dropped after 120 s. Any
+player can vote to kick another; a majority of the other connected players
+removes them and their device cannot rejoin for two minutes. Games
+define `tutorial_steps` and `render_tutorial(...)`; each step's demo loops until a
+participant presses Next, then (for several players) the game waits without a
+timer until all mark ready; players can replay the demo, which resets
+readiness. The browser controller is built once per game; never rebuild it on a
+state poll, or held buttons lose their pointerup. Current games are Reaction Race, Dodge,
 Shooter/LED Battle, and Pong.
 
 For new work, first look for a plug-and-play library, existing browser API, or
