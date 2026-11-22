@@ -63,7 +63,9 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body || {}),
     }).then(function (response) {
-      return response.json().then(function (data) {
+      return response.json().catch(function () {
+        throw new Error("The Pi answered with an error (HTTP " + response.status + "); the app may need redeploying.");
+      }).then(function (data) {
         if (!response.ok) throw new Error(data.message || "Request failed.");
         return data;
       });

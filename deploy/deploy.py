@@ -97,7 +97,7 @@ def main():
 
     secrets = {
         key: value for key, value in values.items()
-        if key.startswith(("LED_ARCADE_", "LED_AUDIO_", "LED_WEB_MIC_")) and value
+        if key.startswith(("LED_ARCADE_", "LED_AUDIO_", "LED_WEB_MIC_", "LED_SONG_", "LED_OUTPUT_")) and value
     }
     if not secrets.get("LED_ARCADE_ADMIN_PASSWORD"):
         secrets["LED_ARCADE_ADMIN_PASSWORD"] = getpass.getpass("Website admin password (input hidden): ")

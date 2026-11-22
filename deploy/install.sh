@@ -24,8 +24,13 @@ fi
 
 if ! command -v mpg123 >/dev/null 2>&1; then
     echo "Installing mpg123 for song playback on the Pi speakers"
-    apt-get update
-    apt-get install -y mpg123
+    # A failed package install must not block deploying the app itself.
+    # Update errors from unrelated apt sources must not prevent installing from
+    # the package lists that did load.
+    apt-get update || echo "WARNING: apt-get update reported errors; trying the install anyway." >&2
+    if ! apt-get install -y mpg123; then
+        echo "WARNING: could not install mpg123; the song will not play on the Pi speakers." >&2
+    fi
 fi
 
 echo "Installing Python requirements"

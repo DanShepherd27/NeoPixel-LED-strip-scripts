@@ -1,49 +1,87 @@
 """Plays the song through the Pi's audio output with a common CLI player."""
 
 import logging
+import os
 import shutil
 import subprocess
+import threading
 
 log = logging.getLogger("arcade.song.player")
 
-# (executable, arguments before the file name), in order of preference.
+# (executable, base arguments, function turning an ALSA device into arguments),
+# in order of preference. ffplay has no ALSA device option, so it uses the
+# SDL environment instead (see PiAudioPlayer.start).
 PLAYERS = (
-    ("mpg123", ["-q"]),
-    ("ffplay", ["-nodisp", "-autoexit", "-loglevel", "quiet"]),
-    ("cvlc", ["--play-and-exit", "--quiet"]),
-    ("mpv", ["--no-video", "--really-quiet"]),
-    ("mplayer", ["-really-quiet"]),
+    ("mpg123", ["-q"], lambda device: ["-a", device]),
+    ("mpv", ["--no-video", "--really-quiet"], lambda device: ["--audio-device=alsa/" + device]),
+    ("cvlc", ["--play-and-exit", "--quiet"], lambda device: ["--alsa-audio-device", device]),
+    ("mplayer", ["-really-quiet"], lambda device: ["-ao", "alsa:device=" + device.replace(":", "=")]),
+    ("ffplay", ["-nodisp", "-autoexit", "-loglevel", "quiet"], lambda device: []),
 )
 
 
+def output_device(device):
+    """The microphone's ALSA device as an output device ("hw:" gains format conversion)."""
+    if not device or device == "default":
+        return None
+    return "plug" + device if device.startswith("hw:") else device
+
+
 def find_player():
-    for name, args in PLAYERS:
+    for name, args, device_args in PLAYERS:
+        if name == "cvlc" and os.geteuid() == 0:
+            continue  # VLC refuses to run as root, and the service runs as root
         path = shutil.which(name)
         if path:
-            return path, args
+            return name, path, args, device_args
     return None
 
 
 class PiAudioPlayer:
-    def __init__(self, audio_path):
+    def __init__(self, audio_path, device=None):
         self.audio_path = str(audio_path)
+        self.device = output_device(device)
         self._process = None
+        self.last_error = None
 
     def start(self):
         """Start playback; return an error message, or None on success."""
         player = find_player()
         if player is None:
             return "No audio player found on the Pi. Install one: sudo apt install mpg123"
-        path, args = player
+        name, path, args, device_args = player
+        env = None
+        if self.device:
+            args = args + device_args(self.device)
+            if name == "ffplay":
+                env = dict(os.environ, SDL_AUDIODRIVER="alsa", AUDIODEV=self.device)
+        log.info("Song audio: %s on %s", name, self.device or "default output")
         try:
             self._process = subprocess.Popen(
-                [path, *args, self.audio_path],
+                [path, *args, self.audio_path], env=env,
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stderr=subprocess.PIPE, text=True,
             )
+            threading.Thread(target=self._log_errors, args=(self._process,), daemon=True).start()
         except OSError as exc:
             log.warning("Could not start %s: %s", path, exc)
             return "Could not start the Pi audio player: %s" % exc
+        return None
+
+    def _log_errors(self, process):
+        """Keep the player's last error line so a silent failure is visible."""
+        for line in process.stderr:
+            line = line.strip()
+            if line:
+                self.last_error = line
+                log.warning("Song player: %s", line)
+
+    def failure(self):
+        """Message if the player exited early (it normally runs for the whole song)."""
+        process = self._process
+        if process is not None and process.poll() not in (None, 0):
+            return "Pi audio player stopped (exit %s): %s" % (
+                process.returncode, self.last_error or "no details")
         return None
 
     def stop(self):

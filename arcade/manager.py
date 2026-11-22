@@ -27,6 +27,7 @@ from config import (
     RESULTS_DURATION,
     LED_ORIENTATION,
     SONG_AUDIO_LATENCY_MS,
+    OUTPUT_AUDIO_DEVICE,
 )
 
 log = logging.getLogger("arcade.manager")
@@ -242,7 +243,9 @@ class ArcadeManager(MusicRenderingMixin):
                 return True
             if self.state != ArcadeState.IDLE:
                 return False
-            self._song = SongSession(self.count, pi_audio, SONG_AUDIO_LATENCY_MS)
+            self._song = SongSession(
+                self.count, pi_audio, SONG_AUDIO_LATENCY_MS, OUTPUT_AUDIO_DEVICE,
+            )
             self.state = ArcadeState.SONG
             log.info("State -> SONG (pi_audio=%s, error=%s)", pi_audio, self._song.pi_audio_error)
             return True

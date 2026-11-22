@@ -67,7 +67,8 @@ hard-cutting into choruses. Features come from `tools/analyze_song.py` output
 if the MP3 changes. `SongSession` owns the clock and optional Pi playback
 (`mpg123`, installed by `deploy/install.sh`; ffplay/cvlc/mpv/mplayer are
 fallbacks). `LED_SONG_AUDIO_LATENCY_MS` (default 250) aligns lights with Pi
-sound. Browsers can also stream `/api/song/audio` (range-capable) and
+sound; `LED_OUTPUT_AUDIO_DEVICE` (default `LED_AUDIO_DEVICE`) is the ALSA
+output, e.g. `plughw:CARD=U192k,DEV=0` for the UMC204HD. Browsers can also stream `/api/song/audio` (range-capable) and
 `static/js/song.js` keeps it within 0.25 s of the server position. Section
 boundaries are inferred from energy/repetition, so refine them in
 `timeline.py` after listening on the Pi.

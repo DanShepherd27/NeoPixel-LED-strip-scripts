@@ -21,7 +21,12 @@ def register_music_routes(app, manager):
     @app.post("/api/song/start")
     def song_start():
         data = request.get_json(silent=True) or {}
-        if not manager.start_song(pi_audio=data.get("pi_audio", True) is not False):
+        try:
+            started = manager.start_song(pi_audio=data.get("pi_audio", True) is not False)
+        except Exception:
+            app.logger.exception("Could not start the song show")
+            return jsonify({"ok": False, "message": "The Pi could not start the song show; see the service log."}), 500
+        if not started:
             return jsonify({
                 "ok": False,
                 "message": "The song can only start while the arcade is idle.",

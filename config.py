@@ -79,3 +79,6 @@ RUNTIME_SETTINGS_FILE = os.environ.get(
 # Full-song light show. Delay between starting the Pi audio player and sound
 # leaving the speakers; raise it if lights lead the music, lower it if they lag.
 SONG_AUDIO_LATENCY_MS = int(os.environ.get("LED_SONG_AUDIO_LATENCY_MS", "250"))
+# ALSA output for the song; defaults to the microphone's device so a USB audio
+# card (or other combined input/output) plays through its own speaker jack.
+OUTPUT_AUDIO_DEVICE = os.environ.get("LED_OUTPUT_AUDIO_DEVICE", AUDIO_DEVICE)

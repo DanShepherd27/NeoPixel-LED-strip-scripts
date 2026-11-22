@@ -11,13 +11,13 @@ END_PADDING_SECONDS = 1.0
 
 
 class SongSession:
-    def __init__(self, count, pi_audio, audio_latency_ms=250, analysis=None):
+    def __init__(self, count, pi_audio, audio_latency_ms=250, audio_device=None, analysis=None):
         self.pi_audio = pi_audio
         self.audio_latency = audio_latency_ms / 1000.0
         self.choreography = SongChoreography(count, analysis or SongAnalysis())
         self.duration = self.choreography.duration
         self.pi_audio_error = None
-        self._player = PiAudioPlayer(SONG_AUDIO)
+        self._player = PiAudioPlayer(SONG_AUDIO, audio_device)
         self._started = None
         if pi_audio:
             self.pi_audio_error = self._player.start()
@@ -47,5 +47,5 @@ class SongSession:
             "section": section.name,
             "section_index": index,
             "pi_audio": self.pi_audio,
-            "pi_audio_error": self.pi_audio_error,
+            "pi_audio_error": self.pi_audio_error or self._player.failure(),
         }
