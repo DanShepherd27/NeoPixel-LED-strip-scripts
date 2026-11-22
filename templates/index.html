@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-song-player">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-song-import">
 </head>
 <body>
   <header class="app-header">
@@ -278,6 +278,17 @@
           <label for="music-beat-lead-ms">Beat sync timing <output id="music-beat-lead-value">0 ms</output></label>
           <input id="music-beat-lead-ms" type="range" min="-100" max="200" step="10" value="0">
           <p class="muted">The beat tracker predicts from bass rhythm and estimated mic/network delay. Positive values pulse earlier; negative values pulse later.</p>
+          <h4>Add a song</h4>
+          <p class="muted">Upload an MP3 (a track you own). The Pi finds the tempo and arrangement and plans a light show; the song appears in the list when it is ready, usually within a minute or two.</p>
+          <input id="song-import-file" type="file" accept=".mp3,audio/mpeg">
+          <label for="song-import-title">Title (optional)</label>
+          <input id="song-import-title" type="text" maxlength="80" autocomplete="off">
+          <label for="song-import-artist">Artist (optional)</label>
+          <input id="song-import-artist" type="text" maxlength="80" autocomplete="off">
+          <button id="song-import-btn" class="btn btn-accent btn-block" type="button">ANALYZE AND ADD</button>
+          <p id="song-import-message" class="muted" role="status" aria-live="polite"></p>
+          <div id="song-import-jobs"></div>
+          <div id="song-import-library"></div>
           <h4>Song audio sync</h4>
           <p class="muted">Lights must be shifted by the delay between starting the Pi player and sound leaving the speaker. The Pi can hear its own speakers, so it can measure that itself.</p>
           <label for="song-latency-ms">Song audio latency <output id="song-latency-value">250 ms</output></label>
@@ -306,9 +317,10 @@
   <script src="/static/js/admin-settings.js?v=20261122-glitter-interval"></script>
   <script src="/static/js/web-mic.js?v=20261122-modules"></script>
   <script src="/static/js/app.js?v=20261122-live-glitter-controls"></script>
-  <script src="/static/js/song.js?v=20261122-song-library"></script>
+  <script src="/static/js/song.js?v=20261122-song-import"></script>
   <script src="/static/js/song-transport.js?v=20261122-song-player"></script>
   <script src="/static/js/song-sync.js?v=20261122-song-sync"></script>
+  <script src="/static/js/song-import.js?v=20261122-song-import"></script>
   <script src="/static/js/games.js?v=20261122-pong-player-color"></script>
   <script src="/static/js/controller.js?v=20261122-pong-player-color"></script>
 </body>

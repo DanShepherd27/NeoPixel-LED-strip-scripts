@@ -5,6 +5,7 @@ __pycache__/
 !/.deploy.env.example
 runtime-settings.json
 runtime-settings.json.tmp
+/user-songs/
 *.py[codz]
 *$py.class
 

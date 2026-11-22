@@ -200,3 +200,12 @@ tool's docstring). Run the tests with `python -m unittest discover tests`.
 * Pattern vocabulary versioning (what a `lattice` means must not drift).
 * How much audio reactivity to allow in the file versus a deterministic mode.
 * Whether to ship the MIDI source beside the compiled JSON in each song folder.
+
+## 8. Auto-generated shows (songs added through the website)
+
+`arcade/song/showgen.py` writes an ordinary show file from an analysis: bars with
+the kick playing are *drive*, bars without it are *low*. The first stretch is the
+Intro, the last low stretch the Outro, middle low stretches Breakdowns (their last
+bars the Build) and drive stretches after a breakdown Drops (alternating neon and
+acid palettes every 16 bars). The downbeat is where the kick returns after a
+breakdown. The result can be edited like any other show file.

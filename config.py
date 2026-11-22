@@ -82,3 +82,8 @@ SONG_AUDIO_LATENCY_MS = int(os.environ.get("LED_SONG_AUDIO_LATENCY_MS", "250"))
 # ALSA output for the song; defaults to the microphone's device so a USB audio
 # card (or other combined input/output) plays through its own speaker jack.
 OUTPUT_AUDIO_DEVICE = os.environ.get("LED_OUTPUT_AUDIO_DEVICE", AUDIO_DEVICE)
+
+# Songs added through the website (analyzed on the Pi) live here, outside the
+# deployed code so redeploying never touches them.
+SONG_UPLOAD_DIR = os.environ.get(
+    "LED_SONG_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "user-songs"))

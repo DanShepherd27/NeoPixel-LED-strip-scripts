@@ -74,7 +74,26 @@
       (labels[song.sync.state] || song.sync.state) + ")";
   }
 
+  const readySongs = new Set();
+  let importsSeen = false;
+
+  // Tell every connected browser when a newly analyzed song becomes playable.
+  function watchImports(state) {
+    let announced = null;
+    (state.song_imports || []).forEach(function (job) {
+      if (job.status !== "ready" || readySongs.has(job.id)) return;
+      readySongs.add(job.id);
+      if (importsSeen) announced = job.title;
+    });
+    importsSeen = true;
+    if (announced) {
+      loadSongs();
+      $id("song-status").textContent = "New song ready to play: " + announced;
+    }
+  }
+
   function render(state) {
+    watchImports(state);
     const receivedAt = performance.now();
     const song = state.state === "song" ? state.song : null;
     const button = $id("song-btn");

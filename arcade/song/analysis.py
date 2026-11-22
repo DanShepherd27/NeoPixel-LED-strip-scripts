@@ -27,6 +27,11 @@ class SongAnalysis:
         mix = position - int(position)
         return (values[low] * (1.0 - mix) + values[high] * mix) / 255.0
 
+    def linear(self, name, frame):
+        """A band's level at an analysis frame, with the storage curve undone (~linear 0-1)."""
+        values = self._channels[name]
+        return (values[max(0, min(self.frames - 1, frame))] / 255.0) ** (1.0 / 0.6)
+
     def level_series(self, step, count, first=0.0):
         """Loudness sampled every ``step`` seconds starting at ``first``."""
         return [self._sample("level", max(0.0, first + i * step) * self.frame_rate)

@@ -126,6 +126,7 @@ class ArcadeManager(MusicRenderingMixin):
         self.song_auto_sync = True
         self.song_calibration = {"status": "idle"}
         self.on_song_latency_changed = None  # set by the web layer to persist changes
+        self.import_jobs = None              # set by the web layer (song uploads)
         self.players = PlayerManager()
 
         # Idle effect rotation.
@@ -658,6 +659,7 @@ class ArcadeManager(MusicRenderingMixin):
                 },
                 "song": self._song.snapshot() if self._song else None,
                 "song_calibration": self.song_calibration,
+                "song_imports": self.import_jobs.snapshot() if self.import_jobs else [],
                 "song_latency_ms": self.song_audio_latency_ms,
                 "music_led_frame": [list(pixel) for pixel in self._music_led_frame],
                 "pi_audio": self.audio_input.snapshot() if self.audio_input else {

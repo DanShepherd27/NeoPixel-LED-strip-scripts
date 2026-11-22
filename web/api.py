@@ -11,6 +11,9 @@ from web.socket_api import register_socket_handlers
 from config import MAX_NAME_LENGTH
 from web.admin import register_admin_routes
 from web.music_api import register_music_routes
+from web.songs_api import register_song_routes
+from arcade.song.importer import ImportJobs
+from arcade.song.library import USER_SONG_DIR
 
 # Characters we strip from player names to avoid layout/HTML abuse.
 _INVALID_NAME_CHARS = '<>&"\''
@@ -30,6 +33,8 @@ def register_api(app, manager, hardware):
     socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
     register_admin_routes(app, manager, hardware)
     register_music_routes(app, manager)
+    manager.import_jobs = ImportJobs(USER_SONG_DIR)
+    register_song_routes(app, manager, manager.import_jobs)
 
     # HTTP polling/control fallback. It keeps the arcade usable on an isolated
     # LAN without requiring a separately hosted Socket.IO browser bundle.

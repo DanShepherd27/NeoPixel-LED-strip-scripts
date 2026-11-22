@@ -70,7 +70,14 @@ the show references: 40 Hz loudness/band features plus a beat-tracked tempo
 (this song: 150.147 BPM, first beat 0.012 s, beat 0 = downbeat, snare on beats
 2/4). A constant-tempo guess 0.2% off drifts half a second over the song, so
 re-run the tool and update the show's `tempo_map` if the MP3 changes.
-`tools/compile_show.py` builds a show from a DAW-authored MIDI file. Run
+`tools/compile_show.py` builds a show from a DAW-authored MIDI file. Admin "Add a song"
+uploads an MP3 to `LED_SONG_DIR` (default `user-songs/`, git-ignored and never
+deployed over): `importer.py` runs `analyzer.py` (numpy; mpg123/ffmpeg decode) and
+`showgen.py` in a niced subprocess, one job at a time, and the song appears for
+everyone when ready (`song_imports` in `/api/state`). `showgen.py` is stdlib-only and
+plans dance tracks from kick presence: intro, breakdown, build, drop, outro; the
+tempo grid is the comb fold in `track_beats`, shifted to the kick if the off-beat hats
+dominate. Non-dance music gets one long "drop" with alternating palettes. Run
 `python -m unittest discover tests` after touching any of this.
 
 `SongSession` owns the clock and Pi playback (`mpg123`; `LED_OUTPUT_AUDIO_DEVICE`,

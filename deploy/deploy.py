@@ -16,7 +16,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV_FILE = ROOT / ".deploy.env"
-EXCLUDED_DIRS = {".git", ".venv", "__pycache__", ".pytest_cache", ".mypy_cache"}
+EXCLUDED_DIRS = {".git", ".venv", "__pycache__", ".pytest_cache", ".mypy_cache", "user-songs"}
 EXCLUDED_FILES = {".deploy.env", "runtime-settings.json", "runtime-settings.json.tmp"}
 
 

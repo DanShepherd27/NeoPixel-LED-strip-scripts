@@ -69,6 +69,7 @@ class CueEngine:
         self._next = 0
         self._last_beat = self._last_eighth = None
         self._beat_aligned = len(sheet.tempo._starts) == 1
+        self._accent_shift = int(sheet.song.get("analysis_beat_offset", 0))
 
     @property
     def section_name(self):
@@ -169,7 +170,7 @@ class CueEngine:
         ctx.phase = beat - beat_index
         ctx.beat_in_bar = beat_index % tempo.beats_per_bar
         if self._beat_aligned:
-            ctx.accent, ctx.offbeat_accent = self.analysis.beat_accent(beat_index)
+            ctx.accent, ctx.offbeat_accent = self.analysis.beat_accent(beat_index + self._accent_shift)
         else:
             ctx.accent, ctx.offbeat_accent = 0.5, 0.3
         features = self.analysis.at(t)

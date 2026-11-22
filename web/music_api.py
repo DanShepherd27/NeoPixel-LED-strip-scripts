@@ -66,7 +66,7 @@ def register_music_routes(app, manager):
 
     @app.get("/api/songs")
     def songs_list():
-        return jsonify([{key: song[key] for key in ("id", "title", "artist")} for song in list_songs()])
+        return jsonify([{key: song[key] for key in ("id", "title", "artist", "user")} for song in list_songs()])
 
     @app.get("/api/songs/<song_id>/audio")
     def song_audio(song_id):

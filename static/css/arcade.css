@@ -523,3 +523,7 @@ input[type="text"]:focus {
 .song-transport .btn { padding: 10px 6px; font-size: 0.85rem; }
 .song-player input[type="range"] { width: 100%; margin-top: 12px; }
 .song-times { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--muted); }
+.song-import-job { margin: 8px 0; font-size: 0.85rem; }
+.song-import-job .song-progress { margin-top: 4px; }
+.song-import-job.error { color: #ff6b81; }
+.song-library-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; font-size: 0.85rem; }

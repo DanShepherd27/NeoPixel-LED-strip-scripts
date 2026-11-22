@@ -18,6 +18,7 @@ def create_app(manager, hardware):
     )
     import secrets
     import os
+    app.config["MAX_CONTENT_LENGTH"] = 80 * 1024 * 1024  # song uploads
     app.config["SECRET_KEY"] = os.environ.get("LED_ARCADE_SECRET_KEY") or secrets.token_hex(32)
 
     register_routes(app, manager, hardware)
