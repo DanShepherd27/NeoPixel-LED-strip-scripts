@@ -26,6 +26,7 @@ class LEDHardware:
         self.dma = dma
         self.invert = invert
         self.brightness = brightness
+        self._active_brightness = brightness
         self.channel = channel
 
         self.strip = None
@@ -66,6 +67,13 @@ class LEDHardware:
         if self.strip is None:
             return
         try:
+            frame_brightness = self.brightness
+            override = getattr(frame, "brightness_override", None)
+            if override is not None and self.brightness > 0:
+                frame_brightness = max(0, min(255, int(override)))
+            if frame_brightness != self._active_brightness:
+                self.strip.setBrightness(frame_brightness)
+                self._active_brightness = frame_brightness
             with self._offset_lock:
                 hidden_start = self.hidden_start
                 hidden_end = self.hidden_end
@@ -129,6 +137,7 @@ class LEDHardware:
         if self.strip is not None:
             try:
                 self.strip.setBrightness(self.brightness)
+                self._active_brightness = self.brightness
             except Exception as exc:
                 log.error("Error setting brightness: %s", exc)
 

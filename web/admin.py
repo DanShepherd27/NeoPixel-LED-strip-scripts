@@ -42,6 +42,7 @@ def register_admin_routes(app, manager, hardware):
             "music_animation": manager.music_animation,
             "music_sensitivity": manager.music_sensitivity,
             "music_sound_profile": manager.music_sound_profile,
+            "music_glitter_brightness": manager.music_glitter_brightness,
             "music_beat_lead_ms": manager.music_beat_lead_ms,
             "music_primary_color": manager.music_primary_color,
             "music_accent_color": manager.music_accent_color,
@@ -64,6 +65,7 @@ def register_admin_routes(app, manager, hardware):
         animation_value = data.get("music_animation", manager.music_animation)
         sensitivity_value = data.get("music_sensitivity", manager.music_sensitivity)
         sound_profile = data.get("music_sound_profile", manager.music_sound_profile)
+        glitter_brightness = data.get("music_glitter_brightness", manager.music_glitter_brightness)
         beat_lead_value = data.get("music_beat_lead_ms", manager.music_beat_lead_ms)
         primary_color = data.get("music_primary_color", manager.music_primary_color)
         accent_color = data.get("music_accent_color", manager.music_accent_color)
@@ -102,6 +104,8 @@ def register_admin_routes(app, manager, hardware):
             return jsonify({"ok": False, "message": "Music sensitivity must be between 0.25 and 4.0."}), 400
         if sound_profile not in ("balanced", "small_speakers", "bass_forward"):
             return jsonify({"ok": False, "message": "Choose a supported speaker profile."}), 400
+        if type(glitter_brightness) is not int or not 0 <= glitter_brightness <= 255:
+            return jsonify({"ok": False, "message": "Glitter burst brightness must be a whole value from 0 to 255."}), 400
         if not all(isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color)
                    for color in (primary_color, accent_color)):
             return jsonify({"ok": False, "message": "Choose valid primary and accent colors."}), 400
@@ -121,6 +125,7 @@ def register_admin_routes(app, manager, hardware):
                     "music_animation": animation_value,
                     "music_sensitivity": sensitivity,
                     "music_sound_profile": sound_profile,
+                    "music_glitter_brightness": glitter_brightness,
                     "music_beat_lead_ms": beat_lead_value,
                     "music_primary_color": primary_color.upper(),
                     "music_accent_color": accent_color.upper(),
@@ -149,6 +154,7 @@ def register_admin_routes(app, manager, hardware):
             band_colors=band_colors,
         )
         manager.music_sound_profile = sound_profile
+        manager.music_glitter_brightness = glitter_brightness
         manager.music_beat_lead_ms = beat_lead_value
         manager.preview_invert_order = preview_invert_order
         return jsonify({
@@ -157,6 +163,7 @@ def register_admin_routes(app, manager, hardware):
             "music_animation": animation_value,
             "music_sensitivity": sensitivity,
             "music_sound_profile": sound_profile,
+            "music_glitter_brightness": glitter_brightness,
             "music_beat_lead_ms": beat_lead_value,
             "music_primary_color": manager.music_primary_color,
             "music_accent_color": manager.music_accent_color,

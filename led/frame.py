@@ -10,9 +10,13 @@ class Frame:
     def __init__(self, count):
         self.count = count
         self.pixels = [(0, 0, 0)] * count
+        # Effects may request a brief hardware-wide brightness override while
+        # preserving their pixel RGB ratios; the hardware layer applies it.
+        self.brightness_override = None
 
     def clear(self):
         self.pixels = [(0, 0, 0)] * self.count
+        self.brightness_override = None
 
     def fill(self, color):
         self.pixels = [color] * self.count

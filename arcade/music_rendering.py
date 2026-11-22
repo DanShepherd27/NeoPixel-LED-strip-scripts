@@ -102,6 +102,9 @@ class MusicRenderingMixin(MusicPatternMixin):
             beat_position = self._music_beat_onset_count + elapsed / period
         cycle_position = beat_position % 4.0
         glitter_phase = beat_position >= 4.0 and cycle_position < 0.38
+        if glitter_phase:
+            # Burst brightness is independently calibrated in Admin settings.
+            frame.brightness_override = self.music_glitter_brightness
         beat = min(1.0, self._music_beat_pulse)
         stripe_shift = int(beat_position / 2.0)
         base_brightness = min(1.0, 0.58 + level * 0.28 + beat * 0.14)

@@ -32,6 +32,9 @@
         );
         $id("music-sensitivity").value = data.music_sensitivity || 1;
         $id("music-sound-profile").value = data.music_sound_profile || "small_speakers";
+        $id("music-glitter-brightness").value = data.music_glitter_brightness == null ? 255 : data.music_glitter_brightness;
+        $id("music-glitter-brightness-value").textContent = $id("music-glitter-brightness").value;
+        $id("christmas-glitter-control").hidden = $id("music-animation").value !== "christmas_glitter";
         $id("music-primary-color").value = data.music_primary_color || "#00e5ff";
         $id("music-accent-color").value = data.music_accent_color || "#ff2ea6";
         window.MusicPreview.updateColors();
@@ -85,6 +88,7 @@
           music_animation: $id("music-animation").value,
           music_sensitivity: Number($id("music-sensitivity").value),
           music_sound_profile: $id("music-sound-profile").value,
+          music_glitter_brightness: Number($id("music-glitter-brightness").value),
           music_beat_lead_ms: Number($id("music-beat-lead-ms").value),
           music_primary_color: $id("music-primary-color").value,
           music_accent_color: $id("music-accent-color").value,
@@ -105,7 +109,8 @@
           body.hidden_end + " hidden at end; microphone handoff " + body.mic_handoff_seconds +
           " seconds; " + window.MusicPreview.patternLabel(body.music_animation) + " at " +
           Number(body.music_sensitivity).toFixed(2) + "× sensitivity; speaker profile " +
-          $id("music-sound-profile").selectedOptions[0].textContent + "; colors " +
+          $id("music-sound-profile").selectedOptions[0].textContent + "; glitter burst " +
+          body.music_glitter_brightness + "/255; colors " +
           body.music_primary_color + " / " + body.music_accent_color + "; LED balance R/G/B " +
           body.led_color_red + "% / " + body.led_color_green + "% / " + body.led_color_blue + "%. ");
         App.previewInvertOrder = body.preview_invert_order === true;
@@ -126,6 +131,9 @@
     $id("music-sensitivity").addEventListener("input", function () {
       $id("music-sensitivity-value").textContent = Number(this.value).toFixed(2) + "×";
     });
+    $id("music-glitter-brightness").addEventListener("input", function () {
+      $id("music-glitter-brightness-value").textContent = this.value;
+    });
     ["red", "green", "blue"].forEach(function (channel) {
       $id("led-color-" + channel).addEventListener("input", function () {
         $id("led-color-" + channel + "-value").textContent = this.value + "%";
@@ -139,6 +147,7 @@
       $id(id).addEventListener("change", window.MusicPreview.updateColors);
     });
     $id("music-animation").addEventListener("change", function () {
+      $id("christmas-glitter-control").hidden = this.value !== "christmas_glitter";
       window.MusicPreview.configurePatternControls(
         "admin", this.value, window.MusicPreview.getBandColors("admin"),
       );
