@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-music-visualizers">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-led-calibration">
 </head>
 <body>
   <header class="app-header">
@@ -47,8 +47,14 @@
             <option value="comet">Comet</option>
             <option value="retro_vu">Retro VU meter</option>
             <option value="inward_diamonds">Inward diamonds</option>
+            <option value="red_shades">Red shades</option>
           </select>
-          <p class="muted">Retro VU is mostly green, with yellow near the top and a small red peak zone. Inward diamonds send colored shapes from both ends toward the center.</p>
+          <label for="music-live-primary" class="music-control-label">Primary color</label>
+          <input id="music-live-primary" type="color" value="#00e5ff">
+          <label for="music-live-accent" class="music-control-label">Accent color</label>
+          <input id="music-live-accent" type="color" value="#ff2ea6">
+          <p class="muted">Retro VU uses green at the base, yellow through the middle, and red at the top. Its cyan peak marker holds for 500 ms before falling. Inward diamonds send colored shapes from both ends toward the center.</p>
+          <p class="muted">Primary and accent colors apply to Center pulse, Mirror bars, Comet, and Inward diamonds. Rainbow, Retro VU, and Red Shades keep their own palettes.</p>
           <p id="web-mic-status" class="muted" role="status" aria-live="polite"></p>
           <button id="mic-queue-btn" class="btn btn-ghost btn-block">USE THIS DEVICE'S MIC</button>
           <button id="mic-start-btn" class="btn btn-primary btn-block" hidden>ALLOW MIC AND VISUALIZE</button>
@@ -84,7 +90,20 @@
             <option value="comet">Comet</option>
             <option value="retro_vu">Retro VU meter</option>
             <option value="inward_diamonds">Inward diamonds</option>
+            <option value="red_shades">Red shades</option>
           </select>
+          <label for="music-primary-color">Primary color</label>
+          <input id="music-primary-color" type="color" value="#00e5ff">
+          <label for="music-accent-color">Accent color</label>
+          <input id="music-accent-color" type="color" value="#ff2ea6">
+          <h4>Physical LED color calibration</h4>
+          <p class="muted">Adjust each channel if strip colors differ from the color picker. Applies globally to every pattern and game.</p>
+          <label for="led-color-red">Red output <output id="led-color-red-value">100%</output></label>
+          <input id="led-color-red" type="range" min="0" max="200" step="1" value="100">
+          <label for="led-color-green">Green output <output id="led-color-green-value">100%</output></label>
+          <input id="led-color-green" type="range" min="0" max="200" step="1" value="100">
+          <label for="led-color-blue">Blue output <output id="led-color-blue-value">100%</output></label>
+          <input id="led-color-blue" type="range" min="0" max="200" step="1" value="100">
           <label for="music-sensitivity">Music sensitivity <output id="music-sensitivity-value">1.00×</output></label>
           <input id="music-sensitivity" type="range" min="0.25" max="4" step="0.25" value="1">
           <p class="muted">Raise sensitivity for a quiet mic; lower it if sound drives the lights too strongly.</p>
@@ -159,7 +178,7 @@
     </section>
   </main>
 
-  <script src="/static/js/app.js?v=20261122-live-patterns"></script>
+  <script src="/static/js/app.js?v=20261122-led-calibration"></script>
   <script src="/static/js/games.js"></script>
   <script src="/static/js/controller.js"></script>
 </body>

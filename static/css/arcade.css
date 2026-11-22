@@ -153,6 +153,17 @@ select {
   color: var(--text);
   margin: 6px 0 10px;
 }
+input[type="color"] {
+  width: 76px;
+  height: 42px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #0e0e18;
+  cursor: pointer;
+  margin: 4px 8px 10px 0;
+}
+.music-control-label { display: block; color: var(--muted); font-size: 0.85rem; }
 input[type="range"] {
   width: 100%;
   accent-color: var(--neon);

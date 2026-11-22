@@ -12,14 +12,17 @@ import argparse
 import logging
 import json
 import os
+import re
 
 from config import (
     LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_BRIGHTNESS,
     LED_HIDDEN_START, LED_HIDDEN_END,
+    LED_COLOR_RED, LED_COLOR_GREEN, LED_COLOR_BLUE,
     LED_INVERT, LED_CHANNEL, HOST, PORT, FPS,
     RUNTIME_SETTINGS_FILE, AUDIO_DEVICE,
     WEB_MIC_HANDOFF_SECONDS,
     MUSIC_VISUALIZER, MUSIC_SENSITIVITY,
+    MUSIC_PRIMARY_COLOR, MUSIC_ACCENT_COLOR,
 )
 from led.hardware import LEDHardware
 from led.audio import AudioInput
@@ -49,6 +52,9 @@ def main():
     mic_handoff_seconds = WEB_MIC_HANDOFF_SECONDS
     music_animation = MUSIC_VISUALIZER
     music_sensitivity = MUSIC_SENSITIVITY
+    music_primary_color = MUSIC_PRIMARY_COLOR
+    music_accent_color = MUSIC_ACCENT_COLOR
+    color_red, color_green, color_blue = LED_COLOR_RED, LED_COLOR_GREEN, LED_COLOR_BLUE
     try:
         with open(RUNTIME_SETTINGS_FILE, "r", encoding="utf-8") as settings_file:
             saved = json.load(settings_file)
@@ -59,17 +65,27 @@ def main():
         mic_handoff_seconds = int(saved.get("mic_handoff_seconds", mic_handoff_seconds))
         music_animation = saved.get("music_animation", music_animation)
         music_sensitivity = float(saved.get("music_sensitivity", music_sensitivity))
+        music_primary_color = saved.get("music_primary_color", music_primary_color)
+        music_accent_color = saved.get("music_accent_color", music_accent_color)
+        color_red = int(saved.get("led_color_red", color_red))
+        color_green = int(saved.get("led_color_green", color_green))
+        color_blue = int(saved.get("led_color_blue", color_blue))
         if hidden_start < 0 or hidden_end < 0 or hidden_start + hidden_end > LED_COUNT:
             raise ValueError("saved LED offsets are outside the valid strip range")
+        if any(not 0 <= value <= 200 for value in (color_red, color_green, color_blue)):
+            raise ValueError("saved LED color balance must be between 0 and 200 percent")
         if not 15 <= mic_handoff_seconds <= 1800:
             raise ValueError("saved microphone handoff must be between 15 and 1800 seconds")
         if music_animation not in (
             "center_pulse", "mirror_bars", "rainbow_wave", "comet",
-            "retro_vu", "inward_diamonds",
+            "retro_vu", "inward_diamonds", "red_shades",
         ):
             raise ValueError("saved music animation is not supported")
         if not 0.25 <= music_sensitivity <= 4.0:
             raise ValueError("saved music sensitivity must be between 0.25 and 4.0")
+        if not all(isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color)
+                   for color in (music_primary_color, music_accent_color)):
+            raise ValueError("saved music colors must use #RRGGBB format")
     except FileNotFoundError:
         pass
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
@@ -77,11 +93,13 @@ def main():
         hidden_start, hidden_end = LED_HIDDEN_START, LED_HIDDEN_END
         mic_handoff_seconds = WEB_MIC_HANDOFF_SECONDS
         music_animation, music_sensitivity = MUSIC_VISUALIZER, MUSIC_SENSITIVITY
+        music_primary_color, music_accent_color = MUSIC_PRIMARY_COLOR, MUSIC_ACCENT_COLOR
+        color_red, color_green, color_blue = LED_COLOR_RED, LED_COLOR_GREEN, LED_COLOR_BLUE
 
     hardware = LEDHardware(
         LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT,
         LED_BRIGHTNESS, LED_CHANNEL,
-        hidden_start, hidden_end,
+        hidden_start, hidden_end, color_red, color_green, color_blue,
     )
     if args.mock:
         hardware.strip = None
@@ -91,7 +109,7 @@ def main():
     audio_input.start()
     manager = ArcadeManager(
         LED_COUNT, audio_input, mic_handoff_seconds,
-        music_animation, music_sensitivity,
+        music_animation, music_sensitivity, music_primary_color, music_accent_color,
     )
 
     renderer = Renderer(hardware, FPS)

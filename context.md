@@ -1373,6 +1373,8 @@ The project should not be considered complete until:
 - [x] Allow live web-UI pattern switching while music mode is active
 - [x] Include a retro green/yellow/red VU color pattern
 - [x] Include mirrored shapes that move inward from both strip ends
+- [x] Include a full-strip pattern using shades of red only
+- [x] Let users choose primary/accent colors from the music UI
 - [x] Provide adjustable visualizer sensitivity for both mic sources
 - [x] Keep loud audio colors saturated; clap accents must not wash the strip white
 - [ ] Provide a trusted HTTPS deployment URL so phone browsers can grant mic access

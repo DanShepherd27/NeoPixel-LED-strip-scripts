@@ -10,6 +10,7 @@ import threading
 import queue
 import random
 import logging
+import math
 
 from arcade.state import ArcadeState
 from arcade.players import PlayerManager
@@ -30,16 +31,37 @@ from config import (
 log = logging.getLogger("arcade.manager")
 
 
+def _parse_hex_color(value):
+    if not isinstance(value, str) or len(value) != 7 or value[0] != "#":
+        raise ValueError("Colors must use #RRGGBB format.")
+    try:
+        return tuple(int(value[index:index + 2], 16) for index in (1, 3, 5))
+    except ValueError as exc:
+        raise ValueError("Colors must use #RRGGBB format.") from exc
+
+
+def _blend_rgb(start, end, amount):
+    amount = max(0.0, min(1.0, amount))
+    return tuple(int(round(a + (b - a) * amount)) for a, b in zip(start, end))
+
+
 class ArcadeManager:
     def __init__(self, count=LED_COUNT, audio_input=None, mic_handoff_seconds=120,
-                 music_animation="center_pulse", music_sensitivity=1.0):
+                 music_animation="center_pulse", music_sensitivity=1.0,
+                 music_primary_color="#00E5FF", music_accent_color="#FF2EA6"):
         self.count = count
         self.audio_input = audio_input
         self.web_mics = WebMicQueue(mic_handoff_seconds)
         self._music_pi_enabled = False
         self.music_animation = music_animation
         self.music_sensitivity = float(music_sensitivity)
+        self.music_primary_color = music_primary_color.upper()
+        self.music_accent_color = music_accent_color.upper()
+        self._music_primary_rgb = _parse_hex_color(self.music_primary_color)
+        self._music_accent_rgb = _parse_hex_color(self.music_accent_color)
         self._music_phase = 0.0
+        self._retro_vu_peak_position = 0.0
+        self._retro_vu_peak_hold = 0.0
         self.state = ArcadeState.IDLE
         self.players = PlayerManager()
 
@@ -164,17 +186,28 @@ class ArcadeManager:
         # Applied by the hardware; kept here for the admin API to route through.
         return brightness
 
-    def set_music_visualizer(self, animation, sensitivity):
+    def set_music_visualizer(self, animation, sensitivity, primary_color=None, accent_color=None):
         if animation not in (
             "center_pulse", "mirror_bars", "rainbow_wave", "comet",
-            "retro_vu", "inward_diamonds",
+            "retro_vu", "inward_diamonds", "red_shades",
         ):
             raise ValueError("Unknown music animation.")
         if not 0.25 <= float(sensitivity) <= 4.0:
             raise ValueError("Music sensitivity must be between 0.25 and 4.0.")
+        primary_color = primary_color or self.music_primary_color
+        accent_color = accent_color or self.music_accent_color
+        primary_rgb = _parse_hex_color(primary_color)
+        accent_rgb = _parse_hex_color(accent_color)
         with self._lock:
+            if animation != self.music_animation:
+                self._retro_vu_peak_position = 0.0
+                self._retro_vu_peak_hold = 0.0
             self.music_animation = animation
             self.music_sensitivity = float(sensitivity)
+            self.music_primary_color = primary_color.upper()
+            self.music_accent_color = accent_color.upper()
+            self._music_primary_rgb = primary_rgb
+            self._music_accent_rgb = accent_rgb
 
     def handle_input(self, player_id, action):
         """Queue a player input; processed by the render loop next frame."""
@@ -307,7 +340,7 @@ class ArcadeManager:
         level = max(0.0, min(1.0, float(audio.get("level", 0.0)) * self.music_sensitivity))
         peak = max(0.0, min(1.0, float(audio.get("peak", 0.0)) * self.music_sensitivity))
         self._music_phase += dt
-        self._draw_music_animation(frame, level, peak)
+        self._draw_music_animation(frame, level, peak, dt)
 
         if audio.get("clap"):
             self._music_clap_flash = 0.13
@@ -315,14 +348,27 @@ class ArcadeManager:
             self._music_clap_flash = max(0.0, getattr(self, "_music_clap_flash", 0.0) - dt)
         if self._music_clap_flash > 0:
             amount = min(0.32, self._music_clap_flash / 0.13 * 0.32)
+            if self.music_animation == "red_shades":
+                flash_color = (255, 0, 0)
+            elif self.music_animation in ("retro_vu", "rainbow_wave"):
+                flash_color = (255, 80, 12)
+            else:
+                flash_color = self._music_accent_rgb
             for index in range(frame.count):
-                frame.blend(index, (255, 28, 145), amount)
+                frame.blend(index, flash_color, amount)
 
-    def _draw_music_animation(self, frame, level, peak):
+    def _draw_music_animation(self, frame, level, peak, dt=0.0):
         count = self.count
         if not count:
             return
         brightness = 0.16 + 0.66 * level
+        if self.music_animation == "red_shades":
+            for index in range(count):
+                wave = (math.sin(index * 0.48 + self._music_phase * 4.0) + 1.0) * 0.5
+                red = int(max(8, min(255, 12 + level * 45 + wave * (24 + 174 * level) + peak * 20)))
+                frame.set(index, (red, 0, 0))
+            return
+
         if self.music_animation == "rainbow_wave":
             for index in range(count):
                 hue = (index * 360.0 / max(1, count) + self._music_phase * 55.0) % 360.0
@@ -336,25 +382,43 @@ class ArcadeManager:
             for offset in range(tail):
                 index = (head - offset) % count
                 amount = (1.0 - offset / tail) * brightness
-                frame.set(index, hsv_to_rgb((205.0 + offset * 7.0 + self._music_phase * 35.0) % 360.0, 1.0, amount))
+                color = _blend_rgb(self.music_primary_rgb, self.music_accent_rgb, offset / max(1, tail - 1))
+                frame.set(index, tuple(int(channel * amount) for channel in color))
             return
 
         half = (count + 1) // 2
         extent = int(round(level * max(0, half - 1)))
         if self.music_animation == "retro_vu":
-            # Classic meter zones: mostly green, yellow near the top, a short
-            # red peak zone on the final few LEDs at each end.
+            # A vertical strip is a single equalizer column: build it from
+            # the bottom with a saturated multicolor VU gradient.
             frame.clear()
-            for offset in range(max(1, extent + 1)):
-                position = offset / max(1, half - 1)
-                if position >= 0.94:
-                    color = (255, 12, 12)
-                elif position >= 0.78:
-                    color = (255, 210, 0)
+            strip_extent = int(round(level * max(0, count - 1)))
+            for index in range(max(1, strip_extent + 1)):
+                position = index / max(1, count - 1)
+                if position >= 0.78:
+                    color = (255, 0, 0)       # red peak zone
+                elif position >= 0.38:
+                    color = (255, 210, 0)     # yellow warning zone
                 else:
-                    color = (0, 255, 32)
-                frame.set(half - 1 - offset, color)
-                frame.set(half + offset, color)
+                    color = (0, 255, 24)      # green normal zone
+                frame.set(index, color)
+
+            # Peak marker follows the strongest recent volume. It holds for
+            # half a second, then falls at a steady rate until the live level
+            # catches it again.
+            peak_extent = max(level, peak) * max(0, count - 1)
+            if peak_extent >= self._retro_vu_peak_position:
+                self._retro_vu_peak_position = peak_extent
+                self._retro_vu_peak_hold = 0.5
+            elif self._retro_vu_peak_hold > 0:
+                self._retro_vu_peak_hold = max(0.0, self._retro_vu_peak_hold - dt)
+            else:
+                self._retro_vu_peak_position = max(
+                    peak_extent, self._retro_vu_peak_position - dt * 16.0,
+                )
+            if self._retro_vu_peak_position >= 0.5:
+                marker = min(count - 1, int(round(self._retro_vu_peak_position)))
+                frame.set(marker, (0, 220, 255))
             return
 
         if self.music_animation == "inward_diamonds":
@@ -365,16 +429,17 @@ class ArcadeManager:
                 intensity = (1.0 - abs(offset) / (radius + 1.0)) * (0.28 + 0.62 * level)
                 left = travel + offset
                 right = count - 1 - travel - offset
-                frame.set(left, hsv_to_rgb(178.0, 1.0, intensity))
-                frame.set(right, hsv_to_rgb(320.0, 1.0, intensity))
+                frame.set(left, tuple(int(channel * intensity) for channel in self.music_primary_rgb))
+                frame.set(right, tuple(int(channel * intensity) for channel in self.music_accent_rgb))
             return
 
         if self.music_animation == "mirror_bars":
             # Discrete saturated blocks grow from the center with the beat.
             frame.clear()
             for offset in range(max(1, extent + 1)):
-                hue = (188.0 + offset * 17.0 + self._music_phase * 24.0) % 360.0
-                color = hsv_to_rgb(hue, 1.0, 0.30 + 0.55 * level)
+                color = _blend_rgb(self.music_primary_rgb, self.music_accent_rgb,
+                                   offset / max(1, half - 1))
+                color = tuple(int(channel * (0.30 + 0.55 * level)) for channel in color)
                 frame.set(half - 1 - offset, color)
                 frame.set(half + offset, color)
             return
@@ -383,8 +448,9 @@ class ArcadeManager:
         frame.clear()
         for offset in range(max(1, extent + 1)):
             strength = max(0.18, 1.0 - offset / max(2.0, extent + 1.0) * 0.65)
-            hue = 205.0 - 155.0 * level + offset * 2.5
-            color = hsv_to_rgb(hue, 1.0, strength * brightness)
+            color = _blend_rgb(self.music_primary_rgb, self.music_accent_rgb,
+                               offset / max(1, half - 1))
+            color = tuple(int(channel * strength * brightness) for channel in color)
             frame.set(half - 1 - offset, color)
             frame.set(half + offset, color)
 
@@ -490,6 +556,8 @@ class ArcadeManager:
                 "music_visualizer": {
                     "animation": self.music_animation,
                     "sensitivity": self.music_sensitivity,
+                    "primary_color": self.music_primary_color,
+                    "accent_color": self.music_accent_color,
                 },
                 "pi_audio": self.audio_input.snapshot() if self.audio_input else {
                     "status": "unavailable", "error": "No audio input configured.",

@@ -24,7 +24,8 @@
   var micRequesting = false;
   var micStatusRequestId = 0;
   var micNotice = "";
-  var musicAnimationPending = null;
+  var musicVisualizerPending = null;
+  var musicVisualizerRequestId = 0;
 
   var App = {
     socket: null,
@@ -209,6 +210,7 @@
         center_pulse: "Center pulse", mirror_bars: "Mirror bars",
         rainbow_wave: "Rainbow wave", comet: "Comet",
         retro_vu: "Retro VU meter", inward_diamonds: "Inward diamonds",
+        red_shades: "Red shades",
       };
       var visualizerStatus = $id("music-visualizer-status");
       if (visualizerStatus) {
@@ -217,12 +219,11 @@
             Number(visualizer.sensitivity || 1).toFixed(2) + "×"
           : "";
       }
+      var selection = musicVisualizerPending || visualizer;
       var animationSelect = $id("music-animation-select");
-      if (animationSelect && !musicAnimationPending) {
-        animationSelect.value = visualizer.animation || "center_pulse";
-      } else if (animationSelect && musicAnimationPending) {
-        animationSelect.value = musicAnimationPending;
-      }
+      if (animationSelect) animationSelect.value = selection.animation || "center_pulse";
+      $id("music-live-primary").value = selection.primary_color || "#00e5ff";
+      $id("music-live-accent").value = selection.accent_color || "#ff2ea6";
       $id("web-mic-controls").hidden = !musicActive;
     }
     var orientation = s.led_orientation || "vertical";
@@ -678,31 +679,46 @@
 
     $id("mic-start-btn").addEventListener("click", startMicCapture);
 
-    $id("music-animation-select").addEventListener("change", function () {
-      var animation = this.value;
-      musicAnimationPending = animation;
+    function submitMusicVisualizer() {
+      var requestId = ++musicVisualizerRequestId;
+      var selection = {
+        animation: $id("music-animation-select").value,
+        primary_color: $id("music-live-primary").value,
+        accent_color: $id("music-live-accent").value,
+      };
+      musicVisualizerPending = selection;
       fetch("/api/music/visualizer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ animation: animation }),
+        body: JSON.stringify(selection),
       }).then(function (response) {
         return response.json().then(function (body) {
           if (!response.ok) throw new Error(body.message || "Could not switch visualizer.");
           return body;
         });
       }).then(function (body) {
-        musicAnimationPending = null;
+        if (requestId !== musicVisualizerRequestId) return;
+        musicVisualizerPending = null;
         $id("music-animation").value = body.animation;
+        $id("music-primary-color").value = body.primary_color;
+        $id("music-accent-color").value = body.accent_color;
         if (App.state && App.state.music_visualizer) {
           App.state.music_visualizer.animation = body.animation;
+          App.state.music_visualizer.primary_color = body.primary_color;
+          App.state.music_visualizer.accent_color = body.accent_color;
         }
         render();
       }).catch(function (error) {
-        musicAnimationPending = null;
+        if (requestId !== musicVisualizerRequestId) return;
+        musicVisualizerPending = null;
         render();
         $id("music-visualizer-status").textContent = error.message;
       });
-    });
+    }
+
+    $id("music-animation-select").addEventListener("change", submitMusicVisualizer);
+    $id("music-live-primary").addEventListener("change", submitMusicVisualizer);
+    $id("music-live-accent").addEventListener("change", submitMusicVisualizer);
 
     $id("join-form").addEventListener("submit", function (ev) {
       ev.preventDefault();
@@ -763,6 +779,13 @@
         $id("mic-handoff-seconds").value = data.mic_handoff_seconds;
         $id("music-animation").value = data.music_animation || "center_pulse";
         $id("music-sensitivity").value = data.music_sensitivity || 1;
+        $id("music-primary-color").value = data.music_primary_color || "#00e5ff";
+        $id("music-accent-color").value = data.music_accent_color || "#ff2ea6";
+        ["red", "green", "blue"].forEach(function (channel) {
+          var value = data["led_color_" + channel] == null ? 100 : data["led_color_" + channel];
+          $id("led-color-" + channel).value = value;
+          $id("led-color-" + channel + "-value").textContent = value + "%";
+        });
         $id("music-sensitivity-value").textContent = Number($id("music-sensitivity").value).toFixed(2) + "×";
         $id("hidden-start").max = data.led_count;
         $id("hidden-end").max = data.led_count;
@@ -803,6 +826,11 @@
           mic_handoff_seconds: Number($id("mic-handoff-seconds").value),
           music_animation: $id("music-animation").value,
           music_sensitivity: Number($id("music-sensitivity").value),
+          music_primary_color: $id("music-primary-color").value,
+          music_accent_color: $id("music-accent-color").value,
+          led_color_red: Number($id("led-color-red").value),
+          led_color_green: Number($id("led-color-green").value),
+          led_color_blue: Number($id("led-color-blue").value),
         }),
       }).then(function (response) {
         return response.json().then(function (body) {
@@ -813,7 +841,9 @@
         showAdminMessage("Saved. " + body.hidden_start + " hidden at start, " +
           body.hidden_end + " hidden at end; microphone handoff " + body.mic_handoff_seconds +
           " seconds; " + body.music_animation.split("_").join(" ") + " at " +
-          Number(body.music_sensitivity).toFixed(2) + "× sensitivity.");
+          Number(body.music_sensitivity).toFixed(2) + "× sensitivity; colors " +
+          body.music_primary_color + " / " + body.music_accent_color + "; LED balance R/G/B " +
+          body.led_color_red + "% / " + body.led_color_green + "% / " + body.led_color_blue + "%. ");
       }).catch(function (error) {
         showAdminMessage(error.message);
       });
@@ -830,6 +860,11 @@
 
     $id("music-sensitivity").addEventListener("input", function () {
       $id("music-sensitivity-value").textContent = Number(this.value).toFixed(2) + "×";
+    });
+    ["red", "green", "blue"].forEach(function (channel) {
+      $id("led-color-" + channel).addEventListener("input", function () {
+        $id("led-color-" + channel + "-value").textContent = this.value + "%";
+      });
     });
 
     loadAdminSettings();
