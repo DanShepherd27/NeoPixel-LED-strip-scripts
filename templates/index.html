@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-song-import">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-admin-accordion">
 </head>
 <body>
   <header class="app-header">
@@ -215,14 +215,32 @@
           <button type="submit" class="btn btn-ghost btn-block">ADMIN LOGIN</button>
         </form>
         <form id="admin-settings-form" hidden>
+          <details class="admin-section" name="admin-section" open>
+            <summary><span class="admin-section-title">LED strip</span><span class="admin-section-hint">Hidden ends, brightness, colors</span></summary>
+            <div class="admin-section-body">
           <p class="muted">Number of hidden LEDs at each physical end of the strip.</p>
           <label for="hidden-start">Hidden at start</label>
           <input id="hidden-start" type="number" min="0" step="1" required>
           <label for="hidden-end">Hidden at end</label>
           <input id="hidden-end" type="number" min="0" step="1" required>
-          <label for="mic-handoff-seconds">Web microphone handoff (seconds)</label>
-          <input id="mic-handoff-seconds" type="number" min="15" max="1800" step="1" required>
-          <p class="muted">When someone is queued, the active web microphone is handed off after this time.</p>
+          <h4>Color calibration</h4>
+          <p class="muted">Adjust each channel if strip colors differ from the color picker. Applies globally to every pattern and game.</p>
+          <label for="led-brightness">Hardware brightness <output id="led-brightness-value">40</output></label>
+          <input id="led-brightness" type="range" min="0" max="255" step="1" value="40">
+          <p class="muted">Changes the physical strip immediately and persists across restarts. The emulator remains at theoretical RGB values.</p>
+          <label for="led-color-red">Red output <output id="led-color-red-value">100%</output></label>
+          <input id="led-color-red" type="range" min="0" max="200" step="1" value="100">
+          <label for="led-color-green">Green output <output id="led-color-green-value">100%</output></label>
+          <input id="led-color-green" type="range" min="0" max="200" step="1" value="100">
+          <label for="led-color-blue">Blue output <output id="led-color-blue-value">100%</output></label>
+          <input id="led-color-blue" type="range" min="0" max="200" step="1" value="100">
+          <label><input id="preview-invert-order" type="checkbox"> Invert LED order in preview</label>
+          <p class="muted">Mirror the emulator’s LED order when the strip appears upside down.</p>
+            </div>
+          </details>
+          <details class="admin-section" name="admin-section">
+            <summary><span class="admin-section-title">Sound-reactive lighting</span><span class="admin-section-hint">Pattern, colors, sensitivity, microphone</span></summary>
+            <div class="admin-section-body">
           <label for="music-animation">Startup light pattern</label>
           <select id="music-animation">
             <option value="center_pulse">Center glow</option>
@@ -263,17 +281,6 @@
           <code class="led-color-value" id="music-accent-value">#FF2EA6</code>
           </div>
           <div id="admin-band-color-controls" class="pattern-color-controls" hidden></div>
-          <h4>Physical LED color calibration</h4>
-          <p class="muted">Adjust each channel if strip colors differ from the color picker. Applies globally to every pattern and game.</p>
-          <label for="led-brightness">Hardware brightness <output id="led-brightness-value">40</output></label>
-          <input id="led-brightness" type="range" min="0" max="255" step="1" value="40">
-          <p class="muted">Changes the physical strip immediately and persists across restarts. The emulator remains at theoretical RGB values.</p>
-          <label for="led-color-red">Red output <output id="led-color-red-value">100%</output></label>
-          <input id="led-color-red" type="range" min="0" max="200" step="1" value="100">
-          <label for="led-color-green">Green output <output id="led-color-green-value">100%</output></label>
-          <input id="led-color-green" type="range" min="0" max="200" step="1" value="100">
-          <label for="led-color-blue">Blue output <output id="led-color-blue-value">100%</output></label>
-          <input id="led-color-blue" type="range" min="0" max="200" step="1" value="100">
           <label for="music-sensitivity">Music sensitivity <output id="music-sensitivity-value">1.00×</output></label>
           <input id="music-sensitivity" type="range" min="0.25" max="4" step="0.25" value="1">
           <p class="muted">Raise sensitivity for a quiet mic; lower it if sound drives the lights too strongly.</p>
@@ -287,7 +294,14 @@
           <label for="music-beat-lead-ms">Beat sync timing <output id="music-beat-lead-value">0 ms</output></label>
           <input id="music-beat-lead-ms" type="range" min="-100" max="200" step="10" value="0">
           <p class="muted">The beat tracker predicts from bass rhythm and estimated mic/network delay. Positive values pulse earlier; negative values pulse later.</p>
-          <h4>Add a song</h4>
+          <label for="mic-handoff-seconds">Web microphone handoff (seconds)</label>
+          <input id="mic-handoff-seconds" type="number" min="15" max="1800" step="1" required>
+          <p class="muted">When someone is queued, the active web microphone is handed off after this time.</p>
+            </div>
+          </details>
+          <details class="admin-section" name="admin-section">
+            <summary><span class="admin-section-title">Songs</span><span class="admin-section-hint">Add or remove songs</span></summary>
+            <div class="admin-section-body">
           <p class="muted">Upload an MP3 (a track you own). The Pi finds the tempo and arrangement and plans a light show; the song appears in the list when it is ready, usually within a minute or two.</p>
           <input id="song-import-file" type="file" accept=".mp3,audio/mpeg">
           <label for="song-import-title">Title (optional)</label>
@@ -303,7 +317,11 @@
           <p id="song-import-message" class="muted" role="status" aria-live="polite"></p>
           <div id="song-import-jobs"></div>
           <div id="song-import-library"></div>
-          <h4>Song audio sync</h4>
+            </div>
+          </details>
+          <details class="admin-section" name="admin-section">
+            <summary><span class="admin-section-title">Song audio sync</span><span class="admin-section-hint">Speaker latency calibration</span></summary>
+            <div class="admin-section-body">
           <p class="muted">Lights must be shifted by the delay between starting the Pi player and sound leaving the speaker. The Pi can hear its own speakers, so it can measure that itself.</p>
           <label for="song-latency-ms">Song audio latency <output id="song-latency-value">250 ms</output></label>
           <input id="song-latency-ms" type="range" min="0" max="1000" step="1" value="250">
@@ -311,8 +329,8 @@
           <canvas id="song-calibration-chart" width="320" height="110" role="img" aria-label="Match quality for each tested latency" hidden></canvas>
           <p id="song-calibration-status" class="muted" role="status" aria-live="polite">Needs the arcade idle, the speaker audible to the Pi microphone, and about 20 seconds of the song intro.</p>
           <label><input id="song-auto-sync" type="checkbox" checked> Keep adjusting automatically while the song plays</label>
-          <label><input id="preview-invert-order" type="checkbox"> Invert LED order in preview</label>
-          <p class="muted">Mirror the emulator’s LED order when the strip appears upside down.</p>
+            </div>
+          </details>
           <button type="submit" class="btn btn-primary btn-block">SAVE SETTINGS</button>
           <button id="admin-logout" type="button" class="btn btn-ghost btn-block">ADMIN LOGOUT</button>
         </form>

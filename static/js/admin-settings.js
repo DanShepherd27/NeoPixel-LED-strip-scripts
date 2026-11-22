@@ -79,6 +79,12 @@
       });
     });
 
+    // A field the browser rejects must be visible: open its section so the message shows.
+    settingsForm.addEventListener("invalid", function (ev) {
+      const section = ev.target.closest("details");
+      if (section) section.open = true;
+    }, true);
+
     settingsForm.addEventListener("submit", function (ev) {
       ev.preventDefault();
       fetch("/api/admin/settings", {

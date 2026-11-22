@@ -541,3 +541,15 @@ input[type="text"]:focus {
 .song-import-job .song-progress { margin-top: 4px; }
 .song-import-job.error { color: #ff6b81; }
 .song-library-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; font-size: 0.85rem; }
+
+/* Admin settings accordion: native <details>, so it works offline with no script. */
+.admin-section { border: 1px solid var(--border); border-radius: 10px; margin: 0 0 10px; background: rgba(0,0,0,.12); }
+.admin-section > summary { list-style: none; cursor: pointer; display: grid; gap: 2px; padding: 12px 14px 12px 38px; position: relative; }
+.admin-section > summary::-webkit-details-marker { display: none; }
+.admin-section > summary::before { content: "›"; position: absolute; left: 14px; top: 8px; font-size: 1.5rem; line-height: 1; color: var(--neon); transition: transform .15s; }
+.admin-section[open] > summary::before { transform: rotate(90deg); }
+.admin-section[open] > summary { border-bottom: 1px solid var(--border); }
+.admin-section-title { color: var(--neon); font-weight: 700; }
+.admin-section-hint { color: var(--muted); font-size: 0.78rem; }
+.admin-section-body { padding: 4px 14px 14px; }
+.admin-section-body h4 { margin: 16px 0 6px; }
