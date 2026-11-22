@@ -20,7 +20,7 @@ LED_ORIENTATION = "vertical"
 LED_PIN = 18            # GPIO18 = physical pin 12
 LED_FREQ_HZ = 800000
 LED_DMA = 10
-LED_BRIGHTNESS = 40     # 0-255, low by default
+LED_BRIGHTNESS = 40     # 0-255; runtime master brightness is saved by admin settings
 LED_INVERT = False
 LED_CHANNEL = 0
 # Per-channel output balance for matching the physical strip to chosen colors.

@@ -65,6 +65,84 @@
     updateColorPreview("music-accent-color", "music-accent-preview", "music-accent-value");
   }
 
+  var previewAnimation = 0;
+  function drawMusicPreviews() {
+    var audio = App.state && App.state.audio || {};
+    var bands = Array.isArray(audio.bands) && audio.bands.length === 6
+      ? audio.bands.map(function (value) { return Math.max(0, Math.min(1, Number(value) || 0)); })
+      : [0, 0, 0, 0, 0, 0];
+    var selected = Array.prototype.map.call(document.querySelectorAll("#live-band-controls [data-band]"),
+      function (input) { return input.checked; });
+    var colors = ["#ff2c0c", "#ff7a00", "#ffdc00", "#24ff20", "#00cdff", "#aa20ff"];
+    var eq = $id("music-eq-preview");
+    if (eq) {
+      var ctx = eq.getContext("2d");
+      var width = eq.clientWidth || 360, height = eq.clientHeight || 130;
+      ctx.clearRect(0, 0, width, height);
+      ctx.strokeStyle = "rgba(180,190,220,.16)";
+      for (var row = 1; row <= 4; row++) {
+        var y = height - row * height / 5;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+      }
+      var gap = 7, barWidth = (width - gap * 7) / 6;
+      bands.forEach(function (level, index) {
+        var x = gap + index * (barWidth + gap);
+        var barHeight = Math.max(2, (selected[index] ? level : 0) * (height - 9));
+        ctx.globalAlpha = selected[index] ? 1 : 0.2;
+        ctx.fillStyle = colors[index];
+        ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#9a9ab0";
+        ctx.fillRect(x, height - barHeight - 3, barWidth, 2);
+      });
+    }
+    var strip = $id("music-led-preview");
+    if (strip) {
+      var ctx2 = strip.getContext("2d");
+      var sw = strip.clientWidth || 360, sh = strip.clientHeight || 130;
+      var dpr = window.devicePixelRatio || 1;
+      if (strip.width !== Math.round(sw * dpr) || strip.height !== Math.round(sh * dpr)) {
+        strip.width = Math.round(sw * dpr);
+        strip.height = Math.round(sh * dpr);
+      }
+      ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx2.clearRect(0, 0, sw, sh);
+      var frame = App.state && App.state.music_led_frame;
+      var vertical = window.matchMedia("(orientation: portrait)").matches;
+      var ledCount = frame && frame.length === 60 ? frame.length : 60;
+      var pitch = (vertical ? sh : sw) / ledCount;
+      var radius = Math.max(1, Math.min(vertical ? sw : sh, pitch) * 0.38);
+      ctx2.lineWidth = 1;
+      for (var led = 0; led < 60; led++) {
+        var rgb = frame && frame[led] || [0, 0, 0];
+        var lit = rgb.some(function (channel) { return channel > 0; });
+        var x = vertical ? sw / 2 : pitch * (led + 0.5);
+        var y = vertical ? sh - pitch * (led + 0.5) : sh / 2;
+        ctx2.beginPath();
+        ctx2.arc(x, y, radius, 0, Math.PI * 2);
+        var displayRgb = rgb.map(function (channel) {
+          return Math.max(0, Math.min(255, Math.round(channel)));
+        });
+        var color = "rgb(" + displayRgb.join(",") + ")";
+        ctx2.fillStyle = lit ? color : "#252532";
+        ctx2.globalAlpha = lit ? 1 : 0.86;
+        ctx2.shadowColor = lit ? color : "transparent";
+        ctx2.shadowBlur = 0;
+        ctx2.fill();
+      }
+      ctx2.globalAlpha = 1; ctx2.shadowBlur = 0;
+    }
+    var source = $id("music-preview-source");
+    if (source) {
+      var state = App.state || {};
+      var visualizer = state.music_visualizer || {};
+      var scene = state.state === "music" ? (visualizer.animation || "music") :
+        (state.game && state.game.name ? state.game.name : (state.idle_animation || state.state || "idle"));
+      source.textContent = "Showing " + scene.toString().replace(/_/g, " ");
+    }
+    previewAnimation = requestAnimationFrame(drawMusicPreviews);
+  }
+
   function showScreen(name) {
     var screens = document.querySelectorAll(".screen");
     for (var i = 0; i < screens.length; i++) screens[i].classList.remove("active");
@@ -146,6 +224,7 @@
         if (!response.ok) throw new Error("Arcade server did not respond.");
         return response.json();
       }).then(function (state) {
+        setPollDelay(state.state === "music" ? 125 : 500);
         if (!socket.connected) {
           socket.connected = true;
           setConn(true);
@@ -161,7 +240,14 @@
       });
     }
     poll();
-    setInterval(poll, 500);
+    var pollDelay = 500;
+    var pollTimer = setInterval(poll, pollDelay);
+    function setPollDelay(delay) {
+      if (pollDelay === delay) return;
+      pollDelay = delay;
+      clearInterval(pollTimer);
+      pollTimer = setInterval(poll, pollDelay);
+    }
     return socket;
   }
 
@@ -255,6 +341,10 @@
       if (animationSelect) animationSelect.value = selection.animation || "center_pulse";
       $id("music-live-primary").value = selection.primary_color || "#00e5ff";
       $id("music-live-accent").value = selection.accent_color || "#ff2ea6";
+      var enabledBands = selection.enabled_bands || [true, true, true, true, true, true];
+      document.querySelectorAll("#live-band-controls [data-band]").forEach(function (input) {
+        input.checked = enabledBands[Number(input.dataset.band)] !== false;
+      });
       updateMusicColorPreviews();
       $id("web-mic-controls").hidden = !musicActive;
     }
@@ -753,6 +843,8 @@
         animation: $id("music-animation-select").value,
         primary_color: $id("music-live-primary").value,
         accent_color: $id("music-live-accent").value,
+        enabled_bands: Array.prototype.map.call(
+          document.querySelectorAll("#live-band-controls [data-band]"), function (input) { return input.checked; }),
       };
       musicVisualizerPending = selection;
       fetch("/api/music/visualizer", {
@@ -775,6 +867,7 @@
           App.state.music_visualizer.animation = body.animation;
           App.state.music_visualizer.primary_color = body.primary_color;
           App.state.music_visualizer.accent_color = body.accent_color;
+          App.state.music_visualizer.enabled_bands = body.enabled_bands;
         }
         render();
       }).catch(function (error) {
@@ -791,10 +884,15 @@
         animation: $id("music-animation-select").value,
         primary_color: $id("music-live-primary").value,
         accent_color: $id("music-live-accent").value,
+        enabled_bands: Array.prototype.map.call(
+          document.querySelectorAll("#live-band-controls [data-band]"), function (input) { return input.checked; }),
       };
     }
 
     $id("music-animation-select").addEventListener("change", submitMusicVisualizer);
+    document.querySelectorAll("#live-band-controls [data-band]").forEach(function (input) {
+      input.addEventListener("change", submitMusicVisualizer);
+    });
     ["music-live-primary", "music-live-accent"].forEach(function (id) {
       var picker = $id(id);
       picker.addEventListener("focus", rememberMusicVisualizerDraft);
@@ -884,6 +982,8 @@
           $id("led-color-" + channel).value = value;
           $id("led-color-" + channel + "-value").textContent = value + "%";
         });
+        $id("led-brightness").value = data.led_brightness == null ? 40 : data.led_brightness;
+        $id("led-brightness-value").textContent = $id("led-brightness").value;
         $id("music-sensitivity-value").textContent = Number($id("music-sensitivity").value).toFixed(2) + "×";
         $id("hidden-start").max = data.led_count;
         $id("hidden-end").max = data.led_count;
@@ -930,6 +1030,7 @@
           led_color_red: Number($id("led-color-red").value),
           led_color_green: Number($id("led-color-green").value),
           led_color_blue: Number($id("led-color-blue").value),
+          led_brightness: Number($id("led-brightness").value),
         }),
       }).then(function (response) {
         return response.json().then(function (body) {
@@ -965,6 +1066,9 @@
         $id("led-color-" + channel + "-value").textContent = this.value + "%";
       });
     });
+    $id("led-brightness").addEventListener("input", function () {
+      $id("led-brightness-value").textContent = this.value;
+    });
     ["music-primary-color", "music-accent-color"].forEach(function (id) {
       $id(id).addEventListener("input", updateMusicColorPreviews);
       $id(id).addEventListener("change", updateMusicColorPreviews);
@@ -987,6 +1091,7 @@
 
     wireEvents();
     connect();
+    if (!previewAnimation) previewAnimation = requestAnimationFrame(drawMusicPreviews);
   });
 
   window.addEventListener("pagehide", releaseMic);

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-led-color-preview">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-led-frame-preview">
 </head>
 <body>
   <header class="app-header">
@@ -47,6 +47,7 @@
             <option value="comet">Comet</option>
             <option value="retro_vu">Retro VU meter</option>
             <option value="live_band">Live band spectrum</option>
+            <option value="bpm_trace">BPM latency trace</option>
             <option value="inward_diamonds">Inward diamonds</option>
             <option value="red_shades">Red shades</option>
           </select>
@@ -61,6 +62,24 @@
           <p class="muted">The glowing previews brighten dark colors on screen; the exact RGB values shown are sent to the LEDs.</p>
           <p class="muted">Live Band Spectrum animates six color-coded frequency zones: sub-bass, bass, low mids, mids, high mids, and treble. They respond independently, so kicks and cymbals can move different parts of the strip; it reacts to frequency ranges rather than identifying individual instruments. Retro VU exaggerates volume and drum peaks, with green, yellow, and red zones. Inward diamonds send shapes from both ends toward the center.</p>
           <p class="muted">Primary and accent colors apply to Center pulse, Mirror bars, Comet, and Inward diamonds. Rainbow, Retro VU, Live Band Spectrum, and Red Shades keep their own palettes.</p>
+          <fieldset id="live-band-controls" class="music-band-controls">
+            <legend>Live Band Spectrum · inspect bands</legend>
+            <div class="music-band-options">
+              <label><input type="checkbox" data-band="0" checked> Sub-bass</label>
+              <label><input type="checkbox" data-band="1" checked> Bass</label>
+              <label><input type="checkbox" data-band="2" checked> Low mids</label>
+              <label><input type="checkbox" data-band="3" checked> Mids</label>
+              <label><input type="checkbox" data-band="4" checked> High mids</label>
+              <label><input type="checkbox" data-band="5" checked> Treble</label>
+            </div>
+          </fieldset>
+          <div class="music-preview-grid" aria-label="Live audio and LED previews">
+            <section class="music-preview-panel">
+              <h4>Live mic · graphic EQ</h4>
+              <canvas id="music-eq-preview" width="360" height="130" role="img" aria-label="Live six-band microphone spectrum"></canvas>
+              <div class="music-preview-labels"><span>Sub-bass</span><span>Bass</span><span>Low mids</span><span>Mids</span><span>High mids</span><span>Treble</span></div>
+            </section>
+          </div>
           <p id="web-mic-status" class="muted" role="status" aria-live="polite"></p>
           <button id="mic-queue-btn" class="btn btn-ghost btn-block">USE THIS DEVICE'S MIC</button>
           <button id="mic-start-btn" class="btn btn-primary btn-block" hidden>ALLOW MIC AND VISUALIZE</button>
@@ -96,6 +115,7 @@
             <option value="comet">Comet</option>
             <option value="retro_vu">Retro VU meter</option>
             <option value="live_band">Live band spectrum</option>
+            <option value="bpm_trace">BPM latency trace</option>
             <option value="inward_diamonds">Inward diamonds</option>
             <option value="red_shades">Red shades</option>
           </select>
@@ -109,6 +129,9 @@
           <code class="led-color-value" id="music-accent-value">#FF2EA6</code>
           <h4>Physical LED color calibration</h4>
           <p class="muted">Adjust each channel if strip colors differ from the color picker. Applies globally to every pattern and game.</p>
+          <label for="led-brightness">Hardware brightness <output id="led-brightness-value">40</output></label>
+          <input id="led-brightness" type="range" min="0" max="255" step="1" value="40">
+          <p class="muted">Changes the physical strip immediately and persists across restarts. The emulator remains at theoretical RGB values.</p>
           <label for="led-color-red">Red output <output id="led-color-red-value">100%</output></label>
           <input id="led-color-red" type="range" min="0" max="200" step="1" value="100">
           <label for="led-color-green">Green output <output id="led-color-green-value">100%</output></label>
@@ -192,7 +215,14 @@
     </section>
   </main>
 
-  <script src="/static/js/app.js?v=20261122-bpm-sync"></script>
+  <aside id="led-preview-dock" class="led-preview-dock" aria-label="Live LED strip preview">
+    <div class="led-preview-dock-inner">
+      <div class="led-preview-heading"><strong>LED strip · 60 pixels</strong><span id="music-preview-source" class="muted">Waiting for strip state…</span></div>
+      <canvas id="music-led-preview" width="1200" height="100" role="img" aria-label="Live 60-pixel LED strip preview"></canvas>
+    </div>
+  </aside>
+
+  <script src="/static/js/app.js?v=20261122-led-frame-preview"></script>
   <script src="/static/js/games.js"></script>
   <script src="/static/js/controller.js"></script>
 </body>

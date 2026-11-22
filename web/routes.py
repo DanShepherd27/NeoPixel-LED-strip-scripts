@@ -14,7 +14,12 @@ def register_routes(app, manager, hardware):
 
     @app.route("/api/state")
     def api_state():
-        return jsonify(manager.get_state())
+        state = manager.get_state()
+        if state.get("music_led_frame") is not None:
+            state["music_led_frame"] = [
+                list(pixel) for pixel in hardware.preview_colors(state["music_led_frame"])
+            ]
+        return jsonify(state)
 
     @app.route("/api/games")
     def api_games():

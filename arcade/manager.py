@@ -74,6 +74,11 @@ class ArcadeManager:
         self._music_band_levels = [0.0] * 6
         self._music_band_peaks = [0.0] * 6
         self._music_band_holds = [0.0] * 6
+        self.music_enabled_bands = [True] * 6
+        self._music_bass_flash = 0.0
+        self._bpm_trace_position = 0.0
+        self._bpm_trace_energy = 0.0
+        self._music_led_frame = [(0, 0, 0)] * count
         self.state = ArcadeState.IDLE
         self.players = PlayerManager()
 
@@ -204,10 +209,12 @@ class ArcadeManager:
         # Applied by the hardware; kept here for the admin API to route through.
         return brightness
 
-    def set_music_visualizer(self, animation, sensitivity, primary_color=None, accent_color=None):
+    def set_music_visualizer(self, animation, sensitivity, primary_color=None, accent_color=None,
+                             enabled_bands=None):
         if animation not in (
             "center_pulse", "mirror_bars", "rainbow_wave", "comet",
             "retro_vu", "inward_diamonds", "red_shades", "live_band",
+            "bpm_trace",
         ):
             raise ValueError("Unknown music animation.")
         if not 0.25 <= float(sensitivity) <= 4.0:
@@ -216,6 +223,11 @@ class ArcadeManager:
         accent_color = accent_color or self.music_accent_color
         primary_rgb = _parse_hex_color(primary_color)
         accent_rgb = _parse_hex_color(accent_color)
+        if enabled_bands is None:
+            enabled_bands = self.music_enabled_bands
+        if (not isinstance(enabled_bands, (list, tuple)) or len(enabled_bands) != 6 or
+                any(not isinstance(value, bool) for value in enabled_bands)):
+            raise ValueError("Choose which of the six frequency bands to visualize.")
         with self._lock:
             if animation != self.music_animation:
                 self._retro_vu_peak_position = 0.0
@@ -230,6 +242,7 @@ class ArcadeManager:
             self.music_accent_color = accent_color.upper()
             self._music_primary_rgb = primary_rgb
             self._music_accent_rgb = accent_rgb
+            self.music_enabled_bands = list(enabled_bands)
 
     def handle_input(self, player_id, action):
         """Queue a player input; processed by the render loop next frame."""
@@ -343,6 +356,7 @@ class ArcadeManager:
             elif self.state == ArcadeState.RESULTS:
                 self._update_results(dt)
                 self._render_results(frame, dt)
+            self._music_led_frame = list(frame.pixels)
 
     # -- state updates -------------------------------------------------------
     def _update_idle(self, dt):
@@ -467,6 +481,22 @@ class ArcadeManager:
         if self.music_animation == "live_band":
             self._draw_live_band(frame, bands or [level] * 6, dt)
             return
+        if self.music_animation == "bpm_trace":
+            frame.clear()
+            period = self._music_beat_period
+            if period and self._music_beat_confidence >= 0.25 and self._music_beat_last_onset is not None:
+                elapsed = max(0.0, self._music_beat_clock - self._music_beat_last_onset)
+                phase = (elapsed / period) % 1.0
+                self._bpm_trace_position = (phase * count) % count
+                attack = min(1.0, self._music_beat_pulse * 4.0)
+                self._bpm_trace_energy = max(attack, self._bpm_trace_energy * math.exp(-max(0.0, dt) * 11.0))
+            else:
+                self._bpm_trace_energy *= math.exp(-max(0.0, dt) * 3.0)
+            marker = int(self._bpm_trace_position) % count
+            frame.set(marker, (255, 255, 255))
+            tail = (marker - 1) % count
+            frame.set(tail, (0, int(170 * self._bpm_trace_energy), int(255 * self._bpm_trace_energy)))
+            return
         if self.music_animation in ("center_pulse", "mirror_bars", "comet", "inward_diamonds"):
             # These patterns previously used raw RMS directly, which left
             # their sparse shapes nearly invisible at ordinary listening
@@ -585,6 +615,12 @@ class ArcadeManager:
             (255, 44, 12), (255, 122, 0), (255, 220, 0),
             (36, 255, 32), (0, 205, 255), (170, 32, 255),
         )
+        bands = [value if self.music_enabled_bands[index] else 0.0
+                 for index, value in enumerate(bands)]
+        bass = max(bands[0], bands[1] * 0.92)
+        kick = min(1.0, max(0.0, bass) ** 0.72)
+        self._music_bass_flash = max(kick, self._music_bass_flash * math.exp(-max(0.0, dt) * 5.5))
+        widths = (0.18, 0.16, 0.15, 0.15, 0.16, 0.20)
         for band_index, raw_level in enumerate(bands):
             target = min(1.0, max(0.0, float(raw_level)) * 1.35) ** 0.78
             response = 0.035 if target > self._music_band_levels[band_index] else 0.16
@@ -593,8 +629,8 @@ class ArcadeManager:
             current += (target - current) * blend
             self._music_band_levels[band_index] = current
 
-            start = round(band_index * self.count / 6)
-            end = round((band_index + 1) * self.count / 6)
+            start = round(sum(widths[:band_index]) * self.count)
+            end = round(sum(widths[:band_index + 1]) * self.count)
             segment_size = max(1, end - start)
             capacity = max(1, segment_size - (1 if band_index < 5 else 0))
             lit = int(round(current * capacity))
@@ -619,6 +655,13 @@ class ArcadeManager:
             marker = int(round(peak * capacity)) - 1
             if peak > 0.05 and 0 <= marker < capacity:
                 frame.set(start + marker, (0, 220, 255))
+
+        # Bass is the rhythmic anchor: kicks momentarily energize the whole
+        # one-dimensional strip so they read as full-strip accents.
+        if self._music_bass_flash > 0.04:
+            accent = min(0.34, self._music_bass_flash * 0.30)
+            for index in range(self.count):
+                frame.blend(index, (255, 88, 0), accent)
 
     def _update_tutorial(self, dt):
         steps = self.game_class.tutorial_steps
@@ -724,6 +767,7 @@ class ArcadeManager:
                     "sensitivity": self.music_sensitivity,
                     "primary_color": self.music_primary_color,
                     "accent_color": self.music_accent_color,
+                    "enabled_bands": list(self.music_enabled_bands),
                     "bpm": (
                         int(round(60.0 / self._music_beat_period))
                         if self._music_beat_period and self._music_beat_confidence >= 0.25
@@ -731,6 +775,7 @@ class ArcadeManager:
                     ),
                     "beat_lead_ms": self.music_beat_lead_ms,
                 },
+                "music_led_frame": [list(pixel) for pixel in self._music_led_frame],
                 "pi_audio": self.audio_input.snapshot() if self.audio_input else {
                     "status": "unavailable", "error": "No audio input configured.",
                     "level": 0.0, "peak": 0.0, "clap": False,

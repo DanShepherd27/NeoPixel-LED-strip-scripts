@@ -90,6 +90,26 @@ class LEDHardware:
             self.strip = None
             self.mock = True
 
+    def preview_colors(self, pixels):
+        """Return the same logical pixels with hidden offsets and RGB balance applied."""
+        with self._offset_lock:
+            hidden_start = self.hidden_start
+            hidden_end = self.hidden_end
+            red_gain, green_gain, blue_gain = self.color_balance
+        visible_end = self.count - hidden_end
+        colors = []
+        for index in range(self.count):
+            if index < hidden_start or index >= visible_end or index >= len(pixels):
+                colors.append((0, 0, 0))
+                continue
+            red, green, blue = pixels[index]
+            colors.append((
+                min(255, (red * red_gain + 50) // 100),
+                min(255, (green * green_gain + 50) // 100),
+                min(255, (blue * blue_gain + 50) // 100),
+            ))
+        return colors
+
     def set_hidden_offsets(self, hidden_start, hidden_end):
         """Update the globally hidden LED counts at each physical end."""
         hidden_start = max(0, min(self.count, int(hidden_start)))
