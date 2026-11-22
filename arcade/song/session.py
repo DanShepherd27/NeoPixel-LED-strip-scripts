@@ -2,11 +2,10 @@
 
 import time
 
-from arcade.song.analysis import SONG_AUDIO, SongAnalysis
-from arcade.song.choreography import SongChoreography
+from arcade.song.engine import CueEngine
 from arcade.song.latency import BackgroundMeasurement
-from arcade.song.player import PiAudioPlayer, snap_to_frame
-from arcade.song.timeline import SECTIONS, bar_time, section_at
+from arcade.song.library import load_song
+from arcade.song.player import DEFAULT_FRAME_SECONDS, PiAudioPlayer
 from led.colors import dim
 
 END_PADDING_SECONDS = 1.0
@@ -24,10 +23,13 @@ SYNC_MAX_DRIFT = 0.30       # never wander further than this from the starting l
 
 class SongSession:
     def __init__(self, count, pi_audio, audio_latency_ms=250, audio_device=None,
-                 analysis=None, mic=None, auto_sync=True, calibrate=False):
+                 song=None, mic=None, auto_sync=True, calibrate=False):
         self.pi_audio = pi_audio
-        self.analysis = analysis or SongAnalysis()
-        self.choreography = SongChoreography(count, self.analysis)
+        self.song = song or load_song()
+        self.analysis = self.song.analysis
+        self.sheet = self.song.sheet
+        self.count = count
+        self.choreography = CueEngine(self.sheet, self.analysis, count)
         self.duration = self.choreography.duration
         self.audio_latency = audio_latency_ms / 1000.0
         self._initial_latency = self.audio_latency
@@ -42,7 +44,10 @@ class SongSession:
             self._mic.set_enabled(True)
         self._measurement = None
         self._next_sync = SYNC_FIRST_SECONDS
-        self._player = PiAudioPlayer(SONG_AUDIO, audio_device)
+        mp3 = self.sheet.song.get("mp3", {})
+        frame_seconds = (mp3.get("samples_per_frame", 1152) / mp3.get("sample_rate", 44100)
+                         if mp3 else DEFAULT_FRAME_SECONDS)
+        self._player = PiAudioPlayer(self.song.audio_path, audio_device, frame_seconds)
         self._base = 0.0               # song position when the clock last (re)started
         self._paused_position = None   # frozen position while paused
         self._last_pixels = None
@@ -107,7 +112,7 @@ class SongSession:
         """Jump to ``seconds``; the show and audio continue (or stay paused) from there."""
         if self.calibrating:
             return
-        target = snap_to_frame(max(0.0, min(seconds, self.duration - 1.0)))
+        target = self._player.snap(max(0.0, min(seconds, self.duration - 1.0)))
         if self.paused:
             self._paused_position = target
             self._last_pixels = None
@@ -116,13 +121,14 @@ class SongSession:
 
     def _restart_at(self, position):
         """Restart audio and the show clock so that ``position`` plays now."""
-        target = snap_to_frame(position)
+        target = self._player.snap(position)
         self._player.stop()
         if self.pi_audio:
             self.pi_audio_error = self._player.start(target)
         self._base = target
         self._started = time.monotonic()
-        self.choreography = SongChoreography(self.choreography.count, self.analysis)
+        self.choreography = CueEngine(self.sheet, self.analysis, self.count)
+        self.choreography.seek(target)
         self._measurement = None
         self._next_sync = SYNC_FIRST_SECONDS
 
@@ -178,7 +184,7 @@ class SongSession:
         self.sync_state = "locked" if abs(error) < 0.02 else "adjusting"
 
     def snapshot(self):
-        index, section, _, _ = section_at(self.position)
+        index, section = self.sheet.marker_at(self.position)
         mic_error = None
         if self.sync_enabled and self._mic is not None:
             mic_state = self._mic.snapshot()
@@ -186,13 +192,16 @@ class SongSession:
         return {
             "position": round(min(self.position, self.duration), 2),
             "duration": round(self.duration, 2),
-            "section": section.name,
+            "id": self.song.id,
+            "title": self.song.title,
+            "audio_url": "/api/songs/%s/audio" % self.song.id,
+            "section": section,
             "section_index": index,
             "pi_audio": self.pi_audio,
             "pi_audio_error": self.pi_audio_error or self._player.failure(),
             "paused": self.paused,
-            "sections": [{"name": section.name, "start": round(bar_time(section.start_bar), 2)}
-                         for section in SECTIONS],
+            "sections": [{"name": name, "start": round(start, 2)}
+                         for start, name in self.sheet.markers],
             "calibrating": self.calibrating,
             "calibration_progress": round(min(1.0, self.elapsed / CALIBRATION_SECONDS), 2),
             "latency_ms": self.latency_ms,

@@ -4,14 +4,11 @@ import base64
 import json
 from pathlib import Path
 
-SONG_DIR = Path(__file__).resolve().parents[2] / "assets" / "song"
-SONG_AUDIO = SONG_DIR / "all-i-want-for-christmas-is-you.mp3"
-SONG_ANALYSIS = SONG_DIR / "all-i-want-for-christmas-is-you.analysis.json"
 BAND_CHANNELS = ("sub", "bass", "low_mid", "mid", "high_mid", "high")
 
 
 class SongAnalysis:
-    def __init__(self, path=SONG_ANALYSIS):
+    def __init__(self, path):
         data = json.loads(Path(path).read_text())
         self.frame_rate = data["frame_rate"]
         self.duration = data["duration"]

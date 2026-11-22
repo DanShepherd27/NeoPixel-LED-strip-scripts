@@ -2,7 +2,7 @@
 
 from flask import jsonify, request, send_file, session
 
-from arcade.song.analysis import SONG_AUDIO
+from arcade.song.library import list_songs, load_song
 
 
 def register_music_routes(app, manager):
@@ -22,7 +22,11 @@ def register_music_routes(app, manager):
     def song_start():
         data = request.get_json(silent=True) or {}
         try:
-            started = manager.start_song(pi_audio=data.get("pi_audio", True) is not False)
+            started = manager.start_song(
+                pi_audio=data.get("pi_audio", True) is not False, song_id=data.get("song_id"),
+            )
+        except KeyError:
+            return jsonify({"ok": False, "message": "Unknown song."}), 404
         except Exception:
             app.logger.exception("Could not start the song show")
             return jsonify({"ok": False, "message": "The Pi could not start the song show; see the service log."}), 500
@@ -60,10 +64,17 @@ def register_music_routes(app, manager):
             return jsonify({"ok": False, "message": message}), 409
         return jsonify({"ok": True})
 
-    @app.get("/api/song/audio")
-    def song_audio():
+    @app.get("/api/songs")
+    def songs_list():
+        return jsonify([{key: song[key] for key in ("id", "title", "artist")} for song in list_songs()])
+
+    @app.get("/api/songs/<song_id>/audio")
+    def song_audio(song_id):
+        song = load_song(song_id)
+        if song is None:
+            return jsonify({"ok": False, "message": "Unknown song."}), 404
         # conditional=True enables HTTP range requests so phones can seek.
-        return send_file(SONG_AUDIO, mimetype="audio/mpeg", conditional=True)
+        return send_file(song.audio_path, mimetype="audio/mpeg", conditional=True)
 
     @app.post("/api/music/visualizer")
     def set_music_visualizer():

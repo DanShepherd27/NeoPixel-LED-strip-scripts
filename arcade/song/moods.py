@@ -9,7 +9,7 @@ import math
 import random
 
 from arcade.song.effects import (
-    GOLD, GREEN, ICE, RED, SNOW, WARM, Comets, Sparkles, add, lattice, scaled, segment,
+    GOLD, GREEN, ICE, RED, SNOW, WARM, Sparkles, add, lattice, scaled, segment,
 )
 from led.colors import blend
 
@@ -32,12 +32,11 @@ class Bells:
 
 class Verse:
     """Marching dots: a lattice of lit pixels with dark gaps that steps on every
-    beat; this beat's quarter of the strip flares, and a comet crosses each bar."""
+    beat; this beat's quarter of the strip flares. (Comets are separate cues.)"""
 
     def __init__(self, colors=(RED, WARM), lively=False):
         self.colors = colors
         self.lively = lively
-        self.comets = Comets()
 
     def render(self, frame, ctx):
         pitch, width = (4, 1) if self.lively else (6, 2)
@@ -59,9 +58,6 @@ class Verse:
             if self.lively:
                 level += 0.25 * ctx.offbeat_hit
             frame.pixels[index] = scaled(color, level)
-        if ctx.new_bar and ctx.bar_in_section % 4 == 0:  # a comet only every fourth bar, always upward
-            self.comets.launch(1, 26.0, GOLD, 9 if self.lively else 7, frame.count)
-        self.comets.draw(frame, ctx.dt, 0.8 + 0.2 * ctx.level)
 
 
 class Whisper:

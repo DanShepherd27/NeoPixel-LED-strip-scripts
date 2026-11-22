@@ -58,17 +58,20 @@ and usable without internet after installation.
 
 ## Song light show
 
-"All I Want for Christmas Is You" (`assets/song/`) has a full choreography in
-`arcade/song/`. `tools/analyze_song.py` (run offline, needs numpy) writes
-`*.analysis.json`: 40 Hz loudness/band features plus a beat-tracked tempo
-(150.147 BPM, first beat 0.012 s, beat 0 = downbeat, snare on beats 2/4) and
-per-beat accent strengths. A constant-tempo guess that is 0.2% off drifts half
-a second across the song, so re-run the tool and copy `BPM`/`BEAT_OFFSET` into
-`timeline.py` if the MP3 changes. `timeline.py` also holds bar-based sections
-(inferred from energy/repetition; refine by ear). `rhythm.py` gives moods beat
-envelopes (`hit`, `offbeat_hit`, `stepped`); `moods.py` (calm) and `peaks.py`
-(build/chorus/bridge/finale) draw on them, so every beat is a visible event.
-`choreography.py` crossfades moods and hard-cuts into choruses.
+Every song is a `*.ledcue.json` show file in `assets/song/` (format and
+rationale in `docs/show-format.md`): cues launch named patterns at song
+timecodes (seconds or `bar|beat|tick` through a tempo map), so latency and seeking
+only change the clock, never the file. `cuesheet.py` compiles a show once;
+`engine.py` plays it (tracks, cross-fades, tracking-style `seek`); `patterns.py`
+maps pattern names to `moods.py` (calm) and `peaks.py` (build/chorus/bridge/finale)
+classes, which draw on the beat envelopes in `rhythm.py`; `library.py` lists
+songs. `tools/analyze_song.py` (offline, needs numpy) writes the analysis JSON
+the show references: 40 Hz loudness/band features plus a beat-tracked tempo
+(this song: 150.147 BPM, first beat 0.012 s, beat 0 = downbeat, snare on beats
+2/4). A constant-tempo guess 0.2% off drifts half a second over the song, so
+re-run the tool and update the show's `tempo_map` if the MP3 changes.
+`tools/compile_show.py` builds a show from a DAW-authored MIDI file. Run
+`python -m unittest discover tests` after touching any of this.
 
 `SongSession` owns the clock and Pi playback (`mpg123`; `LED_OUTPUT_AUDIO_DEVICE`,
 default `LED_AUDIO_DEVICE`, selects the ALSA output, e.g.

@@ -6,11 +6,36 @@
   const POLL_LATENCY_SECONDS = 0.03;
   let audio = null;
 
+  function selectedSongId() { return $id("song-select").value || null; }
+
+  function loadSongs() {
+    fetch("/api/songs").then(function (response) { return response.json(); }).then(function (songs) {
+      const select = $id("song-select");
+      select.innerHTML = "";
+      songs.forEach(function (song) {
+        const option = document.createElement("option");
+        option.value = song.id;
+        option.textContent = song.artist ? song.artist + " — " + song.title : song.title;
+        select.appendChild(option);
+      });
+      select.hidden = songs.length < 2;
+      $id("song-description").textContent = songs.length === 1
+        ? select.options[0].textContent + ", choreographed from start to finish."
+        : "Pick a song; every one is choreographed from start to finish.";
+    }).catch(function () {});
+  }
+
   function deviceAudioWanted() { return $id("song-device-audio").checked; }
 
-  function ensureAudio() {
-    if (!audio) {
-      audio = new Audio("/api/song/audio");
+  let audioUrl = "";
+
+  function ensureAudio(url) {
+    const wanted = url || audioUrl;
+    if (!wanted) return audio;
+    if (!audio || audioUrl !== wanted) {  // a different song: load its audio
+      if (audio) audio.pause();
+      audioUrl = wanted;
+      audio = new Audio(wanted);
       audio.preload = "auto";
     }
     return audio;
@@ -28,7 +53,7 @@
 
   function syncDeviceAudio(song, receivedAt) {
     if (!deviceAudioWanted()) return stopDeviceAudio();
-    const player = ensureAudio();
+    const player = ensureAudio(song.audio_url);
     if (song.paused) {  // hold still at the paused position, ready to resume
       player.pause();
       if (Math.abs(player.currentTime - song.position) > 0.05) player.currentTime = song.position;
@@ -92,14 +117,18 @@
       return;
     }
     // Start device audio inside the click so mobile browsers allow it.
-    if (deviceAudioWanted()) ensureAudio().play().then(function () { audio.pause(); }).catch(function () {});
-    post("/api/song/start", { pi_audio: $id("song-pi-audio").checked }).catch(function (error) {
+    if (deviceAudioWanted() && selectedSongId()) {
+      ensureAudio("/api/songs/" + selectedSongId() + "/audio").play()
+        .then(function () { audio.pause(); }).catch(function () {});
+    }
+    post("/api/song/start", { pi_audio: $id("song-pi-audio").checked, song_id: selectedSongId() }).catch(function (error) {
       status.dataset.error = "1";
       status.textContent = error.message;
     });
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    loadSongs();
     $id("song-btn").addEventListener("click", toggle);
     $id("song-device-audio").addEventListener("change", function () {
       if (this.checked && window.App.state && window.App.state.state === "song") {

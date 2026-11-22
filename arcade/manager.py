@@ -17,6 +17,7 @@ from arcade.games import GAMES, game_catalog
 from led.effects import EFFECTS
 from led.web_audio import WebMicQueue
 from arcade.music_rendering import MusicRenderingMixin
+from arcade.song.library import load_song
 from arcade.song.session import SongSession
 
 from config import (
@@ -240,14 +241,17 @@ class ArcadeManager(MusicRenderingMixin):
                 self.state = ArcadeState.IDLE
                 log.info("State -> IDLE (music visualizer stopped)")
 
-    def start_song(self, pi_audio=True):
-        """Start the full-song light show; only possible while idle."""
+    def start_song(self, pi_audio=True, song_id=None):
+        """Start a song's light show; only possible while idle. Raises KeyError for an unknown song."""
         with self._lock:
             if self.state == ArcadeState.SONG:
                 return True
             if self.state != ArcadeState.IDLE:
                 return False
-            self._begin_song(pi_audio, calibrate=False)
+            song = load_song(song_id)
+            if song is None:
+                raise KeyError(song_id)
+            self._begin_song(pi_audio, calibrate=False, song=song)
             return True
 
     def start_song_calibration(self):
@@ -258,13 +262,13 @@ class ArcadeManager(MusicRenderingMixin):
             if self.audio_input is None:
                 return False, "No microphone is configured on the Pi."
             self.song_calibration = {"status": "running"}
-            self._begin_song(True, calibrate=True)
+            self._begin_song(True, calibrate=True, song=load_song())
             return True, None
 
-    def _begin_song(self, pi_audio, calibrate):
+    def _begin_song(self, pi_audio, calibrate, song):
         self._song = SongSession(
             self.count, pi_audio, self.song_audio_latency_ms, OUTPUT_AUDIO_DEVICE,
-            mic=self.audio_input, auto_sync=self.song_auto_sync, calibrate=calibrate,
+            song=song, mic=self.audio_input, auto_sync=self.song_auto_sync, calibrate=calibrate,
         )
         self.state = ArcadeState.SONG
         log.info("State -> SONG (pi_audio=%s, calibrate=%s, error=%s)",

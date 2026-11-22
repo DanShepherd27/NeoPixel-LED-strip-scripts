@@ -42,7 +42,8 @@
         <p id="music-message" class="muted" role="status" aria-live="polite"></p>
         <div id="song-card" class="song-card">
           <h3>🎄 Christmas light show</h3>
-          <p class="muted">Mariah Carey — All I Want for Christmas Is You, choreographed from start to finish.</p>
+          <p id="song-description" class="muted">Choreographed light shows, played from start to finish.</p>
+          <select id="song-select" aria-label="Song" hidden></select>
           <button id="song-btn" class="btn btn-primary btn-block" type="button">PLAY THE SONG SHOW</button>
           <label class="song-option"><input id="song-pi-audio" type="checkbox" checked> Play on the Pi speakers</label>
           <label class="song-option"><input id="song-device-audio" type="checkbox"> Also play on this device</label>
@@ -305,7 +306,7 @@
   <script src="/static/js/admin-settings.js?v=20261122-glitter-interval"></script>
   <script src="/static/js/web-mic.js?v=20261122-modules"></script>
   <script src="/static/js/app.js?v=20261122-live-glitter-controls"></script>
-  <script src="/static/js/song.js?v=20261122-song-player"></script>
+  <script src="/static/js/song.js?v=20261122-song-library"></script>
   <script src="/static/js/song-transport.js?v=20261122-song-player"></script>
   <script src="/static/js/song-sync.js?v=20261122-song-sync"></script>
   <script src="/static/js/games.js?v=20261122-pong-player-color"></script>
