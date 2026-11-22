@@ -219,7 +219,6 @@
       document.querySelectorAll("#live-band-controls [data-band]").forEach(function (input) {
         input.checked = enabledBands[Number(input.dataset.band)] !== false;
       });
-      $id("live-band-controls").hidden = selectedPattern !== "live_band";
       window.MusicPreview.updateColors();
       $id("web-mic-controls").hidden = !musicActive;
     }
@@ -544,7 +543,6 @@
       window.MusicPreview.configurePatternControls(
         "music", pattern, App.state.music_visualizer.band_colors,
       );
-      $id("live-band-controls").hidden = pattern !== "live_band";
       submitMusicVisualizer();
     });
     $id("music-band-color-controls").addEventListener("change", submitMusicVisualizer);
@@ -562,8 +560,15 @@
       picker.addEventListener("blur", function () {
         window.setTimeout(function () {
           if (!musicVisualizerPending) {
-            musicVisualizerDraft = null;
-            render();
+            const visualizer = App.state && App.state.music_visualizer || {};
+            const stateKey = id === "music-live-primary" ? "primary_color" : "accent_color";
+            const committedColor = visualizer[stateKey] || (stateKey === "primary_color" ? "#00e5ff" : "#ff2ea6");
+            if (picker.value.toLowerCase() !== committedColor.toLowerCase()) {
+              submitMusicVisualizer();
+            } else {
+              musicVisualizerDraft = null;
+              render();
+            }
           }
         }, 0);
       });

@@ -152,6 +152,24 @@
         this.dispatchEvent(new Event("input", { bubbles: true }));
         this.dispatchEvent(new Event("change", { bubbles: true }));
       });
+      const row = document.createElement("div");
+      row.className = "range-input-row";
+      slider.parentNode.insertBefore(row, slider);
+      row.appendChild(slider);
+
+      const reset = document.createElement("button");
+      const label = slider.id && document.querySelector('label[for="' + slider.id + '"]');
+      reset.type = "button";
+      reset.className = "range-reset";
+      reset.setAttribute("aria-label", "Reset " + (label ? label.textContent.trim() : "slider") + " to default");
+      reset.title = "Reset to default";
+      reset.textContent = "↺";
+      reset.addEventListener("click", function () {
+        slider.value = slider.defaultValue;
+        slider.dispatchEvent(new Event("input", { bubbles: true }));
+        slider.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      row.appendChild(reset);
     });
 
     loadAdminSettings();

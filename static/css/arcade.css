@@ -209,6 +209,33 @@ input[type="range"] {
   accent-color: var(--neon);
   margin: 10px 0 14px;
 }
+.range-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+.range-input-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.range-reset {
+  flex: 0 0 48px;
+  width: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--bg-card);
+  font-size: 1.35rem;
+  touch-action: manipulation;
+}
+.range-reset:active, .range-reset:focus-visible {
+  color: var(--neon);
+  border-color: var(--neon);
+}
 input[type="password"]:focus, input[type="number"]:focus {
   outline: none;
   border-color: var(--neon);

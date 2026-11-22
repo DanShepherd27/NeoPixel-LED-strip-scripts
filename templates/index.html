@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-ui-refresh">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-eq-reset">
 </head>
 <body>
   <header class="app-header">
@@ -71,7 +71,7 @@
           <p class="muted">Six band spectrum animates color-coded frequency zones: sub-bass, bass, low mids, mids, high mids, and treble. They respond independently, so kicks and cymbals can move different parts of the strip; it reacts to frequency ranges rather than identifying individual instruments. Retro VU exaggerates volume and drum peaks, with green, yellow, and red zones. Inward diamonds send shapes from both ends toward the center.</p>
           <p class="muted">Each pattern shows the color controls it uses. All six band colors are customizable in Six band spectrum.</p>
           <fieldset id="live-band-controls" class="music-band-controls">
-            <legend>Six band spectrum · select bands</legend>
+            <legend>Frequency filter · applies to every pattern</legend>
             <div class="music-band-options">
               <label><input type="checkbox" data-band="0" checked> Sub-bass</label>
               <label><input type="checkbox" data-band="1" checked> Bass</label>
@@ -246,9 +246,9 @@
   </aside>
 
   <script src="/static/js/music-preview.js?v=20261122-ui-refresh"></script>
-  <script src="/static/js/admin-settings.js?v=20261122-ui-refresh"></script>
+  <script src="/static/js/admin-settings.js?v=20261122-eq-reset"></script>
   <script src="/static/js/web-mic.js?v=20261122-modules"></script>
-  <script src="/static/js/app.js?v=20261122-ui-refresh"></script>
+  <script src="/static/js/app.js?v=20261122-color-dismiss"></script>
   <script src="/static/js/games.js"></script>
   <script src="/static/js/controller.js"></script>
 </body>

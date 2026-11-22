@@ -30,6 +30,15 @@ class MusicRenderingMixin(MusicPatternMixin):
             max(0.0, min(1.0, float(value) * self.music_sensitivity))
             for value in bands
         ]
+        enabled = self.music_enabled_bands
+        total_energy = sum(value * value for value in bands)
+        selected_energy = sum(
+            value * value for value, is_enabled in zip(bands, enabled) if is_enabled
+        )
+        filter_gain = math.sqrt(selected_energy / total_energy) if total_energy > 1e-9 else 0.0
+        level *= filter_gain
+        peak *= filter_gain
+        bands = [value if enabled[index] else 0.0 for index, value in enumerate(bands)]
         self._music_phase += dt
         beat_pulse = self._update_music_beat(
             bands, audio.get("latency_ms", 16), dt,
@@ -45,7 +54,7 @@ class MusicRenderingMixin(MusicPatternMixin):
             for index in range(frame.count):
                 frame.blend(index, flash_color, amount)
 
-        if audio.get("clap"):
+        if audio.get("clap") and filter_gain >= 0.25:
             self._music_clap_flash = 0.13
         else:
             self._music_clap_flash = max(0.0, getattr(self, "_music_clap_flash", 0.0) - dt)
