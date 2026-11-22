@@ -40,119 +40,6 @@
 
   function $id(id) { return document.getElementById(id); }
 
-  function updateColorPreview(inputId, previewId, valueId) {
-    var input = $id(inputId);
-    var preview = $id(previewId);
-    var value = $id(valueId);
-    if (!input || !preview || !value) return;
-    var hex = input.value;
-    var channels = [1, 3, 5].map(function (offset) {
-      var channel = parseInt(hex.slice(offset, offset + 2), 16) / 255;
-      // Approximate the extra apparent brightness of an emissive LED against
-      // the dark page. This changes only the preview, never the sent RGB.
-      return Math.round(Math.pow(channel, 0.68) * 255);
-    });
-    var cssColor = "rgb(" + channels.join(", ") + ")";
-    preview.style.backgroundColor = cssColor;
-    preview.style.boxShadow = "0 0 16px rgba(" + channels.join(", ") + ", 0.68), " +
-      "inset 0 0 8px rgba(255, 255, 255, 0.24)";
-    value.textContent = hex.toUpperCase();
-  }
-
-  function updateMusicColorPreviews() {
-    updateColorPreview("music-live-primary", "music-live-primary-preview", "music-live-primary-value");
-    updateColorPreview("music-live-accent", "music-live-accent-preview", "music-live-accent-value");
-    updateColorPreview("music-primary-color", "music-primary-preview", "music-primary-value");
-    updateColorPreview("music-accent-color", "music-accent-preview", "music-accent-value");
-  }
-
-  var previewAnimation = 0;
-  var previewFrameCount = 0;
-  var previewLastDraw = 0;
-  function drawMusicPreviews() {
-    previewAnimation = requestAnimationFrame(drawMusicPreviews);
-    var now = performance.now();
-    // State arrives at 2 Hz; redraw at a modest rate between updates without
-    // repeatedly allocating paths and repainting both canvases at display Hz.
-    if (now - previewLastDraw < 50) return;
-    previewLastDraw = now;
-    var audio = App.state && App.state.audio || {};
-    var bands = Array.isArray(audio.bands) && audio.bands.length === 6
-      ? audio.bands.map(function (value) { return Math.max(0, Math.min(1, Number(value) || 0)); })
-      : [0, 0, 0, 0, 0, 0];
-    var selected = Array.prototype.map.call(document.querySelectorAll("#live-band-controls [data-band]"),
-      function (input) { return input.checked; });
-    var colors = ["#ff2c0c", "#ff7a00", "#ffdc00", "#24ff20", "#00cdff", "#aa20ff"];
-    var eq = $id("music-eq-preview");
-    if (eq) {
-      var ctx = eq.getContext("2d");
-      var width = eq.clientWidth || 360, height = eq.clientHeight || 130;
-      ctx.clearRect(0, 0, width, height);
-      ctx.strokeStyle = "rgba(180,190,220,.16)";
-      for (var row = 1; row <= 4; row++) {
-        var y = height - row * height / 5;
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
-      }
-      var gap = 7, barWidth = (width - gap * 7) / 6;
-      bands.forEach(function (level, index) {
-        var x = gap + index * (barWidth + gap);
-        var barHeight = Math.max(2, (selected[index] ? level : 0) * (height - 9));
-        ctx.globalAlpha = selected[index] ? 1 : 0.2;
-        ctx.fillStyle = colors[index];
-        ctx.fillRect(x, height - barHeight, barWidth, barHeight);
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = "#9a9ab0";
-        ctx.fillRect(x, height - barHeight - 3, barWidth, 2);
-      });
-    }
-    var strip = $id("music-led-preview");
-    if (strip) {
-      var ctx2 = strip.getContext("2d");
-      var sw = strip.clientWidth || 360, sh = strip.clientHeight || 130;
-      var dpr = window.devicePixelRatio || 1;
-      if (strip.width !== Math.round(sw * dpr) || strip.height !== Math.round(sh * dpr)) {
-        strip.width = Math.round(sw * dpr);
-        strip.height = Math.round(sh * dpr);
-      }
-      ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx2.clearRect(0, 0, sw, sh);
-      var frame = App.state && App.state.music_led_frame;
-      var vertical = window.matchMedia("(orientation: portrait)").matches;
-      var reverse = App.previewInvertOrder;
-      var ledCount = frame && frame.length === 60 ? frame.length : 60;
-      var pitch = (vertical ? sh : sw) / ledCount;
-      var radius = Math.max(1, Math.min(vertical ? sw : sh, pitch) * 0.38);
-      ctx2.lineWidth = 1;
-      for (var led = 0; led < 60; led++) {
-        var rgb = frame && frame[led] || [0, 0, 0];
-        var lit = rgb.some(function (channel) { return channel > 0; });
-        var position = (reverse ? 59 - led : led) + 0.5;
-        var x = vertical ? sw / 2 : pitch * position;
-        var y = vertical ? sh - pitch * position : sh / 2;
-        ctx2.beginPath();
-        ctx2.arc(x, y, radius, 0, Math.PI * 2);
-        var displayRgb = rgb.map(function (channel) {
-          return Math.max(0, Math.min(255, Math.round(channel)));
-        });
-        var color = "rgb(" + displayRgb.join(",") + ")";
-        ctx2.fillStyle = lit ? color : "#252532";
-        ctx2.globalAlpha = lit ? 1 : 0.86;
-        ctx2.shadowColor = lit ? color : "transparent";
-        ctx2.shadowBlur = 0;
-        ctx2.fill();
-      }
-      ctx2.globalAlpha = 1; ctx2.shadowBlur = 0;
-    }
-    var source = $id("music-preview-source");
-    if (source) {
-      var state = App.state || {};
-      var visualizer = state.music_visualizer || {};
-      var scene = state.state === "music" ? (visualizer.animation || "music") :
-        (state.game && state.game.name ? state.game.name : (state.idle_animation || state.state || "idle"));
-      source.textContent = "Showing " + scene.toString().replace(/_/g, " ");
-    }
-  }
-
   function showScreen(name) {
     var screens = document.querySelectorAll(".screen");
     for (var i = 0; i < screens.length; i++) screens[i].classList.remove("active");
@@ -357,7 +244,7 @@
       document.querySelectorAll("#live-band-controls [data-band]").forEach(function (input) {
         input.checked = enabledBands[Number(input.dataset.band)] !== false;
       });
-      updateMusicColorPreviews();
+      window.MusicPreview.updateColors();
       $id("web-mic-controls").hidden = !musicActive;
     }
     var orientation = s.led_orientation || "vertical";
@@ -939,8 +826,8 @@
           }
         }, 0);
       });
-      picker.addEventListener("input", updateMusicColorPreviews);
-      picker.addEventListener("change", updateMusicColorPreviews);
+      picker.addEventListener("input", window.MusicPreview.updateColors);
+      picker.addEventListener("change", window.MusicPreview.updateColors);
     });
 
     $id("join-form").addEventListener("submit", function (ev) {
@@ -989,144 +876,7 @@
       setPlayerId(null);
     });
 
-    var loginForm = $id("admin-login-form");
-    var settingsForm = $id("admin-settings-form");
-    var adminMessage = $id("admin-message");
-
-    function showAdminMessage(message) {
-      adminMessage.textContent = message || "";
-    }
-
-    function loadAdminSettings() {
-      fetch("/api/admin/settings").then(function (response) {
-        if (!response.ok) throw new Error("not logged in");
-        return response.json();
-      }).then(function (data) {
-        $id("hidden-start").value = data.hidden_start;
-        $id("hidden-end").value = data.hidden_end;
-        $id("mic-handoff-seconds").value = data.mic_handoff_seconds;
-        $id("music-beat-lead-ms").value = data.music_beat_lead_ms || 0;
-        $id("music-beat-lead-value").textContent = (data.music_beat_lead_ms || 0) + " ms";
-        $id("music-animation").value = data.music_animation || "center_pulse";
-        $id("music-sensitivity").value = data.music_sensitivity || 1;
-        $id("music-primary-color").value = data.music_primary_color || "#00e5ff";
-        $id("music-accent-color").value = data.music_accent_color || "#ff2ea6";
-        updateMusicColorPreviews();
-        ["red", "green", "blue"].forEach(function (channel) {
-          var value = data["led_color_" + channel] == null ? 100 : data["led_color_" + channel];
-          $id("led-color-" + channel).value = value;
-          $id("led-color-" + channel + "-value").textContent = value + "%";
-        });
-        $id("led-brightness").value = data.led_brightness == null ? 40 : data.led_brightness;
-        $id("led-brightness-value").textContent = $id("led-brightness").value;
-        App.previewInvertOrder = data.preview_invert_order === true;
-        $id("preview-invert-order").checked = App.previewInvertOrder;
-        $id("music-sensitivity-value").textContent = Number($id("music-sensitivity").value).toFixed(2) + "×";
-        $id("hidden-start").max = data.led_count;
-        $id("hidden-end").max = data.led_count;
-        loginForm.hidden = true;
-        settingsForm.hidden = false;
-        showAdminMessage("Admin access enabled.");
-      }).catch(function () {
-        loginForm.hidden = false;
-        settingsForm.hidden = true;
-      });
-    }
-
-    loginForm.addEventListener("submit", function (ev) {
-      ev.preventDefault();
-      showAdminMessage("Checking password…");
-      fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: $id("admin-password").value }),
-      }).then(function (response) {
-        return response.json().then(function (body) {
-          if (!response.ok) throw new Error(body.message || "Login failed.");
-          return body;
-        });
-      }).then(loadAdminSettings).catch(function (error) {
-        showAdminMessage(error.message);
-      });
-    });
-
-    settingsForm.addEventListener("submit", function (ev) {
-      ev.preventDefault();
-      fetch("/api/admin/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          hidden_start: Number($id("hidden-start").value),
-          hidden_end: Number($id("hidden-end").value),
-          mic_handoff_seconds: Number($id("mic-handoff-seconds").value),
-          music_animation: $id("music-animation").value,
-          music_sensitivity: Number($id("music-sensitivity").value),
-          music_beat_lead_ms: Number($id("music-beat-lead-ms").value),
-          music_primary_color: $id("music-primary-color").value,
-          music_accent_color: $id("music-accent-color").value,
-          led_color_red: Number($id("led-color-red").value),
-          led_color_green: Number($id("led-color-green").value),
-          led_color_blue: Number($id("led-color-blue").value),
-          led_brightness: Number($id("led-brightness").value),
-          preview_invert_order: $id("preview-invert-order").checked,
-        }),
-      }).then(function (response) {
-        return response.json().then(function (body) {
-          if (!response.ok) throw new Error(body.message || "Could not save settings.");
-          return body;
-        });
-      }).then(function (body) {
-        showAdminMessage("Saved. " + body.hidden_start + " hidden at start, " +
-          body.hidden_end + " hidden at end; microphone handoff " + body.mic_handoff_seconds +
-          " seconds; " + body.music_animation.split("_").join(" ") + " at " +
-          Number(body.music_sensitivity).toFixed(2) + "× sensitivity; colors " +
-          body.music_primary_color + " / " + body.music_accent_color + "; LED balance R/G/B " +
-          body.led_color_red + "% / " + body.led_color_green + "% / " + body.led_color_blue + "%. ");
-        App.previewInvertOrder = body.preview_invert_order === true;
-      }).catch(function (error) {
-        showAdminMessage(error.message);
-      });
-    });
-
-    $id("admin-logout").addEventListener("click", function () {
-      fetch("/api/admin/logout", { method: "POST" }).then(function () {
-        settingsForm.hidden = true;
-        loginForm.hidden = false;
-        $id("admin-password").value = "";
-        showAdminMessage("Logged out.");
-      });
-    });
-
-    $id("music-sensitivity").addEventListener("input", function () {
-      $id("music-sensitivity-value").textContent = Number(this.value).toFixed(2) + "×";
-    });
-    ["red", "green", "blue"].forEach(function (channel) {
-      $id("led-color-" + channel).addEventListener("input", function () {
-        $id("led-color-" + channel + "-value").textContent = this.value + "%";
-      });
-    });
-    $id("led-brightness").addEventListener("input", function () {
-      $id("led-brightness-value").textContent = this.value;
-    });
-    ["music-primary-color", "music-accent-color"].forEach(function (id) {
-      $id(id).addEventListener("input", updateMusicColorPreviews);
-      $id(id).addEventListener("change", updateMusicColorPreviews);
-    });
-
-    $id("music-beat-lead-ms").addEventListener("input", function () {
-      $id("music-beat-lead-value").textContent = this.value + " ms";
-    });
-
-    Array.prototype.forEach.call(document.querySelectorAll('#admin-settings-form input[type="range"]'), function (slider) {
-      slider.addEventListener("dblclick", function (event) {
-        event.preventDefault();
-        this.value = this.defaultValue;
-        this.dispatchEvent(new Event("input", { bubbles: true }));
-        this.dispatchEvent(new Event("change", { bubbles: true }));
-      });
-    });
-
-    loadAdminSettings();
+    window.AdminSettings.init(App);
   }
 
   // Expose a helper for the controller modules.
@@ -1139,7 +889,7 @@
 
     wireEvents();
     connect();
-    if (!previewAnimation) previewAnimation = requestAnimationFrame(drawMusicPreviews);
+    window.MusicPreview.start(App);
   });
 
   window.addEventListener("pagehide", releaseMic);
