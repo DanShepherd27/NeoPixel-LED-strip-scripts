@@ -208,4 +208,8 @@ the kick playing are *drive*, bars without it are *low*. The first stretch is th
 Intro, the last low stretch the Outro, middle low stretches Breakdowns (their last
 bars the Build) and drive stretches after a breakdown Drops (alternating neon and
 acid palettes every 16 bars). The downbeat is where the kick returns after a
-breakdown. The result can be edited like any other show file.
+breakdown. The "club" look is red, black and white only and gives each sound one fixed visual
+(kick wave from the centre, snare blocks at the ends, a bar for the acid/lead line, one
+full-strip flash per 8-bar phrase, a fill of rounds before the next phrase), with no
+randomness and at most three large-area flashes per second. The result can be edited
+like any other show file.

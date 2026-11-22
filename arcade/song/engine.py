@@ -9,11 +9,15 @@ so jumping around a song gives the same picture as playing through it.
 
 import math
 import random
+from collections import deque
 
 from arcade.song.patterns import ONE_SHOTS, create_pattern
 from arcade.song.rhythm import BeatContext
 from led.frame import Frame
 
+FLASH_LIMIT = 3            # large-area flashes allowed in any one second (photosensitivity)
+FLASH_JUMP = 0.3 * 255     # a pixel 'flashes' when it brightens this much in one frame
+FLASH_AREA = 0.25          # ...and a flash is large when a quarter of the strip does so
 REBUILD_FIRE_WINDOW = 0.25   # on seek, restart one-shots launched this recently
 MAX_ONE_SHOT_SECONDS = 30.0
 
@@ -57,9 +61,47 @@ def _composite(dest, src, blend):
                        for d, s in zip(dest.pixels, src.pixels)]
 
 
+class FlashGuard:
+    """Safety net applied to every frame: if a show would start a fourth large-area
+    flash within one second, that frame's brightening is held under the flash
+    threshold (the rise is spread over the next frames instead). Shows are designed to
+    stay under the limit on their own; this only catches what slips through."""
+
+    def __init__(self):
+        self.previous = None
+        self.rising = False
+        self.starts = deque()
+
+    def apply(self, pixels, t):
+        if self.previous is None or t < (self.starts[-1] if self.starts else t):
+            self.previous, self.rising = pixels, False
+            return pixels
+        while self.starts and t - self.starts[0] >= 1.0:
+            self.starts.popleft()
+        jumps = sum(1 for now, before in zip(pixels, self.previous) if max(now) - max(before) >= FLASH_JUMP)
+        large = jumps >= FLASH_AREA * len(pixels)
+        if large and not self.rising:
+            if len(self.starts) >= FLASH_LIMIT:
+                pixels = [self._soften(now, before) for now, before in zip(pixels, self.previous)]
+                large = False
+            else:
+                self.starts.append(t)
+        self.previous, self.rising = pixels, large
+        return pixels
+
+    @staticmethod
+    def _soften(now, before):
+        rise = max(now) - max(before)
+        if rise < FLASH_JUMP:
+            return now
+        keep = (FLASH_JUMP - 1) / rise
+        return tuple(int(b + (n - b) * keep) for n, b in zip(now, before))
+
+
 class CueEngine:
-    def __init__(self, sheet, analysis, count):
+    def __init__(self, sheet, analysis, count, flash_guard=True):
         self.sheet = sheet
+        self.guard = FlashGuard() if flash_guard else None
         self.analysis = analysis
         self.count = count
         self.duration = sheet.duration
@@ -99,6 +141,8 @@ class CueEngine:
         for track in self.tracks:
             self._render_track(track, ctx)
             _composite(frame, track.layer, track.blend)
+        if self.guard is not None:
+            frame.pixels = self.guard.apply(frame.pixels, t)
 
     # -- cue handling --------------------------------------------------------
     def _apply(self, cue, now, rebuilding):

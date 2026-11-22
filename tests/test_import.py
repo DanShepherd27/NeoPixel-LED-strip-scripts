@@ -93,6 +93,21 @@ class GeneratorTests(unittest.TestCase):
                                                                 "analysis": "t.json"}, look))
             self.assertEqual(other.warnings, [])
         self.assertEqual(show["song"]["look"], "club")
+        # The club look is red, black and white only: green equals blue in every pixel.
+        from arcade.song.engine import CueEngine
+        from led.frame import Frame
+        engine, frame, t = CueEngine(sheet, analysis, 60), Frame(60), 0.0
+        while t < analysis.duration:
+            frame.clear()
+            engine.render(frame, t, 0.05)
+            self.assertTrue(all(p[1] == p[2] for p in frame.pixels), "non-red color at %.2fs" % t)
+            t += 0.05
+        # Photosensitivity: no more than three large-area flashes in any second, from the
+        # patterns themselves (the engine's flash guard is switched off here), for both looks.
+        self.assertLessEqual(flash_events_per_second(sheet, analysis), 3)
+        neon = compile_cuesheet(generate_show(analysis, {"id": "t", "title": "T", "audio": "t.mp3",
+                                                         "analysis": "t.json"}, "neon"))
+        self.assertLessEqual(flash_events_per_second(neon, analysis), 3)
 
 
 @unittest.skipIf(np is None, "numpy not installed")
@@ -122,6 +137,46 @@ class WavReaderTests(unittest.TestCase):
     def test_stereo_is_mixed_to_mono(self):
         audio, _ = self.read(self.wav(3, 32, "<f4", [1.0, 0.0, 0.5, 0.5], channels=2))
         np.testing.assert_allclose(audio, [0.5, 0.5])
+
+
+def flash_events_per_second(sheet, analysis, fps=40, guard=False):
+    """Most large-area flashes inside any one-second window.
+
+    A flash starts when at least a quarter of the strip jumps up in intensity by 0.3 or
+    more within one frame (intensity = brightest channel, so saturated red counts fully;
+    photosensitivity guidance treats red flashes as the most provocative)."""
+    from arcade.song.engine import CueEngine
+    from led.frame import Frame
+    engine = CueEngine(sheet, analysis, 60, flash_guard=guard)
+    frame, previous, starts, rising, t = Frame(60), None, [], False, 0.0
+    while t < analysis.duration:
+        frame.clear()
+        engine.render(frame, t, 1.0 / fps)
+        intensity = [max(p) / 255.0 for p in frame.pixels]
+        large = previous is not None and sum(
+            1 for now, before in zip(intensity, previous) if now - before >= 0.3) >= len(intensity) / 4
+        if large and not rising:   # consecutive brightening frames are one flash
+            starts.append(t)
+        previous, rising, t = intensity, large, t + 1.0 / fps
+    return max((sum(1 for s in starts if start <= s < start + 1.0) for start in starts), default=0)
+
+
+class FlashSafetyTests(unittest.TestCase):
+    def test_bundled_christmas_show_stays_under_three_flashes_per_second(self):
+        from arcade.song.library import load_song
+        song = load_song("all-i-want-for-christmas-is-you")
+        self.assertLessEqual(flash_events_per_second(song.sheet, song.analysis), 3)
+
+    def test_guard_holds_back_a_fourth_flash(self):
+        from arcade.song.engine import FlashGuard
+        guard, flashes, previous = FlashGuard(), 0, None
+        for frame in range(40):   # a full-strip strobe at 10 Hz for one second
+            pixels = [(255, 0, 0)] * 60 if frame % 4 == 0 else [(0, 0, 0)] * 60
+            shown = guard.apply(pixels, frame / 40.0)
+            if previous and sum(1 for a, b in zip(shown, previous) if max(a) - max(b) >= 77) >= 15:
+                flashes += 1
+            previous = shown
+        self.assertEqual(flashes, 3)
 
 
 class JobTests(unittest.TestCase):

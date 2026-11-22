@@ -151,7 +151,7 @@ def _resolve_params(raw, presets, palettes):
     for key in ("palette", "colors"):
         if key in params:
             params[key] = _palette(params[key], palettes)
-    for key in ("accent", "color", "flash", "spark", "snare"):
+    for key in ("accent", "color", "core", "flash", "spark", "snare"):
         if key in params:
             params[key] = _color(params[key])
     return pattern, params

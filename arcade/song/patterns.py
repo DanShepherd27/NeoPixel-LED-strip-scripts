@@ -8,6 +8,7 @@ only parameters (palette, speed, ...); no code ever comes from a show file.
 from arcade.song.effects import GOLD, GREEN, RED, WARM, WHITE_HOT, Comets
 from arcade.song.moods import Afterglow, Bells, Verse, Whisper
 from arcade.song.peaks import Build, Chorus, Dream, Finale
+from arcade.song.techno import Accents, Countdown, Field, Lead, Pulse, Shutdown
 
 
 class CometShot:
@@ -48,12 +49,27 @@ PATTERNS = {
     "bells": lambda params: Bells(),
     "verse_dots": _verse,
     "whisper": lambda params: Whisper(),
-    "riser": lambda params: Build(params.get("style", "ice")),
+    "riser": lambda params: Build(params.get("style", "ice"), params.get("beats", 8)),
     "chorus_dots": _chorus,
     "ribbons": lambda params: Dream(params.get("color")),
     "finale": lambda params: Finale(),
     "afterglow": lambda params: Afterglow(tuple(params.get("palette", [WARM, GOLD, RED, GREEN]))),
     "comet": CometShot,
+    # club look (red, black and white)
+    "field": lambda params: Field(params.get("level", 0.15), params.get("breathe", False)),
+    "pulse": lambda params: Pulse(params.get("gain", 1.0), params.get("heavy", False)),
+    "accents": lambda params: Accents(),
+    "countdown": lambda params: Countdown(params.get("beats", 16)),
+    "shutdown": lambda params: Shutdown(params.get("bars", 8)),
+    "lead": lambda params: Lead(params.get("color", (255, 0, 0)), params.get("core", (255, 80, 80)),
+                                params.get("gain", 1.0)),
+    # names used by earlier generated club shows, kept so those files still play
+    "sentinel": lambda params: Pulse(0.5),
+    "drone": lambda params: Field(0.3, True),
+    "alarm": lambda params: Countdown(16),
+    "shockwave": lambda params: Pulse(1.0, params.get("fill", False)),
+    "tracer": lambda params: Field(0.0),
+    "strobe": lambda params: Accents(),
 }
 ONE_SHOTS = {"comet"}
 

@@ -23,23 +23,35 @@ BUILD_BARS = 4
 LONG_DROP_BARS = 16          # long drops switch palette every this many bars
 
 # Looks for generated shows. Every accent is spelled out so no Christmas-warm default
-# leaks into a techno show. "club" is monochrome (white and steel on black); "neon"
-# is colorful (cyan, magenta, acid green).
+# leaks into a techno show. "club" is red, black and white with one fixed meaning per
+# sound (see techno.py); "neon" is colorful (cyan, magenta, acid green). ``roles`` lists, per section role, the layers (track, preset) to run; a drop
+# alternates between its two variants every 16-bar phrase.
 LOOKS = {
     "club": {
-        "palettes": {"intro": ["#8FA3C4", "#4A5A78"], "drop_a": ["#FFFFFF", "#8FA3C4"],
-                     "drop_b": ["#D8E4FF", "#5F7396"], "outro": ["#FFFFFF", "#8FA3C4"]},
+        "palettes": {},
         "presets": {
-            "intro": {"pattern": "verse_dots", "palette": "intro", "accent": "#FFFFFF", "flash": "#FFFFFF"},
-            "breakdown": {"pattern": "ribbons", "color": "#8FA3C4"},
-            "build": {"pattern": "riser", "style": "mono"},
-            "drop_neon": {"pattern": "chorus_dots", "palette": "drop_a", "accent": "#FFFFFF",
-                          "spark": "#FFFFFF", "snare": "#FFFFFF"},
-            "drop_acid": {"pattern": "chorus_dots", "palette": "drop_b", "accent": "#FFFFFF",
-                          "spark": "#D8E4FF", "snare": "#FFFFFF"},
-            "outro": {"pattern": "afterglow", "palette": "outro"},
+            "field_low": {"pattern": "field", "level": 0.10},
+            "field_mid": {"pattern": "field", "level": 0.15},
+            "field_high": {"pattern": "field", "level": 0.25},
+            "field_breathe": {"pattern": "field", "level": 0.32, "breathe": True},
+            "pulse_soft": {"pattern": "pulse", "gain": 0.55},
+            "pulse": {"pattern": "pulse"},
+            "pulse_heavy": {"pattern": "pulse", "heavy": True},
+            "accents": {"pattern": "accents"},
+            "countdown": {"pattern": "countdown"},
+            "shutdown": {"pattern": "shutdown"},
+            "lead": {"pattern": "lead", "core": "#FF5050"},
+            "lead_soft": {"pattern": "lead", "core": "#FF5050", "gain": 0.6},
         },
-        "comet": "#FFFFFF",
+        "roles": {
+            "intro": [[("base", "field_low"), ("fx", "pulse_soft"), ("lead", "lead")]],
+            "breakdown": [[("base", "field_breathe"), ("lead", "lead_soft")]],
+            "build": [[("base", "countdown")]],
+            "outro": [[("base", "shutdown")]],
+            "drop": [[("base", "field_mid"), ("fx", "pulse"), ("flash", "accents"), ("lead", "lead")],
+                     [("base", "field_high"), ("fx", "pulse_heavy"), ("flash", "accents"), ("lead", "lead")]],
+        },
+        "comet": None,
     },
     "neon": {
         "palettes": {"intro": ["#00E5FF", "#7A5CFF"], "drop_a": ["#00E5FF", "#FF2EA6", "#FFFFFF"],
@@ -53,11 +65,19 @@ LOOKS = {
             "drop_acid": {"pattern": "chorus_dots", "palette": "drop_b", "accent": "#FFFFFF",
                           "spark": "#FF2EA6", "snare": "#FFFFFF"},
             "outro": {"pattern": "afterglow", "palette": "outro"},
+            "lead": {"pattern": "lead", "color": "#FF2EA6", "core": "#FFFFFF"},
+        },
+        "roles": {
+            "intro": [[("base", "intro")]], "breakdown": [[("base", "breakdown")]],
+            "build": [[("base", "build")]], "outro": [[("base", "outro")]],
+            "drop": [[("base", "drop_neon"), ("lead", "lead")], [("base", "drop_acid"), ("lead", "lead")]],
         },
         "comet": "#00E5FF",
     },
 }
 DEFAULT_LOOK = "club"
+TRACKS = [{"id": "base", "blend": "replace"}, {"id": "fx", "blend": "add"},
+          {"id": "flash", "blend": "add"}, {"id": "lead", "blend": "add"}]
 
 
 class _Beats:
@@ -153,7 +173,8 @@ def _mean(values):
 
 
 def _sections(runs, bar_levels):
-    """Name each stretch: ``[(name, preset, first_bar, bar_count)]`` (bars from 0)."""
+    """Name each stretch: ``[(name, role, variant, first_bar, bar_count)]`` (bars from 0).
+    ``role`` is intro/breakdown/build/drop/outro; ``variant`` alternates for drops."""
     sections, drops, breakdowns = [], 0, 0
     for index, (state, first, length) in enumerate(runs):
         last = index == len(runs) - 1
@@ -163,26 +184,24 @@ def _sections(runs, bar_levels):
         # The first stretch is the intro; a drive run was split off the second one only
         # when the intro was split from the first drop (two drive runs in a row).
         if index == 0 and (state == "low" or length <= 24 or (len(runs) > 1 and runs[1][0] == "drive")):
-            sections.append(("Intro", "intro", first, length))
+            sections.append(("Intro", "intro", 0, first, length))
         elif fades or (state == "low" and last):
-            sections.append(("Outro", "outro", first, length))
+            sections.append(("Outro", "outro", 0, first, length))
         elif state == "low":
             breakdowns += 1
             build = min(BUILD_BARS, length // 2) if length >= 8 else min(2, length // 2)
-            sections.append(("Breakdown %d" % breakdowns, "breakdown", first, length - build))
+            sections.append(("Breakdown %d" % breakdowns, "breakdown", 0, first, length - build))
             if build:
-                sections.append(("Build %d" % breakdowns, "build", first + length - build, build))
+                sections.append(("Build %d" % breakdowns, "build", 0, first + length - build, build))
         else:
             drops += 1
-            preset = "drop_neon" if drops % 2 else "drop_acid"
-            alternate = "drop_acid" if preset == "drop_neon" else "drop_neon"
             phrase = 0
             for offset in range(0, length, LONG_DROP_BARS):
                 size = min(LONG_DROP_BARS, length - offset)
                 if length - offset - size < MIN_SECTION_BARS and offset + size < length:
                     size = length - offset   # fold a short tail into the last phrase
                 label = "Drop %d" % drops + ("" if length <= LONG_DROP_BARS else " (%d)" % (phrase + 1))
-                sections.append((label, preset if phrase % 2 == 0 else alternate, first + offset, size))
+                sections.append((label, "drop", (drops + phrase) % 2, first + offset, size))
                 phrase += 1
                 if offset + size >= length:
                     break
@@ -206,16 +225,26 @@ def generate_show(analysis, meta, look=DEFAULT_LOOK):
 
     song = dict(meta, duration=round(analysis.duration, 2), audio_offset=0.0,
                 analysis_beat_offset=phase, look=look)
-    cues, markers = [], []
-    for index, (name, preset, first, length) in enumerate(sections):
+    cues, markers, active = [], [], {}
+    for index, (name, role, variant, first, length) in enumerate(sections):
         at = "%d|1|0" % (first + 1)
         markers.append({"at": at, "name": name})
-        cue = {"at": 0.0 if index == 0 else at, "op": "go", "track": "base", "preset": preset}
-        if preset in ("build", "drop_neon", "drop_acid"):
-            cue["cut"] = True
-        cues.append(cue)
-        if preset in ("intro", "breakdown") and length >= 4:
-            cues.append({"at": at, "op": "fire", "track": "sparks", "pattern": "comet", "dir": "up",
+        options = scheme["roles"][role]
+        layers = dict(options[variant % len(options)])
+        for track in sorted(set(active) - set(layers)):   # layers the new section does not use go dark
+            cues.append({"at": at, "op": "stop", "track": track})
+        for track, preset in layers.items():
+            if active.get(track) == preset and role != "build":
+                continue   # the same layer carries on, keeping its bar count and state
+            cue = {"at": 0.0 if index == 0 else at, "op": "go", "track": track, "preset": preset}
+            if role in ("build", "drop"):
+                cue["cut"] = True
+            if preset in ("countdown", "shutdown", "build"):
+                cue.update({"beats": length * BEATS_PER_BAR, "bars": length})
+            cues.append(cue)
+        active = layers
+        if scheme["comet"] and role in ("intro", "breakdown") and length >= 4:
+            cues.append({"at": at, "op": "fire", "track": "fx", "pattern": "comet", "dir": "up",
                          "speed": 26, "tail": 7, "color": scheme["comet"], "every": "4bar",
                          "until": "%d|1|0" % (first + length + 1)})
     return {
@@ -223,6 +252,6 @@ def generate_show(analysis, meta, look=DEFAULT_LOOK):
         "time": {"ppq": 480, "tempo_map": [
             {"at": round(first_bar_time, 4), "bpm": bpm, "beats_per_bar": BEATS_PER_BAR}]},
         "palettes": scheme["palettes"],
-        "tracks": [{"id": "base", "blend": "replace"}, {"id": "sparks", "blend": "add"}],
+        "tracks": TRACKS,
         "presets": scheme["presets"], "markers": markers, "cues": cues,
     }

@@ -19,16 +19,18 @@ BLUE = (20, 90, 255)
 
 
 class Build:
-    """Two-bar riser: a dotted column climbs one step per beat, its gaps closing
-    from every third pixel to every other one as it speeds up to 8ths and 16ths,
-    then it goes dark for a breath right before the chorus lands.
+    """Riser: a dotted column climbs one step per beat, its gaps closing from every third
+    pixel to every other one. The column pulses on the beat; only its tip speeds up to
+    8ths and 16ths (a small area, so the build accelerates without strobing the strip).
+    It goes dark for a breath right before the chorus lands.
 
     ``palette="ice"`` is the pure blue riser out of the whisper; ``"gold"`` heats
     from ice through gold to white and adds sparks (used before the final chorus).
     """
 
-    def __init__(self, palette="ice"):
+    def __init__(self, palette="ice", beats=8):
         self.palette = palette
+        self.beats = max(4, int(beats))
 
     def _color(self, heat, p):
         if self.palette == "mono":   # steel grey climbing to white
@@ -41,17 +43,18 @@ class Build:
     def render(self, frame, ctx):
         p = ctx.progress
         rate = 1 if p < 0.5 else (2 if p < 0.875 else 4)
-        beats_in = p * 8.0  # the build-up is exactly two bars
-        whole = math.floor(beats_in)
-        climbed = (whole + ease_out((beats_in - whole) / 0.12)) / 8.0
+        beats_in = p * self.beats
+        climbed = (math.floor(beats_in) + 1) / self.beats
         height = min(1.0, climbed) ** 1.2 * (frame.count - 1)
+        body = 0.35 + 0.45 * ctx.subdivision_hit(1, 6.0)
         flash = ctx.subdivision_hit(rate, 6.0)
         pitch = 3 if p < 0.6 else 2
-        for index in range(int(height) + 1):
-            if index % pitch:
-                continue
+        lit = [index for index in range(int(height) + 1) if index % pitch == 0]
+        tip = set(lit[-3:])
+        for index in lit:
             heat = index / max(1.0, frame.count - 1)
-            frame.pixels[index] = scaled(self._color(heat, p), 0.35 + 0.65 * flash)
+            level = 0.35 + 0.65 * flash if index in tip else body
+            frame.pixels[index] = scaled(self._color(heat, p), level)
         if self.palette == "gold" and p > 0.5:
             for _ in range(int(1 + 5 * p)):
                 add(frame, random.randrange(frame.count), scaled(WHITE_HOT, 0.6 * flash))

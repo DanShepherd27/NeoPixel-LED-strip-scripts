@@ -42,7 +42,7 @@ class Verse:
 
     def render(self, frame, ctx):
         pitch, width = (4, 1) if self.lively else (6, 2)
-        shift = ctx.stepped(2 if self.lively else 1) * (1 if self.lively else 2)
+        shift = ctx.stepped(1) * 2   # one jump per beat, together with the pop
         voice = max(ctx.bands[2], ctx.bands[3])
         quarter = set(segment(frame, ctx.beat_in_bar))
         for index in range(frame.count):
@@ -57,8 +57,8 @@ class Verse:
             elif ctx.is_backbeat:  # snare: every lit dot flashes, gaps stay black
                 level += 0.45 * ctx.hit
                 color = self.flash
-            if self.lively:
-                level += 0.25 * ctx.offbeat_hit
+            if self.lively and index in quarter:  # the off-beat lifts only the counter
+                level += 0.35 * ctx.offbeat_hit
             frame.pixels[index] = scaled(color, level)
 
 

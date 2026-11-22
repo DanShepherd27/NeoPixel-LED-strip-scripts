@@ -77,7 +77,7 @@ deployed over): `importer.py` runs `analyzer.py` (numpy; mpg123/ffmpeg decode) a
 everyone when ready (`song_imports` in `/api/state`). `showgen.py` is stdlib-only and
 plans dance tracks from kick presence: intro, breakdown, build, drop, outro; the
 tempo grid is the comb fold in `track_beats`, shifted to the kick if the off-beat hats
-dominate. Non-dance music gets one long "drop" with alternating palettes. Run
+dominate. Non-dance music gets one long "drop" with alternating palettes. Two looks: "club" (red, black and white only; `techno.py` gives each sound one fixed visual for the whole song: kick = a wave from the centre paced to reach the ends on the next beat, snare = end blocks on beats 2/4, acid/lead = bar height from the 300 Hz-5 kHz bands, phrase start = the only full-strip flash, phrase fill = rounds from both ends; no randomness; layers on the base/fx/flash/lead tracks) and "neon". Keep large-area flashes (a quarter of the strip brightening by 30% in one frame) at or below 3 per second in every show: tests check the patterns of the Christmas show and both generated looks, and `engine.FlashGuard` holds back any fourth flash in a second as a safety net. Moves that land on a beat must happen in the same frame as the beat's pop (`stepped` is instant by default) so they read as one flash. Run
 `python -m unittest discover tests` after touching any of this.
 
 `SongSession` owns the clock and Pi playback (`mpg123`; `LED_OUTPUT_AUDIO_DEVICE`,
