@@ -237,7 +237,7 @@
         center_pulse: "Center pulse", mirror_bars: "Mirror bars",
         rainbow_wave: "Rainbow wave", comet: "Comet",
         retro_vu: "Retro VU meter", inward_diamonds: "Inward diamonds",
-        red_shades: "Red shades",
+        red_shades: "Red shades", live_band: "Live band spectrum",
       };
       var visualizerStatus = $id("music-visualizer-status");
       if (visualizerStatus) {
@@ -436,12 +436,22 @@
       });
       var source = micContext.createMediaStreamSource(stream);
       micAnalyser = micContext.createAnalyser();
-      micAnalyser.fftSize = 1024;
+      micAnalyser.fftSize = 2048;
+      micAnalyser.minDecibels = -90;
+      micAnalyser.maxDecibels = -20;
+      micAnalyser.smoothingTimeConstant = 0.35;
       source.connect(micAnalyser);
       var samples = new Float32Array(micAnalyser.fftSize);
+      var frequencyData = new Uint8Array(micAnalyser.frequencyBinCount);
+      var frequencyBands = [
+        [40, 150], [150, 300], [300, 600],
+        [600, 1500], [1500, 4000], [4000, 10000],
+      ];
+      var bandGains = [1.55, 1.4, 1.15, 1.05, 1.1, 1.25];
       function sample(now) {
         if (!micAnalyser || !micToken || micRole !== "owner") return;
         micAnalyser.getFloatTimeDomainData(samples);
+        micAnalyser.getByteFrequencyData(frequencyData);
         var squares = 0;
         var peak = 0;
         for (var i = 0; i < samples.length; i++) {
@@ -453,6 +463,23 @@
         if (rms < micNoiseFloor) micNoiseFloor += (rms - micNoiseFloor) * 0.08;
         else if (rms < micNoiseFloor * 2) micNoiseFloor += (rms - micNoiseFloor) * 0.004;
         var level = Math.max(0, Math.min(1, (rms - micNoiseFloor) / Math.max(0.025, micNoiseFloor * 5)));
+        var binHz = micContext.sampleRate / micAnalyser.fftSize;
+        var bands = frequencyBands.map(function (range, bandIndex) {
+          var firstBin = Math.max(1, Math.floor(range[0] / binHz));
+          var lastBin = Math.min(frequencyData.length - 1, Math.ceil(range[1] / binHz));
+          var values = [];
+          for (var bin = firstBin; bin <= lastBin; bin++) {
+            values.push(frequencyData[bin] / 255);
+          }
+          if (!values.length) return 0;
+          values.sort(function (a, b) { return b - a; });
+          var selectedCount = Math.max(1, Math.ceil(values.length * 0.35));
+          var power = 0;
+          for (var vi = 0; vi < selectedCount; vi++) power += values[vi] * values[vi];
+          var bandLevel = Math.sqrt(power / selectedCount);
+          bandLevel = Math.max(0, Math.min(1, (bandLevel - 0.18) / 0.42));
+          return Math.max(0, Math.min(1, Math.pow(bandLevel, 0.8) * bandGains[bandIndex]));
+        });
         var clap = rms > Math.max(0.018, micNoiseFloor * 1.35) && peak > 0.12 &&
           peak / Math.max(0.001, rms) > 3 && now - micLastClap > 160;
         if (clap) micLastClap = now;
@@ -460,7 +487,7 @@
           micLastSend = now;
           fetch("/api/music/mic/audio", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: micToken, level: level, peak: peak, clap: clap }),
+            body: JSON.stringify({ token: micToken, level: level, peak: peak, clap: clap, bands: bands }),
           }).then(function (response) {
             if (response.status === 409) releaseMic();
           }).catch(function () {});

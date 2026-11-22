@@ -63,6 +63,9 @@ class ArcadeManager:
         self._retro_vu_peak_position = 0.0
         self._retro_vu_peak_hold = 0.0
         self._retro_vu_level = 0.0
+        self._music_band_levels = [0.0] * 6
+        self._music_band_peaks = [0.0] * 6
+        self._music_band_holds = [0.0] * 6
         self.state = ArcadeState.IDLE
         self.players = PlayerManager()
 
@@ -190,7 +193,7 @@ class ArcadeManager:
     def set_music_visualizer(self, animation, sensitivity, primary_color=None, accent_color=None):
         if animation not in (
             "center_pulse", "mirror_bars", "rainbow_wave", "comet",
-            "retro_vu", "inward_diamonds", "red_shades",
+            "retro_vu", "inward_diamonds", "red_shades", "live_band",
         ):
             raise ValueError("Unknown music animation.")
         if not 0.25 <= float(sensitivity) <= 4.0:
@@ -204,6 +207,9 @@ class ArcadeManager:
                 self._retro_vu_peak_position = 0.0
                 self._retro_vu_peak_hold = 0.0
                 self._retro_vu_level = 0.0
+                self._music_band_levels = [0.0] * 6
+                self._music_band_peaks = [0.0] * 6
+                self._music_band_holds = [0.0] * 6
             self.music_animation = animation
             self.music_sensitivity = float(sensitivity)
             self.music_primary_color = primary_color.upper()
@@ -341,8 +347,15 @@ class ArcadeManager:
         )
         level = max(0.0, min(1.0, float(audio.get("level", 0.0)) * self.music_sensitivity))
         peak = max(0.0, min(1.0, float(audio.get("peak", 0.0)) * self.music_sensitivity))
+        bands = audio.get("bands", [level] * 6)
+        if not isinstance(bands, (list, tuple)) or len(bands) != 6:
+            bands = [level] * 6
+        bands = [
+            max(0.0, min(1.0, float(value) * self.music_sensitivity))
+            for value in bands
+        ]
         self._music_phase += dt
-        self._draw_music_animation(frame, level, peak, dt)
+        self._draw_music_animation(frame, level, peak, dt, bands)
 
         if audio.get("clap"):
             self._music_clap_flash = 0.13
@@ -359,9 +372,12 @@ class ArcadeManager:
             for index in range(frame.count):
                 frame.blend(index, flash_color, amount)
 
-    def _draw_music_animation(self, frame, level, peak, dt=0.0):
+    def _draw_music_animation(self, frame, level, peak, dt=0.0, bands=None):
         count = self.count
         if not count:
+            return
+        if self.music_animation == "live_band":
+            self._draw_live_band(frame, bands or [level] * 6, dt)
             return
         if self.music_animation in ("center_pulse", "mirror_bars", "comet", "inward_diamonds"):
             # These patterns previously used raw RMS directly, which left
@@ -473,6 +489,48 @@ class ArcadeManager:
             color = tuple(int(channel * strength * pulse_brightness) for channel in color)
             frame.set(half - 1 - offset, color)
             frame.set(half + offset, color)
+
+    def _draw_live_band(self, frame, bands, dt):
+        """Render six frequency bands as independent bars along the 1D strip."""
+        frame.clear()
+        colors = (
+            (255, 44, 12), (255, 122, 0), (255, 220, 0),
+            (36, 255, 32), (0, 205, 255), (170, 32, 255),
+        )
+        for band_index, raw_level in enumerate(bands):
+            target = min(1.0, max(0.0, float(raw_level)) * 1.35) ** 0.78
+            response = 0.035 if target > self._music_band_levels[band_index] else 0.16
+            blend = min(1.0, max(0.0, dt) / response)
+            current = self._music_band_levels[band_index]
+            current += (target - current) * blend
+            self._music_band_levels[band_index] = current
+
+            start = round(band_index * self.count / 6)
+            end = round((band_index + 1) * self.count / 6)
+            segment_size = max(1, end - start)
+            capacity = max(1, segment_size - (1 if band_index < 5 else 0))
+            lit = int(round(current * capacity))
+            if current > 0.035:
+                lit = max(1, lit)
+            for offset in range(min(capacity, lit)):
+                intensity = 0.62 + 0.38 * current
+                color = tuple(int(channel * intensity) for channel in colors[band_index])
+                frame.set(start + offset, color)
+
+            peak = self._music_band_peaks[band_index]
+            if target >= peak:
+                peak = target
+                self._music_band_holds[band_index] = 0.24
+            elif self._music_band_holds[band_index] > 0:
+                self._music_band_holds[band_index] = max(
+                    0.0, self._music_band_holds[band_index] - dt,
+                )
+            else:
+                peak = max(target, peak - max(0.0, dt) * 1.8)
+            self._music_band_peaks[band_index] = peak
+            marker = int(round(peak * capacity)) - 1
+            if peak > 0.05 and 0 <= marker < capacity:
+                frame.set(start + marker, (0, 220, 255))
 
     def _update_tutorial(self, dt):
         steps = self.game_class.tutorial_steps

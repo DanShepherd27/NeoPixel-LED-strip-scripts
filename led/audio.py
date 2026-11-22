@@ -1,8 +1,8 @@
 """Optional microphone capture for the free music visualizer.
 
 Audio is read from ALSA's ``arecord`` command so no Python audio package is
-needed. The worker only computes level/clap features; the central LED renderer
-remains the sole writer to the strip.
+needed. The worker computes level, clap, and coarse frequency-band features;
+the central LED renderer remains the sole writer to the strip.
 """
 
 import logging
@@ -19,6 +19,7 @@ log = logging.getLogger("led.audio")
 class AudioInput:
     SAMPLE_RATE = 16000
     CHUNK_BYTES = 1024
+    BAND_CENTERS_HZ = (80, 180, 360, 900, 2400, 6000)
 
     def __init__(self, device="default"):
         self.device = device or "default"
@@ -31,6 +32,7 @@ class AudioInput:
         self._error = None
         self._level = 0.0
         self._peak = 0.0
+        self._bands = [0.0] * len(self.BAND_CENTERS_HZ)
         self._rms = 0.0
         self._noise_floor = None
         self._clap_until = 0.0
@@ -58,6 +60,7 @@ class AudioInput:
                 self._status = "off"
                 self._level = 0.0
                 self._peak = 0.0
+                self._bands = [0.0] * len(self.BAND_CENTERS_HZ)
                 self._rms = 0.0
                 self._clap_until = 0.0
 
@@ -78,6 +81,7 @@ class AudioInput:
                 "device": self.device,
                 "level": round(self._level, 3),
                 "peak": round(self._peak, 3),
+                "bands": list(self._bands),
                 "noise_floor": round(self._noise_floor or 0.0, 1),
                 "clap": time.monotonic() < self._clap_until,
             }
@@ -144,6 +148,7 @@ class AudioInput:
             self._error = message
             self._level = 0.0
             self._peak = 0.0
+            self._bands = [0.0] * len(self.BAND_CENTERS_HZ)
         if should_log:
             log.error("%s", message)
 
@@ -168,6 +173,12 @@ class AudioInput:
             dynamic_range = max(600.0, floor * 5.0)
             self._level = max(0.0, min(1.0, (rms - floor) / dynamic_range))
             self._peak = max(0.0, min(1.0, (peak - floor) / (floor * 10.0 + 900.0)))
+            band_noise = floor / 32768.0 * 2.0
+            band_range = max(0.025, floor / 32768.0 * 8.0)
+            self._bands = [
+                max(0.0, min(1.0, (magnitude - band_noise) / band_range)) ** 0.75
+                for magnitude in self._frequency_band_amplitudes(samples)
+            ]
             self._rms = rms
 
             is_clap = (
@@ -179,3 +190,31 @@ class AudioInput:
             if is_clap:
                 self._last_clap = now
                 self._clap_until = now + 0.18
+
+    def _frequency_band_amplitudes(self, samples):
+        """Estimate six coarse frequency bands with stdlib Goertzel bins."""
+        if not samples:
+            return [0.0] * len(self.BAND_CENTERS_HZ)
+        normalized = [sample / 32768.0 for sample in samples]
+        amplitudes = []
+        for center in self.BAND_CENTERS_HZ:
+            nearby = (center * 0.85, center, center * 1.15)
+            amplitudes.append(max(
+                self._goertzel_amplitude(normalized, frequency)
+                for frequency in nearby
+            ))
+        return amplitudes
+
+    def _goertzel_amplitude(self, samples, frequency):
+        omega = 2.0 * math.pi * frequency / self.SAMPLE_RATE
+        coefficient = 2.0 * math.cos(omega)
+        previous = previous_two = 0.0
+        for sample in samples:
+            current = sample + coefficient * previous - previous_two
+            previous_two, previous = previous, current
+        power = max(
+            0.0,
+            previous * previous + previous_two * previous_two
+            - coefficient * previous * previous_two,
+        )
+        return 2.0 * math.sqrt(power) / max(1, len(samples))

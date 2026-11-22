@@ -1198,8 +1198,9 @@ home IP address.
 
 Keep the Raspberry Pi as the sole source of truth for arcade/game state and
 the only LED renderer. Capture and analyze microphone audio in the web user's
-browser; send only low-rate normalized level/peak/clap features through Ably,
-never raw audio. The Pi validates microphone ownership/lease messages before
+browser; send only low-rate normalized level/peak/clap and coarse frequency
+band features through Ably, never raw audio. The Pi validates microphone
+ownership/lease messages before
 using features for visualization. Keep any additional browser-to-Pi messages
 limited to what the Vercel-hosted interface needs; do not move game authority
 or LED rendering into Vercel, Ably, or MongoDB Atlas.

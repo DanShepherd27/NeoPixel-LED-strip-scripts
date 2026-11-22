@@ -104,9 +104,10 @@ run `arecord -l` on the Pi and set
 The home screen reports microphone source and capture errors while the mode is
 active. Admin settings control the web microphone handoff interval (15 to
 1800 seconds); it applies when other users are waiting. The music-mode card
-offers seven live-switchable patterns, including a retro VU meter with a
-mostly green bar, yellow upper zone, and small red peak zone; inward-moving
-shapes; and a full-strip Red Shades pattern that uses red-channel shades only.
+offers eight live-switchable patterns, including a six-band Live Band Spectrum
+that animates bass through treble independently, a retro VU meter, inward-moving
+shapes, and a full-strip Red Shades pattern that uses red-channel shades only.
+The band values represent frequency ranges; they do not isolate instruments.
 The music UI lets you set primary and accent colors for general patterns.
 Admin settings save the palette and offer a shared sensitivity slider (0.25x
 to 4x). Patterns stay saturated at high levels, with a restrained magenta

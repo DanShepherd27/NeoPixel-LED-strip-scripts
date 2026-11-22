@@ -171,7 +171,8 @@ def register_api(app, manager, hardware):
     def music_mic_audio():
         data = request.get_json(silent=True) or {}
         if manager.state.value != "music" or not manager.web_mics.update(
-            data.get("token"), data.get("level"), data.get("peak"), data.get("clap")
+            data.get("token"), data.get("level"), data.get("peak"),
+            data.get("clap"), data.get("bands"),
         ):
             return jsonify({"ok": False, "message": "Microphone lease is no longer active."}), 409
         return jsonify({"ok": True})
@@ -240,7 +241,7 @@ def register_api(app, manager, hardware):
             return jsonify({"ok": False, "message": "Microphone handoff must be between 15 and 1800 seconds."}), 400
         if animation_value not in (
             "center_pulse", "mirror_bars", "rainbow_wave", "comet",
-            "retro_vu", "inward_diamonds", "red_shades",
+            "retro_vu", "inward_diamonds", "red_shades", "live_band",
         ):
             return jsonify({"ok": False, "message": "Choose one of the available music animations."}), 400
         sensitivity = float(sensitivity_value)

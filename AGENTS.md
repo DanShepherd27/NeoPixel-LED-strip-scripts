@@ -22,12 +22,14 @@ and usable without internet after installation.
 - Admin LED color balance (`led_color_red/green/blue`) scales each RGB output
   channel globally from 0–200%, applies to all scenes, and persists beside the
   other runtime settings. Defaults are 100% per channel.
-- Free music mode offers seven live-switchable browser UI patterns (center pulse,
-  mirror bars, rainbow wave, comet, retro VU meter, inward diamonds, red shades), prefers
+- Free music mode offers eight live-switchable browser UI patterns (center pulse,
+  mirror bars, rainbow wave, comet, retro VU meter, live band spectrum, inward
+  diamonds, red shades), prefers
   an opted-in browser microphone and falls back to
   microphone PCM from `arecord` via `led/audio.py`; the ALSA device is
-  `LED_AUDIO_DEVICE` (default `default`). Browser audio stays local; only RMS
-  volume/peak/clap features are sent. One browser owns the mic at a time, with
+  `LED_AUDIO_DEVICE` (default `default`). Browser audio stays local; only
+  normalized volume/peak/clap and six frequency-band values are sent. One
+  browser owns the mic at a time, with
   a FIFO queue and admin-configured handoff (`mic_handoff_seconds` in runtime
   settings). Browser mic requires trusted HTTPS on phones; the default LAN
   HTTP address falls back to ALSA. The central renderer remains the sole LED
@@ -39,7 +41,8 @@ and usable without internet after installation.
   to the vertical strip, with a cyan peak marker that holds 500 ms before
   falling. Its playful RMS curve has an 8-10 LED floor; sample peaks only boost
   it when RMS confirms sound, preventing room noise from pinning the meter.
-  Audio features still contain level/peak/clap rather than frequency bins.
+  The Live Band Spectrum uses six coarse frequency bands; these represent
+  ranges and do not isolate individual instruments.
   Keep colors saturated at high levels; the clap flash should not wash the
   strip white.
 - The systemd service runs as root because the current GPIO/DMA setup requires

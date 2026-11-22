@@ -46,6 +46,7 @@
             <option value="rainbow_wave">Rainbow wave</option>
             <option value="comet">Comet</option>
             <option value="retro_vu">Retro VU meter</option>
+            <option value="live_band">Live band spectrum</option>
             <option value="inward_diamonds">Inward diamonds</option>
             <option value="red_shades">Red shades</option>
           </select>
@@ -58,8 +59,8 @@
           <span class="led-color-preview" id="music-live-accent-preview" aria-hidden="true"></span>
           <code class="led-color-value" id="music-live-accent-value">#FF2EA6</code>
           <p class="muted">The glowing previews brighten dark colors on screen; the exact RGB values shown are sent to the LEDs.</p>
-          <p class="muted">Retro VU exaggerates volume and drum peaks for a playful response, with green at the base, yellow through the middle, and red at the top. Its cyan peak marker holds for 500 ms before falling. Inward diamonds send colored shapes from both ends toward the center.</p>
-          <p class="muted">Primary and accent colors apply to Center pulse, Mirror bars, Comet, and Inward diamonds. Rainbow, Retro VU, and Red Shades keep their own palettes.</p>
+          <p class="muted">Live Band Spectrum animates six color-coded frequency zones: sub-bass, bass, low mids, mids, high mids, and treble. They respond independently, so kicks and cymbals can move different parts of the strip; it reacts to frequency ranges rather than identifying individual instruments. Retro VU exaggerates volume and drum peaks, with green, yellow, and red zones. Inward diamonds send shapes from both ends toward the center.</p>
+          <p class="muted">Primary and accent colors apply to Center pulse, Mirror bars, Comet, and Inward diamonds. Rainbow, Retro VU, Live Band Spectrum, and Red Shades keep their own palettes.</p>
           <p id="web-mic-status" class="muted" role="status" aria-live="polite"></p>
           <button id="mic-queue-btn" class="btn btn-ghost btn-block">USE THIS DEVICE'S MIC</button>
           <button id="mic-start-btn" class="btn btn-primary btn-block" hidden>ALLOW MIC AND VISUALIZE</button>
@@ -94,6 +95,7 @@
             <option value="rainbow_wave">Rainbow wave</option>
             <option value="comet">Comet</option>
             <option value="retro_vu">Retro VU meter</option>
+            <option value="live_band">Live band spectrum</option>
             <option value="inward_diamonds">Inward diamonds</option>
             <option value="red_shades">Red shades</option>
           </select>
@@ -187,7 +189,7 @@
     </section>
   </main>
 
-  <script src="/static/js/app.js?v=20261122-led-color-preview"></script>
+  <script src="/static/js/app.js?v=20261122-live-band-spectrum"></script>
   <script src="/static/js/games.js"></script>
   <script src="/static/js/controller.js"></script>
 </body>

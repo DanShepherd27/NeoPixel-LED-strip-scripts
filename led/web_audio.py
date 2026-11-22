@@ -7,10 +7,12 @@ sent to this process for rendering on the LED strip.
 import secrets
 import threading
 import time
+import math
 
 
 class WebMicQueue:
     OWNER_STALE_SECONDS = 8.0
+    BAND_COUNT = 6
 
     def __init__(self, handoff_seconds=120):
         self._lock = threading.RLock()
@@ -20,6 +22,7 @@ class WebMicQueue:
         self._handoff_at = None
         self._level = 0.0
         self._peak = 0.0
+        self._bands = [0.0] * self.BAND_COUNT
         self._clap_until = 0.0
         self._last_update = 0.0
 
@@ -51,10 +54,18 @@ class WebMicQueue:
                 self._handoff_at = None
             return self._client_status_locked(client_id)
 
-    def update(self, token, level, peak, clap):
+    def update(self, token, level, peak, clap, bands=None):
         try:
             level = max(0.0, min(1.0, float(level)))
             peak = max(0.0, min(1.0, float(peak)))
+            if bands is None:
+                bands = [level] * self.BAND_COUNT
+            if not isinstance(bands, (list, tuple)) or len(bands) != self.BAND_COUNT:
+                return False
+            bands = [float(value) for value in bands]
+            if any(not math.isfinite(value) for value in bands):
+                return False
+            bands = [max(0.0, min(1.0, value)) for value in bands]
         except (TypeError, ValueError):
             return False
         with self._lock:
@@ -62,7 +73,7 @@ class WebMicQueue:
             if not self._owner or not secrets.compare_digest(self._owner["token"], str(token or "")):
                 return False
             now = time.monotonic()
-            self._level, self._peak = level, peak
+            self._level, self._peak, self._bands = level, peak, bands
             if bool(clap):
                 self._clap_until = now + 0.18
             self._last_update = now
@@ -82,6 +93,7 @@ class WebMicQueue:
                 "status": "listening" if fresh else "waiting",
                 "level": self._level if fresh else 0.0,
                 "peak": self._peak if fresh else 0.0,
+                "bands": list(self._bands) if fresh else [0.0] * self.BAND_COUNT,
                 "clap": fresh and time.monotonic() < self._clap_until,
                 "owner": self._owner["name"] if self._owner else None,
                 "queued": len(self._waiting),
@@ -93,12 +105,14 @@ class WebMicQueue:
             self._waiting.clear()
             self._handoff_at = None
             self._level = self._peak = 0.0
+            self._bands = [0.0] * self.BAND_COUNT
             self._last_update = self._clap_until = 0.0
 
     def _grant_locked(self, client_id, name):
         self._owner = {"client_id": client_id, "name": name, "token": secrets.token_urlsafe(32)}
         self._handoff_at = None
         self._level = self._peak = 0.0
+        self._bands = [0.0] * self.BAND_COUNT
         self._last_update = self._clap_until = 0.0
 
     def _advance_locked(self):
