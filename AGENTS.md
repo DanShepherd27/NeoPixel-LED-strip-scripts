@@ -80,7 +80,11 @@ with the song's known loudness. Admin "Measure with speaker + mic" plays the
 first 18 s and saves the result; with auto-sync on, the same estimator runs
 every 3 s during playback and nudges latency (max 30 ms/step, +-300 ms) and
 saves it when the song ends. Estimation runs in a background thread so the
-renderer never stalls. Browsers can also stream `/api/song/audio`
+renderer never stalls. Transport (`POST /api/song/control`: pause/resume/seek, UI in
+`static/js/song-transport.js`) restarts the Pi player at the chosen MP3 frame
+(`mpg123 -k`; other players use their start-offset flag), resets the
+choreography and the latency tracker, and holds a dimmed frame while paused.
+Browsers can also stream `/api/song/audio`
 (range-capable); `static/js/song.js` keeps it within 0.25 s of the server position.
 
 ## Architecture and where to change things

@@ -26,6 +26,15 @@ def add_all(frame, color):
         add(frame, index, color)
 
 
+def lattice(index, shift, pitch, width):
+    """Group number if ``index`` is lit in a repeating pattern of ``width`` lit
+    pixels then ``pitch - width`` dark ones (shifted by ``shift``), else None."""
+    slot = index + shift
+    if int(slot) % pitch < width:
+        return int(slot) // pitch
+    return None
+
+
 def segment(frame, beat_in_bar):
     """The quarter of the strip that stands for this beat of the bar."""
     size = frame.count // 4
@@ -56,7 +65,8 @@ class Sparkles:
 class Comets:
     """Bright heads with fading tails that cross the strip."""
 
-    def __init__(self):
+    def __init__(self, quantum=3):
+        self.quantum = quantum  # heads hop this many pixels at a time, for a choppy look
         self.items = []  # [position, direction, speed, color, tail]
 
     def launch(self, direction, speed, color, tail, count):
@@ -71,5 +81,6 @@ class Comets:
                 continue
             for step in range(comet[4]):
                 level = (1.0 - step / comet[4]) ** 2
-                add(frame, int(round(comet[0] - comet[1] * step)),
+                head = int(comet[0] // self.quantum * self.quantum)
+                add(frame, head - comet[1] * step,
                     scaled(comet[3], level * strength))

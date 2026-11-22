@@ -270,6 +270,21 @@ class ArcadeManager(MusicRenderingMixin):
         log.info("State -> SONG (pi_audio=%s, calibrate=%s, error=%s)",
                  pi_audio, calibrate, self._song.pi_audio_error)
 
+    def control_song(self, action, position=None):
+        """Transport controls for the running song: pause, resume or seek."""
+        with self._lock:
+            if self.state != ArcadeState.SONG or self._song is None or self._song.calibrating:
+                return False
+            if action == "pause":
+                self._song.pause()
+            elif action == "resume":
+                self._song.resume()
+            elif action == "seek":
+                self._song.seek(float(position))
+            else:
+                raise ValueError("Unknown song control.")
+            return True
+
     def stop_song(self):
         with self._lock:
             self._stop_song_session()

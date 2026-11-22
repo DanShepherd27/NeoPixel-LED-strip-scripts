@@ -29,6 +29,11 @@
   function syncDeviceAudio(song, receivedAt) {
     if (!deviceAudioWanted()) return stopDeviceAudio();
     const player = ensureAudio();
+    if (song.paused) {  // hold still at the paused position, ready to resume
+      player.pause();
+      if (Math.abs(player.currentTime - song.position) > 0.05) player.currentTime = song.position;
+      return;
+    }
     const age = (performance.now() - receivedAt) / 1000 + POLL_LATENCY_SECONDS;
     const expected = Math.min(song.duration, song.position + age);
     if (Math.abs(player.currentTime - expected) > DRIFT_LIMIT_SECONDS) {
@@ -50,7 +55,6 @@
     const button = $id("song-btn");
     button.textContent = song ? "STOP THE SONG SHOW" : "PLAY THE SONG SHOW";
     button.disabled = !song && state.state !== "idle";
-    $id("song-progress").hidden = !song;
     if (!song) {
       stopDeviceAudio();
       if (audio) audio.currentTime = 0;
@@ -59,10 +63,9 @@
       }
       return;
     }
-    $id("song-progress-bar").style.width = (100 * song.position / song.duration) + "%";
     $id("song-status").textContent = song.pi_audio_error || (song.calibrating
       ? "Measuring speaker delay with the microphone…"
-      : "Now: " + song.section + syncSummary(song));
+      : (song.paused ? "Paused · " : "Now: ") + song.section + syncSummary(song));
     syncDeviceAudio(song, receivedAt);
   }
 
@@ -107,4 +110,11 @@
     });
     window.App.socket.on("state", render);
   });
+
+  // Lets the transport controls move this device's audio immediately.
+  window.SongAudio = {
+    jump: function (seconds) {
+      if (audio && deviceAudioWanted()) audio.currentTime = seconds;
+    },
+  };
 })();

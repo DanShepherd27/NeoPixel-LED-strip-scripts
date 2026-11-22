@@ -9,7 +9,7 @@ import math
 import random
 
 from arcade.song.effects import (
-    GOLD, GREEN, ICE, RED, SNOW, WARM, Comets, Sparkles, add, add_all, scaled, segment,
+    GOLD, GREEN, ICE, RED, SNOW, WARM, Comets, Sparkles, add, lattice, scaled, segment,
 )
 from led.colors import blend
 
@@ -25,14 +25,14 @@ class Bells:
         if ctx.new_eighth and random.random() < odds:
             for _ in range(1 + int(3 * ctx.progress)):
                 self.sparkles.spawn(random.randrange(frame.count), random.choice((WARM, GOLD, SNOW)))
-        glow = 0.03 + 0.10 * ctx.progress
-        for index in range(frame.count):
-            frame.pixels[index] = scaled(GOLD, glow * (0.4 + 0.6 * ctx.hit))
+        if ctx.new_beat:  # a single warm bell glint marks each beat
+            self.sparkles.spawn(random.randrange(frame.count), GOLD, 0.8)
         self.sparkles.draw(frame, ctx.dt, 0.6 + 0.4 * ctx.progress)
 
 
 class Verse:
-    """Warm candy stripes that step on every beat, with a comet each bar."""
+    """Marching dots: a lattice of lit pixels with dark gaps that steps on every
+    beat; this beat's quarter of the strip flares, and a comet crosses each bar."""
 
     def __init__(self, colors=(RED, WARM), lively=False):
         self.colors = colors
@@ -40,44 +40,47 @@ class Verse:
         self.comets = Comets()
 
     def render(self, frame, ctx):
-        per_beat = 2 if self.lively else 1
-        shift = ctx.stepped(per_beat) * (2 if self.lively else 3)
+        pitch, width = (4, 1) if self.lively else (6, 2)
+        shift = ctx.stepped(2 if self.lively else 1) * (1 if self.lively else 2)
         voice = max(ctx.bands[2], ctx.bands[3])
-        base = 0.10 + 0.10 * voice
+        quarter = set(segment(frame, ctx.beat_in_bar))
         for index in range(frame.count):
-            stripe = int((index + shift) // 6) % 2
-            frame.pixels[index] = scaled(self.colors[stripe], base)
-        # The beat counter: this beat's quarter of the strip snaps on and fades.
-        for index in segment(frame, ctx.beat_in_bar):
-            stripe = int((index + shift) // 6) % 2
-            color = GOLD if ctx.is_downbeat else self.colors[stripe]
-            add(frame, index, scaled(color, 0.75 * ctx.hit))
-        if ctx.is_backbeat:  # the snare: a whole-strip warm lift
-            add_all(frame, scaled(WARM, 0.22 * ctx.hit))
-        if self.lively:
-            add_all(frame, scaled(self.colors[0], 0.18 * ctx.offbeat_hit))
-        if ctx.new_bar:
-            direction = 1 if ctx.bar_in_section % 2 == 0 else -1
-            self.comets.launch(direction, 38.0, GOLD, 9 if self.lively else 7, frame.count)
+            group = lattice(index, shift, pitch, width)
+            if group is None:
+                continue
+            color = self.colors[group % 2]
+            level = 0.22 + 0.15 * voice
+            if index in quarter:  # the beat counter
+                color = GOLD if ctx.is_downbeat else color
+                level += 0.75 * ctx.hit
+            elif ctx.is_backbeat:  # snare: every lit dot flashes, gaps stay black
+                level += 0.45 * ctx.hit
+                color = WARM
+            if self.lively:
+                level += 0.25 * ctx.offbeat_hit
+            frame.pixels[index] = scaled(color, level)
+        if ctx.new_bar and ctx.bar_in_section % 4 == 0:  # a comet only every fourth bar, always upward
+            self.comets.launch(1, 26.0, GOLD, 9 if self.lively else 7, frame.count)
         self.comets.draw(frame, ctx.dt, 0.8 + 0.2 * ctx.level)
 
 
 class Whisper:
-    """The quiet "make my wish come true" moment: icy shimmer and a star."""
+    """The quiet "make my wish come true" moment: a few icy twinkles in the dark
+    and a golden star that glows on each beat."""
 
     def __init__(self):
         self.phases = [random.uniform(0, math.tau) for _ in range(120)]
 
     def render(self, frame, ctx):
-        breathe = 0.55 + 0.45 * math.sin(ctx.bar_position * math.pi * 2 - math.pi / 2)
         for index in range(frame.count):
-            shimmer = 0.5 + 0.5 * math.sin(ctx.t * 1.7 + self.phases[index])
-            color = blend(ICE, SNOW, shimmer * 0.6)
-            frame.pixels[index] = scaled(color, 0.03 + 0.10 * shimmer * breathe)
+            shimmer = 0.5 + 0.5 * math.sin(ctx.t * 1.3 + self.phases[index])
+            if shimmer > 0.86 and index % 3 == 0:  # roughly one lit pixel in ten
+                color = blend(ICE, SNOW, shimmer)
+                frame.pixels[index] = scaled(color, (shimmer - 0.86) * 5.0 * 0.5)
         star = 0.40 + 0.25 * max(ctx.bands[3], ctx.bands[4]) + 0.30 * ctx.hit
         for offset in range(5):
-            add(frame, frame.count - 1 - offset, scaled(GOLD, star * (1 - offset * 0.18)))
-        add_all(frame, scaled(SNOW, 0.05 * ctx.hit))
+            if offset % 2 == 0:  # the star is dotted too: gold, dark, gold, dark, gold
+                add(frame, frame.count - 1 - offset, scaled(GOLD, star))
 
 
 class Afterglow:
@@ -92,7 +95,4 @@ class Afterglow:
             for _ in range(2):
                 self.sparkles.spawn(random.randrange(frame.count),
                                     random.choice((WARM, GOLD, RED, GREEN)))
-        for index in range(frame.count):
-            frame.pixels[index] = scaled(GOLD, 0.04 * fade)
-        add_all(frame, scaled(GOLD, 0.10 * ctx.hit * fade))
         self.sparkles.draw(frame, ctx.dt, 0.3 + 0.7 * fade)

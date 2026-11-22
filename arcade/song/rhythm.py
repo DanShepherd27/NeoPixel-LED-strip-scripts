@@ -59,7 +59,7 @@ class BeatContext:
         """Envelope that fires ``per_beat`` times per beat (2 = 8ths, 4 = 16ths)."""
         return math.exp(-((self.beat * per_beat) % 1.0) * decay)
 
-    def stepped(self, per_beat=1.0, snap=0.3):
+    def stepped(self, per_beat=1.0, snap=0.12):
         """Beat-quantized counter: jumps one unit per ``1/per_beat`` beat, easing
         into place over the first ``snap`` of each step so motion lands ON the beat."""
         position = self.beat * per_beat

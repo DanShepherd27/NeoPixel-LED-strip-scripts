@@ -8,15 +8,29 @@ import threading
 
 log = logging.getLogger("arcade.song.player")
 
-# (executable, base arguments, function turning an ALSA device into arguments),
+# One MP3 frame: seeking with mpg123 works in whole frames (1152 samples at 44.1 kHz).
+FRAME_SECONDS = 1152 / 44100
+
+
+def snap_to_frame(seconds):
+    """The nearest earlier point every player can start from exactly."""
+    return int(max(0.0, seconds) / FRAME_SECONDS) * FRAME_SECONDS
+
+
+# (executable, base arguments, ALSA device -> arguments, start offset -> arguments),
 # in order of preference. ffplay has no ALSA device option, so it uses the
 # SDL environment instead (see PiAudioPlayer.start).
 PLAYERS = (
-    ("mpg123", ["-q"], lambda device: ["-a", device]),
-    ("mpv", ["--no-video", "--really-quiet"], lambda device: ["--audio-device=alsa/" + device]),
-    ("cvlc", ["--play-and-exit", "--quiet"], lambda device: ["--alsa-audio-device", device]),
-    ("mplayer", ["-really-quiet"], lambda device: ["-ao", "alsa:device=" + device.replace(":", "=")]),
-    ("ffplay", ["-nodisp", "-autoexit", "-loglevel", "quiet"], lambda device: []),
+    ("mpg123", ["-q"], lambda device: ["-a", device],
+     lambda seconds: ["-k", str(round(seconds / FRAME_SECONDS))]),
+    ("mpv", ["--no-video", "--really-quiet"], lambda device: ["--audio-device=alsa/" + device],
+     lambda seconds: ["--start=%.3f" % seconds]),
+    ("cvlc", ["--play-and-exit", "--quiet"], lambda device: ["--alsa-audio-device", device],
+     lambda seconds: ["--start-time=%.3f" % seconds]),
+    ("mplayer", ["-really-quiet"], lambda device: ["-ao", "alsa:device=" + device.replace(":", "=")],
+     lambda seconds: ["-ss", "%.3f" % seconds]),
+    ("ffplay", ["-nodisp", "-autoexit", "-loglevel", "quiet"], lambda device: [],
+     lambda seconds: ["-ss", "%.3f" % seconds]),
 )
 
 
@@ -28,12 +42,12 @@ def output_device(device):
 
 
 def find_player():
-    for name, args, device_args in PLAYERS:
+    for name, args, device_args, offset_args in PLAYERS:
         if name == "cvlc" and os.geteuid() == 0:
             continue  # VLC refuses to run as root, and the service runs as root
         path = shutil.which(name)
         if path:
-            return name, path, args, device_args
+            return name, path, args, device_args, offset_args
     return None
 
 
@@ -44,12 +58,15 @@ class PiAudioPlayer:
         self._process = None
         self.last_error = None
 
-    def start(self):
-        """Start playback; return an error message, or None on success."""
+    def start(self, offset=0.0):
+        """Start playback at ``offset`` seconds (see snap_to_frame); return an
+        error message, or None on success."""
         player = find_player()
         if player is None:
             return "No audio player found on the Pi. Install one: sudo apt install mpg123"
-        name, path, args, device_args = player
+        name, path, args, device_args, offset_args = player
+        if offset > 0:
+            args = args + offset_args(offset)
         env = None
         if self.device:
             args = args + device_args(self.device)

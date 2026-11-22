@@ -38,6 +38,19 @@ def register_music_routes(app, manager):
         manager.stop_song()
         return jsonify({"ok": True})
 
+    @app.post("/api/song/control")
+    def song_control():
+        data = request.get_json(silent=True) or {}
+        action = data.get("action")
+        position = data.get("position")
+        if action not in ("pause", "resume", "seek"):
+            return jsonify({"ok": False, "message": "Choose pause, resume or seek."}), 400
+        if action == "seek" and (type(position) not in (int, float) or position < 0):
+            return jsonify({"ok": False, "message": "Seek needs a position in seconds."}), 400
+        if not manager.control_song(action, position):
+            return jsonify({"ok": False, "message": "The song show is not playing."}), 409
+        return jsonify({"ok": True})
+
     @app.post("/api/song/calibrate")
     def song_calibrate():
         if not session.get("is_admin"):

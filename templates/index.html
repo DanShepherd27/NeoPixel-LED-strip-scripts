@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-song-show">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-song-player">
 </head>
 <body>
   <header class="app-header">
@@ -46,7 +46,17 @@
           <button id="song-btn" class="btn btn-primary btn-block" type="button">PLAY THE SONG SHOW</button>
           <label class="song-option"><input id="song-pi-audio" type="checkbox" checked> Play on the Pi speakers</label>
           <label class="song-option"><input id="song-device-audio" type="checkbox"> Also play on this device</label>
-          <div id="song-progress" class="song-progress" hidden><span id="song-progress-bar"></span></div>
+          <div id="song-player" class="song-player" hidden>
+            <div class="song-transport">
+              <button id="song-back" class="btn" type="button" aria-label="Back 10 seconds">⏪ 10s</button>
+              <button id="song-pause" class="btn btn-accent" type="button">⏸ PAUSE</button>
+              <button id="song-forward" class="btn" type="button" aria-label="Forward 10 seconds">10s ⏩</button>
+            </div>
+            <input id="song-seek" type="range" min="0" max="242" step="1" value="0" aria-label="Song position">
+            <div class="song-times"><span id="song-time">0:00</span><span id="song-total">0:00</span></div>
+            <label for="song-section-select">Jump to</label>
+            <select id="song-section-select"><option value="">Choose a section…</option></select>
+          </div>
           <p id="song-status" class="muted" role="status" aria-live="polite"></p>
         </div>
         <p id="music-visualizer-status" class="muted"></p>
@@ -295,7 +305,8 @@
   <script src="/static/js/admin-settings.js?v=20261122-glitter-interval"></script>
   <script src="/static/js/web-mic.js?v=20261122-modules"></script>
   <script src="/static/js/app.js?v=20261122-live-glitter-controls"></script>
-  <script src="/static/js/song.js?v=20261122-song-sync"></script>
+  <script src="/static/js/song.js?v=20261122-song-player"></script>
+  <script src="/static/js/song-transport.js?v=20261122-song-player"></script>
   <script src="/static/js/song-sync.js?v=20261122-song-sync"></script>
   <script src="/static/js/games.js?v=20261122-pong-player-color"></script>
   <script src="/static/js/controller.js?v=20261122-pong-player-color"></script>

@@ -21,20 +21,20 @@ def bar_time(bar):
     return BEAT_OFFSET + bar * BAR
 
 
-# ``cut`` sections replace the previous look instantly (the chorus "drop")
-# instead of cross-fading.
+# ``cut`` sections replace the previous look instantly (build-ups and the
+# chorus "drop") instead of cross-fading, so no other effect blends in.
 SECTIONS = (
     Section("Sleigh bells", "bells", 0, 4, False),
     Section("Verse 1", "verse", 4, 20, False),
     Section("Rising hope", "rising", 20, 28, False),
     Section("Whisper", "whisper", 28, 32, False),
-    Section("Build-up", "build", 32, 34, False),
+    Section("Build-up", "build", 32, 34, True),
     Section("Chorus 1", "chorus", 34, 52, True),
     Section("Verse 2", "verse_green", 52, 64, False),
     Section("Chorus 2", "chorus", 64, 80, True),
     Section("Verse 3", "rising", 80, 92, False),
     Section("Dream", "dream", 92, 106, False),
-    Section("Build-up", "build", 106, 108, False),
+    Section("Build-up", "build_gold", 106, 108, True),
     Section("Final chorus", "chorus_gold", 108, 124, True),
     Section("Finale", "finale", 124, 136, False),
     Section("Afterglow", "afterglow", 136, 10_000, False),

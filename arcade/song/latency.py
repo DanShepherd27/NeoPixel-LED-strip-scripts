@@ -60,12 +60,13 @@ def _correlation(a, b):
     return dot / norm if norm > 1e-12 else 0.0
 
 
-def estimate_latency(history, origin, analysis, window, lag_range):
+def estimate_latency(history, origin, analysis, window, lag_range, song_offset=0.0):
     """Find the latency (seconds) that best aligns the song with the microphone.
 
     ``history`` holds (arrival, rms, seconds) mic chunks; ``origin`` is the
     monotonic time the song clock started; ``window`` is the (start, end)
-    seconds after origin to compare; ``lag_range`` the latencies to test.
+    seconds after origin to compare; ``lag_range`` the latencies to test;
+    ``song_offset`` the song position the clock started from (after a seek).
     """
     steps = int(round(GRID / LAG_STEP))
     first = round(window[0] / LAG_STEP) * LAG_STEP
@@ -78,7 +79,7 @@ def estimate_latency(history, origin, analysis, window, lag_range):
             for k in range(int(round((lag_range[1] - lag_range[0]) / LAG_STEP)) + 1)]
     reference = analysis.level_series(
         LAG_STEP, int((window[1] - lag_range[0]) / LAG_STEP) + steps + 2,
-        first=first - lag_range[1] - LAG_STEP,
+        first=song_offset + first - lag_range[1] - LAG_STEP,
     )
     base = int(round((lag_range[1] + LAG_STEP) / LAG_STEP))
     scores = []
@@ -110,10 +111,10 @@ def estimate_latency(history, origin, analysis, window, lag_range):
 class BackgroundMeasurement:
     """Runs estimate_latency off the render thread; poll for the result."""
 
-    def __init__(self, history, origin, analysis, window, lag_range):
+    def __init__(self, history, origin, analysis, window, lag_range, song_offset=0.0):
         self.result = None
         self._thread = threading.Thread(
-            target=self._run, args=(history, origin, analysis, window, lag_range),
+            target=self._run, args=(history, origin, analysis, window, lag_range, song_offset),
             name="latency-measurement", daemon=True,
         )
         self._thread.start()

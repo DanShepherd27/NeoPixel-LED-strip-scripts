@@ -5,8 +5,9 @@ import time
 from arcade.song.analysis import SONG_AUDIO, SongAnalysis
 from arcade.song.choreography import SongChoreography
 from arcade.song.latency import BackgroundMeasurement
-from arcade.song.player import PiAudioPlayer
-from arcade.song.timeline import section_at
+from arcade.song.player import PiAudioPlayer, snap_to_frame
+from arcade.song.timeline import SECTIONS, bar_time, section_at
+from led.colors import dim
 
 END_PADDING_SECONDS = 1.0
 CALIBRATION_SECONDS = 18.0
@@ -42,6 +43,9 @@ class SongSession:
         self._measurement = None
         self._next_sync = SYNC_FIRST_SECONDS
         self._player = PiAudioPlayer(SONG_AUDIO, audio_device)
+        self._base = 0.0               # song position when the clock last (re)started
+        self._paused_position = None   # frozen position while paused
+        self._last_pixels = None
         if pi_audio:
             self.pi_audio_error = self._player.start()
         self._started = time.monotonic()  # the clock "latency" is measured from
@@ -51,9 +55,15 @@ class SongSession:
         return time.monotonic() - self._started
 
     @property
+    def paused(self):
+        return self._paused_position is not None
+
+    @property
     def position(self):
         """Seconds of the song being heard, allowing for audio start-up delay."""
-        return max(0.0, self.elapsed - (self.audio_latency if self.pi_audio else 0.0))
+        if self.paused:
+            return self._paused_position
+        return self._base + max(0.0, self.elapsed - (self.audio_latency if self.pi_audio else 0.0))
 
     @property
     def latency_ms(self):
@@ -69,11 +79,52 @@ class SongSession:
         """Per-frame housekeeping: drive calibration and live latency tracking."""
         if self.calibrating:
             self._update_calibration()
-        elif self._mic is not None:
+        elif self._mic is not None and not self.paused:
             self._update_auto_sync()
 
     def render(self, frame, dt):
+        if self.paused:  # hold the last picture, dimmed, so pausing is obvious
+            if self._last_pixels:
+                frame.pixels = [dim(pixel, 0.3) for pixel in self._last_pixels]
+            return
         self.choreography.render(frame, self.position, dt)
+        self._last_pixels = list(frame.pixels)
+
+    # -- transport controls --------------------------------------------------
+    def pause(self):
+        if self.paused or self.calibrating:
+            return
+        self._paused_position = self.position
+        self._player.stop()
+
+    def resume(self):
+        if not self.paused:
+            return
+        self._restart_at(self._paused_position)
+        self._paused_position = None
+
+    def seek(self, seconds):
+        """Jump to ``seconds``; the show and audio continue (or stay paused) from there."""
+        if self.calibrating:
+            return
+        target = snap_to_frame(max(0.0, min(seconds, self.duration - 1.0)))
+        if self.paused:
+            self._paused_position = target
+            self._last_pixels = None
+        else:
+            self._restart_at(target)
+
+    def _restart_at(self, position):
+        """Restart audio and the show clock so that ``position`` plays now."""
+        target = snap_to_frame(position)
+        self._player.stop()
+        if self.pi_audio:
+            self.pi_audio_error = self._player.start(target)
+        self._base = target
+        self._started = time.monotonic()
+        self.choreography = SongChoreography(self.choreography.count, self.analysis)
+        self._measurement = None
+        self._next_sync = SYNC_FIRST_SECONDS
 
     def stop(self):
         self._player.stop()
@@ -84,7 +135,7 @@ class SongSession:
     def _start_measurement(self, window, lags):
         history = self._mic.history_since(self._started + window[0] - 1.0)
         self._measurement = BackgroundMeasurement(
-            history, self._started, self.analysis, window, lags,
+            history, self._started, self.analysis, window, lags, self._base,
         )
 
     def _update_calibration(self):
@@ -139,6 +190,9 @@ class SongSession:
             "section_index": index,
             "pi_audio": self.pi_audio,
             "pi_audio_error": self.pi_audio_error or self._player.failure(),
+            "paused": self.paused,
+            "sections": [{"name": section.name, "start": round(bar_time(section.start_bar), 2)}
+                         for section in SECTIONS],
             "calibrating": self.calibrating,
             "calibration_progress": round(min(1.0, self.elapsed / CALIBRATION_SECONDS), 2),
             "latency_ms": self.latency_ms,
