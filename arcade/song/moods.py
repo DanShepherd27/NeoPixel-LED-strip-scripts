@@ -34,9 +34,11 @@ class Verse:
     """Marching dots: a lattice of lit pixels with dark gaps that steps on every
     beat; this beat's quarter of the strip flares. (Comets are separate cues.)"""
 
-    def __init__(self, colors=(RED, WARM), lively=False):
+    def __init__(self, colors=(RED, WARM), lively=False, accent=GOLD, flash=WARM):
         self.colors = colors
         self.lively = lively
+        self.accent = accent   # the downbeat quarter of the beat counter
+        self.flash = flash     # snare flash
 
     def render(self, frame, ctx):
         pitch, width = (4, 1) if self.lively else (6, 2)
@@ -50,11 +52,11 @@ class Verse:
             color = self.colors[group % 2]
             level = 0.22 + 0.15 * voice
             if index in quarter:  # the beat counter
-                color = GOLD if ctx.is_downbeat else color
+                color = self.accent if ctx.is_downbeat else color
                 level += 0.75 * ctx.hit
             elif ctx.is_backbeat:  # snare: every lit dot flashes, gaps stay black
                 level += 0.45 * ctx.hit
-                color = WARM
+                color = self.flash
             if self.lively:
                 level += 0.25 * ctx.offbeat_hit
             frame.pixels[index] = scaled(color, level)
@@ -82,13 +84,13 @@ class Whisper:
 class Afterglow:
     """Outro: warm twinkles that fade out with the music, still ticking the beat."""
 
-    def __init__(self):
+    def __init__(self, colors=(WARM, GOLD, RED, GREEN)):
+        self.colors = tuple(colors)
         self.sparkles = Sparkles(1.4)
 
     def render(self, frame, ctx):
         fade = min(1.0, ctx.level / 0.5)
         if ctx.new_beat:
             for _ in range(2):
-                self.sparkles.spawn(random.randrange(frame.count),
-                                    random.choice((WARM, GOLD, RED, GREEN)))
+                self.sparkles.spawn(random.randrange(frame.count), random.choice(self.colors))
         self.sparkles.draw(frame, ctx.dt, 0.3 + 0.7 * fade)

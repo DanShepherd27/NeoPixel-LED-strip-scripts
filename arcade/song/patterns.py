@@ -5,7 +5,7 @@ started with ``go`` cues and one-shots with ``fire`` cues. The file supplies
 only parameters (palette, speed, ...); no code ever comes from a show file.
 """
 
-from arcade.song.effects import GOLD, GREEN, RED, WARM, Comets
+from arcade.song.effects import GOLD, GREEN, RED, WARM, WHITE_HOT, Comets
 from arcade.song.moods import Afterglow, Bells, Verse, Whisper
 from arcade.song.peaks import Build, Chorus, Dream, Finale
 
@@ -33,12 +33,14 @@ class CometShot:
 
 def _verse(params):
     colors = tuple(params.get("palette", [RED, WARM]))[:2]
-    return Verse(colors=colors, lively=bool(params.get("lively", False)))
+    return Verse(colors=colors, lively=bool(params.get("lively", False)),
+                 accent=params.get("accent", GOLD), flash=params.get("flash", WARM))
 
 
 def _chorus(params):
     return Chorus(colors=tuple(params.get("palette", [RED, GREEN, WARM])),
-                  accent=params.get("accent", GOLD))
+                  accent=params.get("accent", GOLD), spark=params.get("spark", WARM),
+                  snare=params.get("snare", WHITE_HOT))
 
 
 # name -> factory(params); ONE_SHOTS only make sense with ``fire`` cues.
@@ -48,9 +50,9 @@ PATTERNS = {
     "whisper": lambda params: Whisper(),
     "riser": lambda params: Build(params.get("style", "ice")),
     "chorus_dots": _chorus,
-    "ribbons": lambda params: Dream(),
+    "ribbons": lambda params: Dream(params.get("color")),
     "finale": lambda params: Finale(),
-    "afterglow": lambda params: Afterglow(),
+    "afterglow": lambda params: Afterglow(tuple(params.get("palette", [WARM, GOLD, RED, GREEN]))),
     "comet": CometShot,
 }
 ONE_SHOTS = {"comet"}

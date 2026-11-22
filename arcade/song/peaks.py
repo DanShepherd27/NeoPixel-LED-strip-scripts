@@ -31,6 +31,8 @@ class Build:
         self.palette = palette
 
     def _color(self, heat, p):
+        if self.palette == "mono":   # steel grey climbing to white
+            return blend((95, 108, 140), (255, 255, 255), min(1.0, heat * 1.2 + max(0.0, p - 0.8) * 2.0))
         if self.palette == "gold":
             return blend(blend(ICE, GOLD, min(1.0, heat * 1.6)), WHITE_HOT, max(0.0, p - 0.7) * 3.3)
         # Stays blue the whole way up; only the last moments whiten toward the drop.
@@ -63,9 +65,11 @@ class Chorus:
     never has to reverse; the pop, the gold downbeat core and the snare flashes
     are static, so the beat is felt without fast runs along the strip."""
 
-    def __init__(self, colors=(RED, GREEN, WARM), accent=GOLD):
+    def __init__(self, colors=(RED, GREEN, WARM), accent=GOLD, spark=WARM, snare=WHITE_HOT):
         self.colors = colors
-        self.accent = accent
+        self.accent = accent   # gold core of every group on the downbeat
+        self.spark = spark     # off-beat sparkles and the glitter burst
+        self.snare = snare     # snare dots
         self.sparkles = Sparkles(4.0)
 
     def render(self, frame, ctx):
@@ -84,21 +88,22 @@ class Chorus:
             frame.pixels[index] = scaled(color, pop)
         if ctx.is_backbeat:  # snare: white dots flash in place, alternating positions
             for index in range(ctx.beat_in_bar // 2 * 6, count, 12):
-                add(frame, index, scaled(WHITE_HOT, 0.9 * ctx.hit))
+                add(frame, index, scaled(self.snare, 0.9 * ctx.hit))
         if ctx.is_downbeat and phrase == 0:  # every fourth bar: sparse glitter burst
             for index in range(count):
                 if random.random() < 0.12 * ctx.hit:
-                    add(frame, index, scaled(WARM, 0.9))
+                    add(frame, index, scaled(self.spark, 0.9))
         if ctx.new_eighth and not ctx.new_beat and random.random() < 0.7:
             for _ in range(3):
-                self.sparkles.spawn(random.randrange(count), WARM, 0.9)
+                self.sparkles.spawn(random.randrange(count), self.spark, 0.9)
         self.sparkles.draw(frame, ctx.dt, 0.9)
 
 
 class Dream:
     """Bridge: aurora of teal, violet and pink that breathes on every beat."""
 
-    def __init__(self):
+    def __init__(self, color=None):
+        self.color = color   # one color for monochrome ribbons; None = the teal/violet/pink aurora
         self.smooth = [0.0] * 6
 
     def render(self, frame, ctx):
@@ -113,7 +118,8 @@ class Dream:
                 continue
             edge = (wave - 0.45) / 0.55
             value = (0.15 + 0.30 * band + 0.55 * ctx.hit) * edge
-            frame.pixels[index] = hsv_to_rgb(hue, 0.95, min(1.0, value))
+            frame.pixels[index] = (scaled(self.color, value) if self.color
+                                   else hsv_to_rgb(hue, 0.95, min(1.0, value)))
 
 
 class Finale:

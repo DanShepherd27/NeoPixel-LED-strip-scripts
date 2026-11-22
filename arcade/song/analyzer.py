@@ -9,7 +9,6 @@ import base64
 import shutil
 import struct
 import subprocess
-import wave
 from pathlib import Path
 
 FRAME_RATE = 40
@@ -53,7 +52,7 @@ def decode(path, wav_path):
         return
     path_str = str(wav_path)
     candidates = [
-        ("mpg123", ["mpg123", "-q", "--mono", "-r", str(ANALYSIS_RATE), "-w", path_str, path]),
+        ("mpg123", ["mpg123", "-q", "--mono", "-r", str(ANALYSIS_RATE), "-e", "s16", "-w", path_str, path]),
         ("ffmpeg", ["ffmpeg", "-y", "-loglevel", "error", "-i", path,
                     "-ac", "1", "-ar", str(ANALYSIS_RATE), path_str]),
         ("afconvert", ["afconvert", "-f", "WAVE", "-d", "LEI16@%d" % ANALYSIS_RATE, "-c", "1", path, path_str]),
@@ -72,13 +71,42 @@ def decode(path, wav_path):
 
 
 def read_wav(wav_path):
+    """Mono float samples and the sample rate from a WAV file.
+
+    Python's ``wave`` module rejects float WAVs (which some decoders write), so the
+    RIFF chunks are read directly: 16/32-bit integer PCM and 32/64-bit float.
+    """
     import numpy as np
-    with wave.open(str(wav_path)) as wav:
-        rate, channels = wav.getframerate(), wav.getnchannels()
-        samples = np.frombuffer(wav.readframes(wav.getnframes()), dtype=np.int16)
+    data = Path(wav_path).read_bytes()
+    if data[:4] != b"RIFF" or data[8:12] != b"WAVE":
+        raise AnalysisError("the decoder did not produce a WAV file")
+    pos, fmt, samples = 12, None, None
+    while pos + 8 <= len(data):
+        name, size = data[pos:pos + 4], struct.unpack("<I", data[pos + 4:pos + 8])[0]
+        body = data[pos + 8:pos + 8 + size]
+        if name == b"fmt ":
+            tag, channels, rate = struct.unpack("<HHI", body[:8])
+            bits = struct.unpack("<H", body[14:16])[0]
+            if tag == 0xFFFE and len(body) >= 26:   # extensible: real format is in the sub-format GUID
+                tag = struct.unpack("<H", body[24:26])[0]
+            fmt = (tag, channels, rate, bits)
+        elif name == b"data":
+            samples = body
+            break
+        pos += 8 + size + (size & 1)
+    if fmt is None or samples is None:
+        raise AnalysisError("the WAV file is incomplete")
+    tag, channels, rate, bits = fmt
+    kinds = {(1, 16): ("<i2", 32768.0), (1, 32): ("<i4", 2147483648.0),
+             (3, 32): ("<f4", 1.0), (3, 64): ("<f8", 1.0)}
+    if (tag, bits) not in kinds:
+        raise AnalysisError("unsupported WAV format %d (%d-bit)" % (tag, bits))
+    dtype, scale = kinds[(tag, bits)]
+    width = bits // 8
+    audio = np.frombuffer(samples[:len(samples) // (width * channels) * width * channels], dtype=dtype)
     if channels > 1:
-        samples = samples.reshape(-1, channels).mean(axis=1)
-    return samples.astype(np.float32) / 32768.0, rate
+        audio = audio.reshape(-1, channels).mean(axis=1)
+    return (audio / scale).astype(np.float32), rate
 
 
 def band_features(audio, rate, progress=None):
@@ -118,13 +146,19 @@ def onset_strength(audio, rate, band=None):
     freqs = np.fft.rfftfreq(size, 1.0 / rate)
     keep = slice(None) if band is None else (freqs >= band[0]) & (freqs < band[1])
     frames = (len(audio) - size) // hop
-    index = np.arange(size)[None, :] + hop * np.arange(frames)[:, None]
-    chunks = []
-    for start in range(0, frames, 2000):  # block-wise FFT keeps memory modest
-        block = audio[index[start:start + 2000]] * window
-        chunks.append(np.log1p(100 * np.abs(np.fft.rfft(block, axis=1))[:, keep]))
-    log_spectra = np.concatenate(chunks)
-    flux = np.append(np.maximum(np.diff(log_spectra, axis=0), 0).sum(axis=1), 0.0)
+    flux, previous = [], None
+    offsets = np.arange(size)[None, :]
+    for start in range(0, frames, 1000):  # block-wise: memory stays small on the Pi
+        stop = min(frames, start + 1000)
+        block = audio[offsets + hop * np.arange(start, stop)[:, None]] * window
+        spectra = np.log1p(100 * np.abs(np.fft.rfft(block, axis=1))[:, keep])
+        if previous is None:   # rise[i] = increase from frame i-1 to i (0 for the first frame)
+            rise = np.concatenate([[0.0], np.maximum(np.diff(spectra, axis=0), 0).sum(axis=1)])
+        else:
+            rise = np.maximum(np.diff(np.vstack([previous, spectra]), axis=0), 0).sum(axis=1)
+        flux.append(rise)
+        previous = spectra[-1:]
+    flux = np.append(np.concatenate(flux)[1:], 0.0)   # flux[i] = increase from frame i to i+1
     return flux / (flux.std() or 1.0), (np.arange(frames) * hop + size / 2) / rate
 
 

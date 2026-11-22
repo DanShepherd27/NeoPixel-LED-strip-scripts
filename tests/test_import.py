@@ -88,6 +88,40 @@ class GeneratorTests(unittest.TestCase):
             self.assertAlmostEqual(found, expected, delta=1)
         sheet = compile_cuesheet(show)
         self.assertEqual(sheet.warnings, [])
+        for look in ("club", "neon"):   # both looks compile cleanly
+            other = compile_cuesheet(generate_show(analysis, {"id": "t", "title": "T", "audio": "t.mp3",
+                                                                "analysis": "t.json"}, look))
+            self.assertEqual(other.warnings, [])
+        self.assertEqual(show["song"]["look"], "club")
+
+
+@unittest.skipIf(np is None, "numpy not installed")
+class WavReaderTests(unittest.TestCase):
+    def wav(self, tag, bits, dtype, values, channels=1):
+        import struct
+        payload = np.asarray(values, dtype=dtype).tobytes()
+        fmt = struct.pack("<HHIIHH", tag, channels, 22050, 22050 * channels * bits // 8,
+                          channels * bits // 8, bits)
+        body = b"WAVE" + b"fmt " + struct.pack("<I", len(fmt)) + fmt + b"data" + struct.pack("<I", len(payload)) + payload
+        return b"RIFF" + struct.pack("<I", len(body)) + body
+
+    def read(self, data):
+        from arcade.song.analyzer import read_wav
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "x.wav"
+            path.write_bytes(data)
+            return read_wav(path)
+
+    def test_reads_float_and_integer_wavs(self):
+        for tag, bits, dtype, values in ((3, 32, "<f4", [0.5, -0.25]), (1, 16, "<i2", [16384, -8192]),
+                                         (3, 64, "<f8", [0.5, -0.25])):
+            audio, rate = self.read(self.wav(tag, bits, dtype, values))
+            self.assertEqual(rate, 22050)
+            np.testing.assert_allclose(audio, [0.5, -0.25], atol=1e-4)
+
+    def test_stereo_is_mixed_to_mono(self):
+        audio, _ = self.read(self.wav(3, 32, "<f4", [1.0, 0.0, 0.5, 0.5], channels=2))
+        np.testing.assert_allclose(audio, [0.5, 0.5])
 
 
 class JobTests(unittest.TestCase):
@@ -129,6 +163,16 @@ class JobTests(unittest.TestCase):
             time.sleep(0.1)
             self.assertFalse((Path(tmp) / "songs" / "bad").exists())
 
+    def test_crash_output_becomes_the_error_message(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            jobs = self.make_jobs(tmp, ["Traceback (most recent call last):\n",
+                                        "ModuleNotFoundError: No module named 'numpy'\n", "EXIT 1\n"])
+            jobs.add(self.upload(tmp), "crash.mp3")
+            self.wait(jobs, "error")
+            message = jobs.snapshot()[-1]["message"]
+            self.assertIn("numpy", message)
+            self.assertIn("exited with code 1", message)
+
     def test_rejects_non_mp3_and_duplicate_names_get_suffix(self):
         with tempfile.TemporaryDirectory() as tmp:
             jobs = self.make_jobs(tmp, ["DONE\n"])
@@ -138,6 +182,19 @@ class JobTests(unittest.TestCase):
             self.wait(jobs, "ready")
             second = jobs.add(self.upload(tmp), "Same.mp3")
             self.assertEqual((first["id"], second["id"]), ("same", "same-2"))
+
+    def test_regenerate_rewrites_the_show_from_saved_analysis(self):
+        import json
+        with tempfile.TemporaryDirectory() as tmp:
+            jobs = ImportJobs(Path(tmp) / "songs")
+            folder = Path(tmp) / "songs" / "x"
+            folder.mkdir(parents=True)
+            self.assertFalse(jobs.regenerate("x"))
+            self.assertFalse(jobs.regenerate("../x"))
+            (folder / "x.ledcue.json").write_text(json.dumps(
+                {"song": {"id": "x", "title": "X", "audio": "x.mp3", "analysis": "x.analysis.json"}}))
+            with self.assertRaises(OSError):   # no analysis file to rebuild from
+                jobs.regenerate("x")
 
     def test_delete_only_removes_uploaded_songs(self):
         with tempfile.TemporaryDirectory() as tmp:

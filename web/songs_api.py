@@ -28,7 +28,7 @@ def register_song_routes(app, manager, jobs):
         try:
             upload.save(temporary)
             job = jobs.add(temporary, upload.filename, request.form.get("title", ""),
-                           request.form.get("artist", ""))
+                           request.form.get("artist", ""), request.form.get("look", "club"))
         except ValueError as exc:
             os.remove(temporary)
             return jsonify({"ok": False, "message": str(exc)}), 400
@@ -37,6 +37,19 @@ def register_song_routes(app, manager, jobs):
     @app.get("/api/songs/imports")
     def song_imports():
         return jsonify(jobs.snapshot())
+
+    @app.post("/api/songs/<song_id>/regenerate")
+    def song_regenerate(song_id):
+        denied = admin_only()
+        if denied:
+            return denied
+        playing = manager.get_state().get("song")
+        if playing and playing.get("id") == song_id:
+            return jsonify({"ok": False, "message": "Stop the song before rebuilding its show."}), 409
+        look = (request.get_json(silent=True) or {}).get("look")
+        if not jobs.regenerate(song_id, look):
+            return jsonify({"ok": False, "message": "Only songs added through the website can be rebuilt."}), 404
+        return jsonify({"ok": True})
 
     @app.delete("/api/songs/<song_id>")
     def song_delete(song_id):

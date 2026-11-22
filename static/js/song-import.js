@@ -48,7 +48,26 @@
           });
         }).catch(function (error) { $id("song-import-message").textContent = error.message; });
       });
+      const rebuild = document.createElement("button");
+      rebuild.type = "button";
+      rebuild.className = "btn";
+      rebuild.textContent = "Rebuild show";
+      rebuild.addEventListener("click", function () {
+        if (!window.confirm("Rebuild the light show for “" + song.title + "” with the “" +
+          $id("song-import-look").selectedOptions[0].textContent.split(":")[0] + "” look? Hand edits to its show file are replaced.")) return;
+        fetch("/api/songs/" + encodeURIComponent(song.id) + "/regenerate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ look: $id("song-import-look").value }),
+        }).then(function (response) {
+          return response.json().then(function (body) {
+            if (!response.ok) throw new Error(body.message || "Could not rebuild the show.");
+            $id("song-import-message").textContent = "Rebuilt the show for " + song.title + ".";
+          });
+        }).catch(function (error) { $id("song-import-message").textContent = error.message; });
+      });
       row.appendChild(name);
+      row.appendChild(rebuild);
       row.appendChild(remove);
       container.appendChild(row);
     });
@@ -78,6 +97,7 @@
     form.append("file", file);
     form.append("title", $id("song-import-title").value);
     form.append("artist", $id("song-import-artist").value);
+    form.append("look", $id("song-import-look").value);
     message.textContent = "Uploading " + file.name + "…";
     $id("song-import-btn").disabled = true;
     fetch("/api/songs/import", { method: "POST", body: form }).then(function (response) {

@@ -22,18 +22,42 @@ MIN_SECTION_BARS = 4
 BUILD_BARS = 4
 LONG_DROP_BARS = 16          # long drops switch palette every this many bars
 
-PALETTES = {
-    "intro_a": ["#00E5FF", "#FFFFFF"], "intro_b": ["#FF2EA6", "#00E5FF"],
-    "neon": ["#00E5FF", "#FF2EA6", "#FFFFFF"], "acid": ["#A6FF00", "#FF2EA6", "#00E5FF"],
+# Looks for generated shows. Every accent is spelled out so no Christmas-warm default
+# leaks into a techno show. "club" is monochrome (white and steel on black); "neon"
+# is colorful (cyan, magenta, acid green).
+LOOKS = {
+    "club": {
+        "palettes": {"intro": ["#8FA3C4", "#4A5A78"], "drop_a": ["#FFFFFF", "#8FA3C4"],
+                     "drop_b": ["#D8E4FF", "#5F7396"], "outro": ["#FFFFFF", "#8FA3C4"]},
+        "presets": {
+            "intro": {"pattern": "verse_dots", "palette": "intro", "accent": "#FFFFFF", "flash": "#FFFFFF"},
+            "breakdown": {"pattern": "ribbons", "color": "#8FA3C4"},
+            "build": {"pattern": "riser", "style": "mono"},
+            "drop_neon": {"pattern": "chorus_dots", "palette": "drop_a", "accent": "#FFFFFF",
+                          "spark": "#FFFFFF", "snare": "#FFFFFF"},
+            "drop_acid": {"pattern": "chorus_dots", "palette": "drop_b", "accent": "#FFFFFF",
+                          "spark": "#D8E4FF", "snare": "#FFFFFF"},
+            "outro": {"pattern": "afterglow", "palette": "outro"},
+        },
+        "comet": "#FFFFFF",
+    },
+    "neon": {
+        "palettes": {"intro": ["#00E5FF", "#7A5CFF"], "drop_a": ["#00E5FF", "#FF2EA6", "#FFFFFF"],
+                     "drop_b": ["#A6FF00", "#FF2EA6", "#00E5FF"], "outro": ["#00E5FF", "#FF2EA6", "#7A5CFF"]},
+        "presets": {
+            "intro": {"pattern": "verse_dots", "palette": "intro", "accent": "#FF2EA6", "flash": "#FFFFFF"},
+            "breakdown": {"pattern": "ribbons"},
+            "build": {"pattern": "riser", "style": "ice"},
+            "drop_neon": {"pattern": "chorus_dots", "palette": "drop_a", "accent": "#FFFFFF",
+                          "spark": "#00E5FF", "snare": "#FFFFFF"},
+            "drop_acid": {"pattern": "chorus_dots", "palette": "drop_b", "accent": "#FFFFFF",
+                          "spark": "#FF2EA6", "snare": "#FFFFFF"},
+            "outro": {"pattern": "afterglow", "palette": "outro"},
+        },
+        "comet": "#00E5FF",
+    },
 }
-PRESETS = {
-    "intro": {"pattern": "verse_dots", "palette": "intro_a"},
-    "breakdown": {"pattern": "ribbons"},
-    "build": {"pattern": "riser", "style": "ice"},
-    "drop_neon": {"pattern": "chorus_dots", "palette": "neon", "accent": "#FFFFFF"},
-    "drop_acid": {"pattern": "chorus_dots", "palette": "acid", "accent": "#FFE600"},
-    "outro": {"pattern": "afterglow"},
-}
+DEFAULT_LOOK = "club"
 
 
 class _Beats:
@@ -165,8 +189,11 @@ def _sections(runs, bar_levels):
     return sections
 
 
-def generate_show(analysis, meta):
-    """Return a show dictionary for ``meta`` = id/title/artist/audio/analysis/mp3 fields."""
+def generate_show(analysis, meta, look=DEFAULT_LOOK):
+    """Return a show dictionary for ``meta`` = id/title/artist/audio/analysis/mp3 fields.
+    ``look`` picks the color scheme from LOOKS."""
+    scheme = LOOKS.get(look) or LOOKS[DEFAULT_LOOK]
+    look = look if look in LOOKS else DEFAULT_LOOK
     bpm, offset = analysis.tempo["bpm"], analysis.tempo["offset"]
     beats = _Beats(analysis, bpm, offset)
     phase = _downbeat_phase(beats, analysis)
@@ -177,7 +204,8 @@ def generate_show(analysis, meta):
     sections = _sections(runs, bar_levels) if runs else []
     first_bar_time = offset + phase * beats.period
 
-    song = dict(meta, duration=round(analysis.duration, 2), audio_offset=0.0, analysis_beat_offset=phase)
+    song = dict(meta, duration=round(analysis.duration, 2), audio_offset=0.0,
+                analysis_beat_offset=phase, look=look)
     cues, markers = [], []
     for index, (name, preset, first, length) in enumerate(sections):
         at = "%d|1|0" % (first + 1)
@@ -188,13 +216,13 @@ def generate_show(analysis, meta):
         cues.append(cue)
         if preset in ("intro", "breakdown") and length >= 4:
             cues.append({"at": at, "op": "fire", "track": "sparks", "pattern": "comet", "dir": "up",
-                         "speed": 26, "tail": 7, "color": "#00E5FF", "every": "4bar",
+                         "speed": 26, "tail": 7, "color": scheme["comet"], "every": "4bar",
                          "until": "%d|1|0" % (first + length + 1)})
     return {
         "format": "ledcue", "version": 1, "song": song,
         "time": {"ppq": 480, "tempo_map": [
             {"at": round(first_bar_time, 4), "bpm": bpm, "beats_per_bar": BEATS_PER_BAR}]},
-        "palettes": PALETTES,
+        "palettes": scheme["palettes"],
         "tracks": [{"id": "base", "blend": "replace"}, {"id": "sparks", "blend": "add"}],
-        "presets": PRESETS, "markers": markers, "cues": cues,
+        "presets": scheme["presets"], "markers": markers, "cues": cues,
     }
