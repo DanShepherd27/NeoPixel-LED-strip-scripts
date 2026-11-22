@@ -82,12 +82,12 @@ def register_api(app, manager, hardware):
 
     @app.post("/api/tutorial_next")
     def http_tutorial_next():
-        manager.tutorial_next()
+        manager.tutorial_next((request.get_json(silent=True) or {}).get("player_id"))
         return jsonify({"ok": True})
 
     @app.post("/api/skip_tutorial")
     def http_skip_tutorial():
-        manager.skip_tutorial()
+        manager.skip_tutorial((request.get_json(silent=True) or {}).get("player_id"))
         return jsonify({"ok": True})
 
     @app.post("/api/rematch")

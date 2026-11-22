@@ -33,6 +33,10 @@ from config import (
 
 log = logging.getLogger("arcade.manager")
 
+# Phones heartbeat every 5 s; throttled background tabs can be slower.
+PLAYER_AWAY_SECONDS = 20
+PLAYER_DROP_SECONDS = 120
+
 
 def _parse_hex_color(value):
     if not isinstance(value, str) or len(value) != 7 or value[0] != "#":
@@ -149,6 +153,7 @@ class ArcadeManager(MusicRenderingMixin):
         self.tutorial_index = 0
         self.tutorial_elapsed = 0.0
 
+        self._presence_timer = 0.0
         self._lock = threading.RLock()
         self._input_queue = queue.Queue()
 
@@ -178,6 +183,13 @@ class ArcadeManager(MusicRenderingMixin):
             self.players.remove_player(player_id)
             if self.state == ArcadeState.LOBBY and self.players.count() == 0:
                 self._enter_idle()
+            elif self.state in self._GAME_STATES and not self._participants_present():
+                self._enter_idle()
+
+    _GAME_STATES = (ArcadeState.TUTORIAL, ArcadeState.COUNTDOWN, ArcadeState.GAME)
+
+    def _participants_present(self):
+        return any(self.players.get(p.id) for p in (self.game.players if self.game else []))
 
     def touch(self, player_id):
         self.players.touch(player_id)
@@ -191,7 +203,7 @@ class ArcadeManager(MusicRenderingMixin):
                 self.state == ArcadeState.TUTORIAL and self.game_class is not None and
                 self.tutorial_index >= len(self.game_class.tutorial_steps)
             )
-            if self.state == ArcadeState.LOBBY or tutorial_done:
+            if (self.state == ArcadeState.LOBBY or tutorial_done) and self._is_participant(player_id):
                 self.players.set_ready(player_id, ready)
 
     def select_game(self, slug):
@@ -326,26 +338,32 @@ class ArcadeManager(MusicRenderingMixin):
     def start_game(self):
         with self._lock:
             if (self.state == ArcadeState.LOBBY and self.selected_game and
-                    self.players.all_ready(GAMES[self.selected_game].min_players)):
+                    self._lobby_ready(GAMES[self.selected_game])):
                 self._enter_tutorial()
 
     def rematch(self):
         with self._lock:
-            if self.state == ArcadeState.RESULTS and self.selected_game:
+            if self.state == ArcadeState.RESULTS and self.selected_game and not self._queue():
                 self._enter_tutorial()
 
-    def tutorial_next(self):
+    def tutorial_next(self, player_id=None):
         """Advance the demo one step; the last step hands over to ready/countdown."""
         with self._lock:
             if self.state != ArcadeState.TUTORIAL or self.game_class is None:
+                return
+            if player_id is not None and not self._is_participant(player_id):
                 return
             if self.tutorial_index >= len(self.game_class.tutorial_steps):
                 return
             self.tutorial_index += 1
             self.tutorial_elapsed = 0.0
+            if self.tutorial_index >= len(self.game_class.tutorial_steps) and self._is_solo():
+                self._enter_countdown()
 
-    def skip_tutorial(self):
+    def skip_tutorial(self, player_id=None):
         with self._lock:
+            if player_id is not None and not self._is_participant(player_id):
+                return
             if self.state == ArcadeState.TUTORIAL and self.game_class:
                 self.tutorial_index = 0
                 self.tutorial_elapsed = 0.0
@@ -447,8 +465,9 @@ class ArcadeManager(MusicRenderingMixin):
 
     def _enter_tutorial(self):
         self.game_class = GAMES[self.selected_game]
+        participants = self._select_players(self.game_class)
         self.game = self.game_class(self)
-        self.game.setup(self._participants())
+        self.game.setup(participants)
         self.tutorial_index = 0
         self.tutorial_elapsed = 0.0
         self.players.reset_ready()
@@ -458,8 +477,9 @@ class ArcadeManager(MusicRenderingMixin):
     def _start_game(self):
         if self.game is None or self.game_class is None:
             self.game_class = GAMES[self.selected_game]
+            participants = self._select_players(self.game_class)
             self.game = self.game_class(self)
-            self.game.setup(self._participants())
+            self.game.setup(participants)
         self.game.start()
         self.state = ArcadeState.GAME
         log.info("State -> GAME (%s) with %d players",
@@ -470,15 +490,49 @@ class ArcadeManager(MusicRenderingMixin):
         self.results_timer = RESULTS_DURATION
         log.info("State -> RESULTS (winner=%s)", self.game.winner)
 
+    def _select_players(self, game_class):
+        """The first players to join, up to the game's limit, play; the rest queue."""
+        connected = self.players.connected_players() or self.players.players()
+        limit = getattr(game_class, "max_players", None)
+        return connected[:limit] if limit is not None else connected
+
     def _participants(self):
-        """Pick the players for the current game based on its constraints."""
-        connected = self.players.connected_players()
-        if not connected:
-            connected = self.players.players()
-        limit = self.game_class.max_players
-        if limit is not None:
-            connected = connected[:limit]
-        return connected
+        """Players of the running (or about to run) game."""
+        if self.game is not None:
+            return list(self.game.players)
+        return self._select_players(self.game_class) if self.game_class else []
+
+    def _lobby_participants(self):
+        """Who plays: the selected game's seats in the lobby, else the running game's players."""
+        if self.state != ArcadeState.LOBBY and self.game is not None:
+            return list(self.game.players)
+        game_class = GAMES.get(self.selected_game)
+        return self._select_players(game_class) if game_class else self.players.connected_players()
+
+    def _is_participant(self, player_id):
+        return any(p.id == player_id for p in self._lobby_participants())
+
+    def _is_solo(self):
+        """A game played by one person needs no ready-up."""
+        return len(self._participants()) == 1
+
+    def _participants_ready(self):
+        participants = self._participants()
+        return (len(participants) >= self.game_class_min_players() and
+                all(p.ready and p.connected for p in participants))
+
+    def _lobby_ready(self, game_class):
+        participants = self._select_players(game_class)
+        if len(participants) < game_class.min_players:
+            return False
+        return len(participants) == 1 or all(p.ready for p in participants)
+
+    def _queue(self):
+        """Players waiting for a free seat, in join order."""
+        if self.state == ArcadeState.IDLE:
+            return []
+        taken = {p.id for p in self._lobby_participants()}
+        return [p for p in self.players.connected_players() if p.id not in taken]
 
     # -- per-frame update / render (called by the renderer thread) ----------
     def _process_inputs(self):
@@ -488,7 +542,8 @@ class ArcadeManager(MusicRenderingMixin):
             except queue.Empty:
                 break
             self.players.touch(player_id)
-            if self.state == ArcadeState.GAME and self.game is not None:
+            if (self.state == ArcadeState.GAME and self.game is not None and
+                    any(p.id == player_id for p in self.game.players)):
                 try:
                     self.game.handle_input(player_id, action)
                 except Exception:
@@ -496,6 +551,7 @@ class ArcadeManager(MusicRenderingMixin):
 
     def render(self, frame, dt):
         with self._lock:
+            self._refresh_presence(dt)
             self._process_inputs()
 
             if self.state == ArcadeState.IDLE:
@@ -529,6 +585,17 @@ class ArcadeManager(MusicRenderingMixin):
                 self._render_results(frame, dt)
             self._music_led_frame = list(frame.pixels)
 
+    def _refresh_presence(self, dt):
+        self._presence_timer -= dt
+        if self._presence_timer > 0:
+            return
+        self._presence_timer = 1.0
+        dropped = self.players.refresh_presence(PLAYER_AWAY_SECONDS, PLAYER_DROP_SECONDS)
+        if dropped and self.state in (ArcadeState.LOBBY, *self._GAME_STATES):
+            if self.players.count() == 0 or (
+                    self.state in self._GAME_STATES and not self._participants_present()):
+                self._enter_idle()
+
     def _render_song(self, frame, dt):
         song = self._song
         if song is not None:
@@ -548,7 +615,7 @@ class ArcadeManager(MusicRenderingMixin):
         """Loop the current step's demo until a player presses Next."""
         steps = self.game_class.tutorial_steps
         if self.tutorial_index >= len(steps):
-            if self.players.all_ready(self.game_class_min_players()):
+            if self._participants_ready():
                 self._enter_countdown()
             return
         duration = max(0.1, float(steps[self.tutorial_index]["duration"]))
@@ -573,11 +640,22 @@ class ArcadeManager(MusicRenderingMixin):
     def _update_results(self, dt):
         self.results_timer -= dt
         if self.results_timer <= 0:
+            self._finish_results()
+
+    def _finish_results(self):
+        """Hand the strip to whoever was waiting; otherwise go idle."""
+        waiting = self._queue()
+        if not waiting:
             self._enter_idle(clear_players=True)
+            return
+        self.players.send_to_back([p.id for p in self.game.players])
+        self.game = None
+        self.game_class = None
+        self._enter_lobby()
 
     # -- rendering helpers ---------------------------------------------------
     def _render_lobby(self, frame, dt):
-        players = self.players.connected_players()
+        players = self._lobby_participants()
         if not players:
             self.current_effect.render(frame, dt)
             return
@@ -636,7 +714,8 @@ class ArcadeManager(MusicRenderingMixin):
 
             return {
                 "state": self.state.value,
-                "players": self.players.snapshot(),
+                "players": self._players_snapshot(),
+                "ready_required": self._ready_required(),
                 "idle_animation": self.current_idle_name,
                 "led_orientation": LED_ORIENTATION,
                 "preview_invert_order": getattr(self, "preview_invert_order", False),
@@ -673,6 +752,20 @@ class ArcadeManager(MusicRenderingMixin):
                 "game": game_state,
                 "results": self.game.results if self.game else None,
             }
+
+    def _ready_required(self):
+        """False while the selected game would be played by one person."""
+        if self.state == ArcadeState.LOBBY:
+            return len(self._lobby_participants()) > 1
+        return not self._is_solo() if self.game_class else True
+
+    def _players_snapshot(self):
+        queued = {p.id: position for position, p in enumerate(self._queue(), start=1)}
+        snapshot = self.players.snapshot()
+        for entry in snapshot:
+            entry["queue_position"] = queued.get(entry["id"], 0)
+            entry["queued"] = entry["id"] in queued
+        return snapshot
 
     def _audio_snapshot(self):
         web_audio = self.web_mics.snapshot()

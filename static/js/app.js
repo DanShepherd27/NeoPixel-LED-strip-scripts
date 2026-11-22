@@ -69,7 +69,7 @@
         const route = routes[event];
         if (!route) return;
         const payload = Object.assign({}, data || {});
-        if (["leave", "ping", "ready", "input"].indexOf(event) >= 0) {
+        if (["leave", "ping", "ready", "input", "tutorial_next", "skip_tutorial"].indexOf(event) >= 0) {
           payload.player_id = App.playerId;
         }
         fetch(route, {
@@ -238,6 +238,7 @@
       return;
     }
 
+    renderQueueBanner(s);
     switch (s.state) {
       case "idle":
         showScreen("home");
@@ -267,6 +268,24 @@
     }
   }
 
+  function me(s) {
+    return (s.players || []).find(function (p) { return p.id === App.playerId; });
+  }
+
+  // Players beyond the game's seat limit wait here, first come first served.
+  function renderQueueBanner(s) {
+    const banner = $id("queue-banner");
+    const mine = me(s);
+    const waiting = !!(mine && mine.queued && ["lobby", "tutorial", "countdown", "game", "results"].indexOf(s.state) >= 0);
+    banner.hidden = !waiting;
+    if (!waiting) return;
+    const ahead = mine.queue_position - 1;
+    const game = (s.games || []).find(function (g) { return g.slug === s.selected_game; });
+    banner.textContent = "The game is full" + (game ? " (" + game.name + " takes " + game.max_players + ")" : "") +
+      ". You are #" + mine.queue_position + " in the queue" +
+      (ahead ? ", behind " + ahead + " other" + (ahead === 1 ? "" : "s") : " and play next") + ".";
+  }
+
   function renderLobby(s) {
     const list = $id("player-list");
     const players = s.players || [];
@@ -286,8 +305,9 @@
       name.textContent = p.name + (p.id === App.playerId ? " (you)" : "");
 
       const badge = document.createElement("span");
-      badge.className = "ready-badge " + (p.ready ? "ready" : "waiting");
-      badge.textContent = p.ready ? "READY" : "WAITING";
+      badge.className = "ready-badge " + (p.ready && !p.queued ? "ready" : "waiting");
+      badge.textContent = p.queued ? "QUEUE #" + p.queue_position
+        : (!s.ready_required ? "PLAYING" : (p.ready ? "READY" : "WAITING"));
 
       li.appendChild(chip);
       li.appendChild(name);
@@ -296,15 +316,18 @@
     });
 
     // Ready button reflects own state.
-    const me = players.find(function (p) { return p.id === App.playerId; });
+    const mine = me(s);
     const readyBtn = $id("ready-btn");
-    if (me) {
-      readyBtn.textContent = me.ready ? "NOT READY" : "READY";
-      readyBtn.className = "btn " + (me.ready ? "btn-ghost" : "btn-primary");
+    readyBtn.hidden = !s.ready_required || !!(mine && mine.queued);
+    if (mine) {
+      readyBtn.textContent = mine.ready ? "NOT READY" : "READY";
+      readyBtn.className = "btn " + (mine.ready ? "btn-ghost" : "btn-primary");
     }
-    const readyCount = players.filter(function (player) { return player.connected && player.ready; }).length;
-    const connectedCount = players.filter(function (player) { return player.connected; }).length;
-    $id("lobby-ready-status").textContent = readyCount + " of " + connectedCount + " players ready. Everyone must be ready to start.";
+    const seated = players.filter(function (player) { return player.connected && !player.queued; });
+    const readyCount = seated.filter(function (player) { return player.ready; }).length;
+    $id("lobby-ready-status").textContent = !s.ready_required
+      ? "Solo play: no need to ready up. Pick a game and start."
+      : readyCount + " of " + seated.length + " players ready. Everyone playing must be ready to start.";
 
     renderGameList(s);
     updateStartButton(s);
@@ -360,9 +383,9 @@
     const players = s.players || [];
     const startBtn = $id("start-btn");
     const selected = (s.games || []).find(function (g) { return g.slug === s.selected_game; });
-    const connected = players.filter(function (player) { return player.connected; });
-    const enough = selected && connected.length >= selected.min_players;
-    const everyoneReady = connected.length > 0 && connected.every(function (player) { return player.ready; });
+    const seated = players.filter(function (player) { return player.connected && !player.queued; });
+    const enough = selected && seated.length >= selected.min_players;
+    const everyoneReady = seated.length > 0 && (!s.ready_required || seated.every(function (player) { return player.ready; }));
     startBtn.disabled = !(s.selected_game && enough && everyoneReady);
   }
 
@@ -385,27 +408,34 @@
     const progress = tutorial.count ? (tutorial.index / tutorial.count) * 100 : 100;
     $id("tutorial-progress").style.width = progress + "%";
     const players = s.players || [];
-    const connected = players.filter(function (player) { return player.connected; });
+    const connected = players.filter(function (player) { return player.connected && !player.queued; });
     const readyCount = connected.filter(function (player) { return player.ready; }).length;
     const waiting = !!tutorial.waiting_ready;
-    const me = connected.find(function (player) { return player.id === App.playerId; });
+    const mine = connected.find(function (player) { return player.id === App.playerId; });
     const readyButton = $id("tutorial-ready-btn");
-    readyButton.hidden = !waiting;
-    $id("tutorial-next-btn").hidden = waiting || !tutorial.count;
+    readyButton.hidden = !waiting || !mine;
+    $id("tutorial-next-btn").hidden = waiting || !tutorial.count || !mine;
+    $id("replay-tutorial-btn").hidden = !waiting || !mine;
     $id("tutorial-next-btn").textContent = tutorial.is_last ? "DONE" : "NEXT";
-    readyButton.disabled = !waiting || !me;
-    readyButton.textContent = me && me.ready ? "NOT READY" : "READY";
-    readyButton.className = "btn btn-block " + (me && me.ready ? "btn-ghost" : "btn-primary");
+    readyButton.disabled = !waiting || !mine;
+    readyButton.textContent = mine && mine.ready ? "NOT READY" : "READY";
+    readyButton.className = "btn btn-block " + (mine && mine.ready ? "btn-ghost" : "btn-primary");
     $id("tutorial-ready-status").textContent = waiting
       ? readyCount + " of " + connected.length + " players ready. " + (readyCount === connected.length ? "Starting countdown…" : "Waiting for everyone.")
-      : "Watch the LED demo. It repeats until you press " + (tutorial.is_last ? "Done" : "Next") + ".";
-    $id("replay-tutorial-btn").hidden = !waiting;
+      : (mine ? "Watch the LED demo. It repeats until you press " + (tutorial.is_last ? "Done" : "Next") + "." : "You are in the queue and will play after this game.");
   }
 
   function renderGame(s) {
     const game = s.game || {};
     $id("game-title").textContent = game.name || "Game";
     $id("game-subtitle").textContent = "";
+    const mine = me(s);
+    if (mine && mine.queued) {
+      $id("game-hud").textContent = "";
+      $id("controller").textContent = "";
+      if (window.resetController) window.resetController();
+      return;
+    }
     if (typeof renderHud === "function") renderHud(s);
     if (typeof renderController === "function") renderController(s);
   }
@@ -423,7 +453,7 @@
     }
 
     // Rank players by score (descending).
-    const ranked = players.slice().sort(function (a, b) { return b.score - a.score; });
+    const ranked = players.filter(function (p) { return !p.queued; }).sort(function (a, b) { return b.score - a.score; });
     body.innerHTML = "";
 
     const list = document.createElement("div");
@@ -466,7 +496,7 @@
     }
 
     // Rematch only makes sense for the joined player.
-    $id("rematch-btn").hidden = false;
+    $id("rematch-btn").hidden = players.some(function (p) { return p.queued; });
   }
 
   function formatScore(p, game, s) {

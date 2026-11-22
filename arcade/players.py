@@ -131,20 +131,31 @@ class PlayerManager:
             for player in self._players.values():
                 player.score = 0
 
-    def prune_stale(self, timeout):
-        """Drop players who have been silent for longer than ``timeout``."""
+    def refresh_presence(self, away_after, drop_after):
+        """Mark silent players disconnected and drop the long-gone ones.
+
+        Browsers poll over HTTP, so ``last_seen`` (updated by every input and
+        heartbeat) is the only sign a phone is still there. Returns dropped ids.
+        """
         with self._lock:
             now = time.time()
-            stale = [
-                pid for pid, p in self._players.items()
-                if now - p.last_seen > timeout
-            ]
+            for player in self._players.values():
+                player.connected = now - player.last_seen <= away_after
+            stale = [pid for pid, p in self._players.items() if now - p.last_seen > drop_after]
             for pid in stale:
-                p = self._players.pop(pid)
-                log.info("Dropping stale player %s (%s)", p.name, pid)
-            if stale:
-                self._reassign_colors()
+                self.remove_player(pid)
+                log.info("Dropped silent player %s", pid)
             return stale
+
+    def send_to_back(self, player_ids):
+        """Move players to the end of the join order, keeping their relative order."""
+        with self._lock:
+            now = time.time()
+            for offset, pid in enumerate(player_ids):
+                player = self._players.get(pid)
+                if player:
+                    player.join_order = now + offset * 1e-6
+            self._reassign_colors()
 
     def snapshot(self):
         return [p.to_dict() for p in self.ordered_players()]
