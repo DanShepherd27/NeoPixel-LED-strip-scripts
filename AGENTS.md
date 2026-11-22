@@ -67,8 +67,10 @@ and usable without internet after installation.
 - `arcade/manager.py`: locked lifecycle/state owner and renderer scene.
 - `arcade/games/`: one class per game, based on `BaseGame`. Games render into
   frames and never access hardware.
-- `web/api.py`: HTTP controls plus the older Socket.IO event handlers;
-  `web/routes.py`: pages, state, and health endpoints.
+- `web/api.py`: local HTTP controls; `web/admin.py`: authenticated persisted
+  settings; `web/music_api.py`: music and microphone routes;
+  `web/socket_api.py`: older Socket.IO handlers. `web/routes.py` owns pages,
+  state, and health endpoints.
 - Browser controls use local REST endpoints and poll `/api/state` every 500 ms.
   Do not reintroduce an assumed `/socket.io/socket.io.js` asset: Flask-SocketIO
   does not serve the browser client bundle, and the Pi must work offline.
@@ -76,13 +78,12 @@ and usable without internet after installation.
   URLs use version query strings when necessary to bypass stale browser cache.
 
 Lifecycle currently is `IDLE -> LOBBY -> TUTORIAL -> COUNTDOWN -> GAME -> RESULTS`.
-Games define `tutorial_steps` and `render_tutorial(...)`; the manager
-synchronizes tutorial time and pixels for all players. Each player can skip to
-the countdown. Roadmap requirement: present phone instructions before asking
-players to watch the strip, allow replay, then wait without a timer for every
-required participant to mark ready before countdown. Current behavior still
-auto-advances after the timed tutorial. Current games are Reaction Race,
-Dodge, Shooter/LED Battle, and Pong.
+Every connected lobby player must mark ready before the tutorial starts. Games
+define `tutorial_steps` and `render_tutorial(...)`; the manager synchronizes
+tutorial time and pixels for all players. After the demo, the game waits
+without a timer until every connected player marks ready; players can replay
+the demo, which resets readiness. Current games are Reaction Race, Dodge,
+Shooter/LED Battle, and Pong.
 
 For new work, first look for a plug-and-play library, existing browser API, or
 reusable building block already in the repo/environment. Avoid custom code or
@@ -122,9 +123,8 @@ browser-first microphone music visualization with a FIFO lease, and basic
 deployment are present.
 Cross-fades/admin animation controls, stronger reconnect handling, game
 balancing/playtesting, more games, trusted HTTPS for phone microphone access,
-post-tutorial ready gating, white-backed QR, and Pi hardware validation
-remain. Spotify-reactive lighting and a public queue are roadmap-only; do not
-implement them unless asked.
+white-backed QR, and Pi hardware validation remain. Spotify-reactive lighting
+and a public queue are roadmap-only; do not implement them unless asked.
 
 ## Quick local checks
 
