@@ -954,6 +954,7 @@ class ArcadeManager:
                 "players": self.players.snapshot(),
                 "idle_animation": self.current_idle_name,
                 "led_orientation": LED_ORIENTATION,
+                "preview_invert_order": getattr(self, "preview_invert_order", False),
                 "games": game_catalog(),
                 "selected_game": self.selected_game,
                 "countdown": round(max(0.0, self.countdown), 1),

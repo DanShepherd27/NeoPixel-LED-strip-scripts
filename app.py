@@ -58,6 +58,7 @@ def main():
     music_accent_color = MUSIC_ACCENT_COLOR
     color_red, color_green, color_blue = LED_COLOR_RED, LED_COLOR_GREEN, LED_COLOR_BLUE
     brightness = LED_BRIGHTNESS
+    preview_invert_order = False
     try:
         with open(RUNTIME_SETTINGS_FILE, "r", encoding="utf-8") as settings_file:
             saved = json.load(settings_file)
@@ -75,12 +76,15 @@ def main():
         color_green = int(saved.get("led_color_green", color_green))
         color_blue = int(saved.get("led_color_blue", color_blue))
         brightness = int(saved.get("led_brightness", brightness))
+        preview_invert_order = saved.get("preview_invert_order", preview_invert_order)
         if hidden_start < 0 or hidden_end < 0 or hidden_start + hidden_end > LED_COUNT:
             raise ValueError("saved LED offsets are outside the valid strip range")
         if any(not 0 <= value <= 200 for value in (color_red, color_green, color_blue)):
             raise ValueError("saved LED color balance must be between 0 and 200 percent")
         if not 0 <= brightness <= 255:
             raise ValueError("saved LED brightness must be between 0 and 255")
+        if type(preview_invert_order) is not bool:
+            raise ValueError("saved preview order inversion must be a boolean")
         if not 15 <= mic_handoff_seconds <= 1800:
             raise ValueError("saved microphone handoff must be between 15 and 1800 seconds")
         if music_animation not in (
@@ -106,6 +110,7 @@ def main():
         music_primary_color, music_accent_color = MUSIC_PRIMARY_COLOR, MUSIC_ACCENT_COLOR
         color_red, color_green, color_blue = LED_COLOR_RED, LED_COLOR_GREEN, LED_COLOR_BLUE
         brightness = LED_BRIGHTNESS
+        preview_invert_order = False
 
     hardware = LEDHardware(
         LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT,
@@ -123,6 +128,7 @@ def main():
         music_animation, music_sensitivity, music_primary_color, music_accent_color,
         music_beat_lead_ms,
     )
+    manager.preview_invert_order = preview_invert_order
 
     renderer = Renderer(hardware, FPS)
     renderer.set_scene(manager)

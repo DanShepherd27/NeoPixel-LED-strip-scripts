@@ -383,6 +383,40 @@ input[type="text"]:focus {
 .led-preview-heading span { font-size: 0.75rem; }
 .led-preview-dock canvas { display: block; width: 100%; height: 52px; }
 @media (orientation: portrait) {
-  .led-preview-dock { padding: 8px 12px 10px; }
-  .led-preview-dock canvas { height: 36px; }
+  .app-header { padding-right: 82px; }
+  .stage { padding-right: 88px; }
+  .led-preview-dock {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    width: 68px;
+    padding: 10px 8px;
+    border-top: 0;
+    border-left: 1px solid var(--border);
+    box-shadow: -8px 0 28px rgba(0, 0, 0, 0.38);
+    display: flex;
+  }
+  .led-preview-dock-inner {
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .led-preview-heading {
+    flex: 0 0 auto;
+    writing-mode: vertical-rl;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px;
+  }
+  .led-preview-heading strong { font-size: 0.68rem; }
+  .led-preview-heading span { display: none; }
+  .led-preview-dock canvas {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    height: auto;
+  }
 }

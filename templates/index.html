@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-led-frame-preview">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-long-edge-preview">
 </head>
 <body>
   <header class="app-header">
@@ -148,6 +148,8 @@
           <label for="music-beat-lead-ms">Beat sync timing <output id="music-beat-lead-value">0 ms</output></label>
           <input id="music-beat-lead-ms" type="range" min="-100" max="200" step="10" value="0">
           <p class="muted">The beat tracker predicts from bass rhythm and estimated mic/network delay. Positive values pulse earlier; negative values pulse later.</p>
+          <label><input id="preview-invert-order" type="checkbox"> Invert LED order in preview</label>
+          <p class="muted">Mirror the emulator’s LED order when the strip appears upside down.</p>
           <button type="submit" class="btn btn-primary btn-block">SAVE SETTINGS</button>
           <button id="admin-logout" type="button" class="btn btn-ghost btn-block">ADMIN LOGOUT</button>
         </form>
@@ -226,7 +228,7 @@
     </div>
   </aside>
 
-  <script src="/static/js/app.js?v=20261122-led-frame-preview"></script>
+  <script src="/static/js/app.js?v=20261122-long-edge-preview"></script>
   <script src="/static/js/games.js"></script>
   <script src="/static/js/controller.js"></script>
 </body>

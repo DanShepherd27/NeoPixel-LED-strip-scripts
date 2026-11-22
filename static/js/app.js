@@ -35,6 +35,7 @@
     playerName: localStorage.getItem(STORAGE_NAME) || null,
     state: null,
     screen: null,
+    previewInvertOrder: false,
   };
 
   function $id(id) { return document.getElementById(id); }
@@ -66,7 +67,15 @@
   }
 
   var previewAnimation = 0;
+  var previewFrameCount = 0;
+  var previewLastDraw = 0;
   function drawMusicPreviews() {
+    previewAnimation = requestAnimationFrame(drawMusicPreviews);
+    var now = performance.now();
+    // State arrives at 2 Hz; redraw at a modest rate between updates without
+    // repeatedly allocating paths and repainting both canvases at display Hz.
+    if (now - previewLastDraw < 50) return;
+    previewLastDraw = now;
     var audio = App.state && App.state.audio || {};
     var bands = Array.isArray(audio.bands) && audio.bands.length === 6
       ? audio.bands.map(function (value) { return Math.max(0, Math.min(1, Number(value) || 0)); })
@@ -109,6 +118,7 @@
       ctx2.clearRect(0, 0, sw, sh);
       var frame = App.state && App.state.music_led_frame;
       var vertical = window.matchMedia("(orientation: portrait)").matches;
+      var reverse = App.previewInvertOrder;
       var ledCount = frame && frame.length === 60 ? frame.length : 60;
       var pitch = (vertical ? sh : sw) / ledCount;
       var radius = Math.max(1, Math.min(vertical ? sw : sh, pitch) * 0.38);
@@ -116,8 +126,9 @@
       for (var led = 0; led < 60; led++) {
         var rgb = frame && frame[led] || [0, 0, 0];
         var lit = rgb.some(function (channel) { return channel > 0; });
-        var x = vertical ? sw / 2 : pitch * (led + 0.5);
-        var y = vertical ? sh - pitch * (led + 0.5) : sh / 2;
+        var position = (reverse ? 59 - led : led) + 0.5;
+        var x = vertical ? sw / 2 : pitch * position;
+        var y = vertical ? sh - pitch * position : sh / 2;
         ctx2.beginPath();
         ctx2.arc(x, y, radius, 0, Math.PI * 2);
         var displayRgb = rgb.map(function (channel) {
@@ -140,7 +151,6 @@
         (state.game && state.game.name ? state.game.name : (state.idle_animation || state.state || "idle"));
       source.textContent = "Showing " + scene.toString().replace(/_/g, " ");
     }
-    previewAnimation = requestAnimationFrame(drawMusicPreviews);
   }
 
   function showScreen(name) {
@@ -302,6 +312,7 @@
   function render() {
     var s = App.state;
     if (!s) return;
+    if (s.preview_invert_order != null) App.previewInvertOrder = s.preview_invert_order === true;
 
     $id("idle-animation").textContent = s.idle_animation || "—";
     $id("player-count").textContent = (s.players || []).length;
@@ -985,6 +996,8 @@
         });
         $id("led-brightness").value = data.led_brightness == null ? 40 : data.led_brightness;
         $id("led-brightness-value").textContent = $id("led-brightness").value;
+        App.previewInvertOrder = data.preview_invert_order === true;
+        $id("preview-invert-order").checked = App.previewInvertOrder;
         $id("music-sensitivity-value").textContent = Number($id("music-sensitivity").value).toFixed(2) + "×";
         $id("hidden-start").max = data.led_count;
         $id("hidden-end").max = data.led_count;
@@ -1032,6 +1045,7 @@
           led_color_green: Number($id("led-color-green").value),
           led_color_blue: Number($id("led-color-blue").value),
           led_brightness: Number($id("led-brightness").value),
+          preview_invert_order: $id("preview-invert-order").checked,
         }),
       }).then(function (response) {
         return response.json().then(function (body) {
@@ -1045,6 +1059,7 @@
           Number(body.music_sensitivity).toFixed(2) + "× sensitivity; colors " +
           body.music_primary_color + " / " + body.music_accent_color + "; LED balance R/G/B " +
           body.led_color_red + "% / " + body.led_color_green + "% / " + body.led_color_blue + "%. ");
+        App.previewInvertOrder = body.preview_invert_order === true;
       }).catch(function (error) {
         showAdminMessage(error.message);
       });
@@ -1077,6 +1092,15 @@
 
     $id("music-beat-lead-ms").addEventListener("input", function () {
       $id("music-beat-lead-value").textContent = this.value + " ms";
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll('#admin-settings-form input[type="range"]'), function (slider) {
+      slider.addEventListener("dblclick", function (event) {
+        event.preventDefault();
+        this.value = this.defaultValue;
+        this.dispatchEvent(new Event("input", { bubbles: true }));
+        this.dispatchEvent(new Event("change", { bubbles: true }));
+      });
     });
 
     loadAdminSettings();

@@ -214,6 +214,7 @@ def register_api(app, manager, hardware):
             "led_color_green": hardware.color_balance[1],
             "led_color_blue": hardware.color_balance[2],
             "led_brightness": hardware.brightness,
+            "preview_invert_order": getattr(manager, "preview_invert_order", False),
         })
 
     @app.put("/api/admin/settings")
@@ -233,6 +234,7 @@ def register_api(app, manager, hardware):
         color_green = data.get("led_color_green", hardware.color_balance[1])
         color_blue = data.get("led_color_blue", hardware.color_balance[2])
         brightness = data.get("led_brightness", hardware.brightness)
+        preview_invert_order = data.get("preview_invert_order", getattr(manager, "preview_invert_order", False))
         if type(start_value) is not int or type(end_value) is not int or type(handoff_value) is not int:
             return jsonify({"ok": False, "message": "Enter whole numbers for offsets and microphone handoff."}), 400
         if type(beat_lead_value) is not int or not -100 <= beat_lead_value <= 200:
@@ -241,6 +243,8 @@ def register_api(app, manager, hardware):
             return jsonify({"ok": False, "message": "LED color balance values must be whole percentages."}), 400
         if type(brightness) is not int or not 0 <= brightness <= 255:
             return jsonify({"ok": False, "message": "LED brightness must be a whole value from 0 to 255."}), 400
+        if type(preview_invert_order) is not bool:
+            return jsonify({"ok": False, "message": "LED order inversion must be true or false."}), 400
         if any(not 0 <= value <= 200 for value in (color_red, color_green, color_blue)):
             return jsonify({"ok": False, "message": "LED color balance must be between 0 and 200 percent."}), 400
         if not isinstance(animation_value, str) or type(sensitivity_value) not in (int, float):
@@ -279,6 +283,7 @@ def register_api(app, manager, hardware):
                     "led_color_green": color_green,
                     "led_color_blue": color_blue,
                     "led_brightness": brightness,
+                    "preview_invert_order": preview_invert_order,
                 }, settings_file)
             os.replace(temporary_path, settings_path)
         except OSError:
@@ -295,6 +300,7 @@ def register_api(app, manager, hardware):
         manager.web_mics.handoff_seconds = handoff_value
         manager.set_music_visualizer(animation_value, sensitivity, primary_color, accent_color)
         manager.music_beat_lead_ms = beat_lead_value
+        manager.preview_invert_order = preview_invert_order
         return jsonify({
             "ok": True, "hidden_start": start, "hidden_end": end,
             "mic_handoff_seconds": handoff_value,
@@ -307,6 +313,7 @@ def register_api(app, manager, hardware):
             "led_color_green": color_green,
             "led_color_blue": color_blue,
             "led_brightness": brightness,
+            "preview_invert_order": preview_invert_order,
         })
 
     def broadcast_state():
