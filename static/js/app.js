@@ -325,6 +325,7 @@
         rainbow_wave: "Rainbow wave", comet: "Comet",
         retro_vu: "Retro VU meter", inward_diamonds: "Inward diamonds",
         red_shades: "Red shades", live_band: "Live band spectrum",
+        kitt_scanner: "KITT Scanner",
       };
       var visualizerStatus = $id("music-visualizer-status");
       if (visualizerStatus) {

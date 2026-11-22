@@ -77,6 +77,9 @@ class ArcadeManager:
         self.music_enabled_bands = [True] * 6
         self._bpm_trace_position = 0.0
         self._bpm_trace_energy = 0.0
+        self._kitt_position = 0.0
+        self._kitt_direction = 1.0
+        self._kitt_speak = 0.0
         self._music_led_frame = [(0, 0, 0)] * count
         self._laser_phrase = 0
         self._laser_phrase_length = 4
@@ -229,7 +232,7 @@ class ArcadeManager:
         if animation not in (
             "center_pulse", "mirror_bars", "rainbow_wave", "comet",
             "retro_vu", "inward_diamonds", "red_shades", "live_band",
-            "bpm_trace", "laser_dance",
+            "bpm_trace", "laser_dance", "kitt_scanner",
         ):
             raise ValueError("Unknown music animation.")
         if not 0.25 <= float(sensitivity) <= 4.0:
@@ -403,7 +406,7 @@ class ArcadeManager:
         )
         self._draw_music_animation(frame, level, peak, dt, bands)
 
-        if beat_pulse > 0 and self.music_animation not in ("live_band", "laser_dance"):
+        if beat_pulse > 0 and self.music_animation not in ("live_band", "laser_dance", "kitt_scanner"):
             flash_color = (
                 (255, 70, 0) if self.music_animation in ("retro_vu", "live_band")
                 else self._music_accent_rgb
@@ -416,7 +419,7 @@ class ArcadeManager:
             self._music_clap_flash = 0.13
         else:
             self._music_clap_flash = max(0.0, getattr(self, "_music_clap_flash", 0.0) - dt)
-        if self._music_clap_flash > 0 and self.music_animation not in ("live_band", "laser_dance"):
+        if self._music_clap_flash > 0 and self.music_animation not in ("live_band", "laser_dance", "kitt_scanner"):
             amount = min(0.32, self._music_clap_flash / 0.13 * 0.32)
             if self.music_animation == "red_shades":
                 flash_color = (255, 0, 0)
@@ -511,6 +514,38 @@ class ArcadeManager:
             frame.set(marker, (255, 255, 255))
             tail = (marker - 1) % count
             frame.set(tail, (0, int(170 * self._bpm_trace_energy), int(255 * self._bpm_trace_energy)))
+            return
+        if self.music_animation == "kitt_scanner":
+            frame.clear()
+            # A classic KITT scanner sweeps continuously between the ends.
+            # The original's quick, lateral sweep is kept at roughly 1.55 s
+            # end-to-end. Music may only add a small amount of urgency.
+            speed = 38.0 + level * 5.0 + self._music_beat_pulse * 2.0
+            self._kitt_position += self._kitt_direction * speed * max(0.0, dt)
+            if self._kitt_position >= count - 1:
+                self._kitt_position = count - 1
+                self._kitt_direction = -1.0
+            elif self._kitt_position <= 0:
+                self._kitt_position = 0.0
+                self._kitt_direction = 1.0
+            head = int(round(self._kitt_position))
+            transient = max(
+                self._music_beat_pulse,
+                max(0.0, peak - level * 0.62) * 3.2,
+            )
+            self._kitt_speak = max(transient, self._kitt_speak * math.exp(-max(0.0, dt) * 13.0))
+            for offset in range(-3, 4):
+                index = head + offset
+                if not 0 <= index < count:
+                    continue
+                strength = max(0.0, 1.0 - abs(offset) / 4.0)
+                strength = strength * strength
+                # Pure KITT red. A transient brightens the head and its two
+                # nearest neighbours, like a short spoken emphasis, without
+                # coloring any unlit pixels or changing toward amber.
+                emphasis = self._kitt_speak if abs(offset) <= 1 else 0.0
+                red = int(255 * strength * (0.64 + 0.36 * emphasis))
+                frame.set(index, (red, 0, 0))
             return
         if self.music_animation == "laser_dance":
             self._draw_laser_dance(frame, bands or [level] * 6, dt)
