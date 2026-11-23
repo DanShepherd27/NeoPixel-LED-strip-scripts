@@ -290,6 +290,30 @@ class MusicRenderingMixin(MusicPatternMixin):
             self._music_beat_period += (candidate_period - current) * 0.08
             self._music_tempo_candidate = candidate_period
 
+    def _draw_inward_diamonds(self, frame, level, peak, dt, count, half):
+        """Draw diamonds with smoothed size, brightness and travel.
+
+        Raw level/peak change every audio frame, so they only steer slow
+        followers (fast attack, slow release); travel integrates speed so
+        speed changes never make the diamonds jump.
+        """
+        dt = max(0.0, dt)
+        state = self._diamond_state
+        state["level"] += (level - state["level"]) * (1.0 - math.exp(-dt * (14.0 if level > state["level"] else 3.5)))
+        state["peak"] += (peak - state["peak"]) * (1.0 - math.exp(-dt * (10.0 if peak > state["peak"] else 2.0)))
+        state["travel"] = (state["travel"] + dt * (6.0 + state["level"] * 12.0)) % max(1, half)
+        travel = state["travel"]
+        radius = 3.0 + 5.0 * min(1.0, state["peak"])
+        brightness = 0.45 + 0.50 * state["level"]
+        reach = int(math.ceil(radius)) + 1
+        base = int(travel)
+        for pixel in range(base - reach, base + reach + 2):
+            intensity = max(0.0, 1.0 - abs(pixel - travel) / (radius + 1.0)) * brightness
+            if intensity <= 0.0:
+                continue
+            frame.set(pixel, tuple(int(c * intensity) for c in self._music_primary_rgb))
+            frame.set(count - 1 - pixel, tuple(int(c * intensity) for c in self._music_accent_rgb))
+
     def _draw_music_animation(self, frame, level, peak, dt=0.0, bands=None):
         count = self.count
         if not count:
@@ -457,14 +481,7 @@ class MusicRenderingMixin(MusicPatternMixin):
 
         if self.music_animation == "inward_diamonds":
             frame.clear()
-            travel = int((self._music_phase * (6.0 + level * 12.0)) % max(1, half))
-            radius = max(3, min(8, 3 + int(peak * 6)))
-            for offset in range(-radius, radius + 1):
-                intensity = (1.0 - abs(offset) / (radius + 1.0)) * (0.45 + 0.50 * level)
-                left = travel + offset
-                right = count - 1 - travel - offset
-                frame.set(left, tuple(int(channel * intensity) for channel in self._music_primary_rgb))
-                frame.set(right, tuple(int(channel * intensity) for channel in self._music_accent_rgb))
+            self._draw_inward_diamonds(frame, level, peak, dt, count, half)
             return
 
         if self.music_animation == "mirror_bars":

@@ -104,6 +104,7 @@ class ArcadeManager(MusicRenderingMixin):
         self._kitt_position = 0.0
         self._kitt_direction = 1.0
         self._kitt_speak = 0.0
+        self._diamond_state = {"level": 0.0, "peak": 0.0, "travel": 0.0}
         self._music_led_frame = [(0, 0, 0)] * count
         self._laser_phrase = 0
         self._laser_phrase_length = 4
