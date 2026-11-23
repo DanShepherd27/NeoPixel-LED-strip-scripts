@@ -24,12 +24,13 @@ from config import (
     MUSIC_VISUALIZER, MUSIC_SENSITIVITY,
     MUSIC_BEAT_LEAD_MS,
     MUSIC_PRIMARY_COLOR, MUSIC_ACCENT_COLOR, MUSIC_BAND_COLORS,
-    SONG_AUDIO_LATENCY_MS,
+    SONG_AUDIO_LATENCY_MS, GAME_SOUNDS, OUTPUT_AUDIO_DEVICE,
 )
 from led.hardware import LEDHardware
 from led.audio import AudioInput
 from led.renderer import Renderer
 from arcade.manager import ArcadeManager
+from arcade.sounds import SoundPlayer
 from web.runtime_settings import update_runtime_settings
 from web.server import create_app
 
@@ -161,6 +162,8 @@ def main():
         music_glitter_brightness, music_glitter_every_beats,
     )
     manager.preview_invert_order = preview_invert_order
+    manager.hidden_offsets = hardware.visible_range
+    manager.sounds = SoundPlayer(OUTPUT_AUDIO_DEVICE, GAME_SOUNDS)
     manager.song_audio_latency_ms = song_audio_latency_ms
     manager.song_auto_sync = song_auto_sync
     manager.on_song_latency_changed = lambda ms: update_runtime_settings(

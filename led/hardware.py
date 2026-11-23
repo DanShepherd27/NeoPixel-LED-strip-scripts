@@ -118,6 +118,11 @@ class LEDHardware:
             ))
         return colors
 
+    def visible_range(self):
+        """Counts of dark pixels at the (start, end) of the strip, as set by the admin."""
+        with self._offset_lock:
+            return self.hidden_start, self.hidden_end
+
     def set_hidden_offsets(self, hidden_start, hidden_end):
         """Update the globally hidden LED counts at each physical end."""
         hidden_start = max(0, min(self.count, int(hidden_start)))

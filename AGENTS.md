@@ -105,6 +105,12 @@ Browsers can also stream `/api/song/audio`
 ## Architecture and where to change things
 
 - `app.py`: loads persisted settings and starts one renderer and the web app.
+- Games, the lobby and results draw only on the LEDs the admin left visible:
+  `ArcadeManager._render_in_play_area` hands them a shorter frame and games use
+  `manager.play_count`, never `manager.count`.
+- `arcade/sounds.py`: retro square-wave effects synthesized at start-up and played
+  with `aplay` on `LED_OUTPUT_AUDIO_DEVICE`; call `manager.sound(name)`. Set
+  `LED_ARCADE_GAME_SOUNDS=0` to mute.
 - `led/hardware.py`: sole `rpi_ws281x` wrapper; only `led/renderer.py` writes
   frames to hardware. Do not call `strip.show()` from routes or games.
 - `led/frame.py` and `led/effects/`: frame buffer and idle animations.
@@ -149,7 +155,8 @@ their position, cannot steer or advance the demo, and get the next game
 (`_finish_results` moves the players to the back of the queue). Silent phones
 (no input/heartbeat for 20 s) count as away and are dropped after 120 s. Any
 player can vote to kick another; a majority of the other connected players
-removes them and their device cannot rejoin for two minutes. Games
+removes them and their device cannot rejoin for two minutes. The tutorial has one primary button: Next through the steps, then Ready (Start when
+playing alone); finishing the last step marks that player ready. Games
 define `tutorial_steps` and `render_tutorial(...)`; each step's demo loops until a
 participant presses Next, then (for several players) the game waits without a
 timer until all mark ready; players can replay the demo, which resets
@@ -160,7 +167,11 @@ machine (`PongGame.MACHINE_ID`, right end). It plans one swing per ball sent its
 way (at least `MACHINE_MIN_REACTION` after the hit, aimed at the zone's middle with
 `MACHINE_TIMING_ERROR` seconds of jitter), so it misses more as the ball speeds up
 and the zone's time window shrinks.
-A machine win has no player record, so the game supplies `results["winner_name"]`
+Pong is played in three levels: each end's hit zone is lit in its guard's player
+color (the machine is cyan), a level is first to 3 points, and the match goes to
+whoever wins 2 levels. Every hit speeds the ball up (longer trail, higher beep);
+each level starts faster, and between levels the game waits until every connected
+human presses "Start level" on their phone (`next_level` input). A machine win has no player record, so the game supplies `results["winner_name"]`
 and `results["winner_color"]` for the results screen.
 
 For new work, first look for a plug-and-play library, existing browser API, or

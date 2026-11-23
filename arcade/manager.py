@@ -12,6 +12,7 @@ import random
 import logging
 
 from arcade.state import ArcadeState
+from led.frame import Frame
 from arcade.players import PlayerManager
 from arcade.games import GAMES, game_catalog
 from led.effects import EFFECTS
@@ -157,6 +158,20 @@ class ArcadeManager(MusicRenderingMixin):
         self.kicked_ids = []        # recently vote-kicked players, so their phone can say why
         self._lock = threading.RLock()
         self._input_queue = queue.Queue()
+
+        # Set by the app: hardware offsets and the speaker, so games respect both.
+        self.hidden_offsets = lambda: (0, 0)
+        self.sounds = None
+
+    @property
+    def play_count(self):
+        """LEDs games may use: the strip without the admin's dark pixels at each end."""
+        start, end = self.hidden_offsets()
+        return max(1, self.count - start - end)
+
+    def sound(self, name):
+        if self.sounds is not None:
+            self.sounds.play(name)
 
     # -- current idle effect -------------------------------------------------
     @property
@@ -384,8 +399,11 @@ class ArcadeManager(MusicRenderingMixin):
                 return
             self.tutorial_index += 1
             self.tutorial_elapsed = 0.0
-            if self.tutorial_index >= len(self.game_class.tutorial_steps) and self._is_solo():
-                self._enter_countdown()
+            if self.tutorial_index >= len(self.game_class.tutorial_steps):
+                if self._is_solo():
+                    self._enter_countdown()
+                elif player_id is not None:
+                    self.players.set_ready(player_id, True)   # finishing the demo means "I'm ready"
 
     def skip_tutorial(self, player_id=None):
         with self._lock:
@@ -515,6 +533,7 @@ class ArcadeManager(MusicRenderingMixin):
     def _enter_results(self):
         self.state = ArcadeState.RESULTS
         self.results_timer = RESULTS_DURATION
+        self.sound("win")
         log.info("State -> RESULTS (winner=%s)", self.game.winner)
 
     def _select_players(self, game_class):
@@ -584,33 +603,48 @@ class ArcadeManager(MusicRenderingMixin):
             if self.state == ArcadeState.IDLE:
                 self._update_idle(dt)
                 self.current_effect.render(frame, dt)
-            elif self.state == ArcadeState.LOBBY:
-                self._render_lobby(frame, dt)
             elif self.state == ArcadeState.MUSIC:
                 self._render_music(frame, dt)
             elif self.state == ArcadeState.SONG:
                 self._render_song(frame, dt)
-            elif self.state == ArcadeState.TUTORIAL:
-                self._update_tutorial(dt)
-                if self.state == ArcadeState.TUTORIAL and self.game is not None:
-                    steps = self.game_class.tutorial_steps
-                    if self.tutorial_index < len(steps):
-                        step = steps[self.tutorial_index]
-                        self.game.render_tutorial(
-                            frame, self.tutorial_index, self.tutorial_elapsed,
-                            step["duration"],
-                        )
-            elif self.state == ArcadeState.COUNTDOWN:
-                self._update_countdown(dt)
-                self._render_countdown(frame, dt)
-            elif self.state == ArcadeState.GAME:
-                self._update_game(dt)
-                if self.game is not None:
-                    self.game.render(frame, dt)
-            elif self.state == ArcadeState.RESULTS:
-                self._update_results(dt)
-                self._render_results(frame, dt)
+            else:
+                self._render_in_play_area(frame, dt)
             self._music_led_frame = list(frame.pixels)
+
+    def _render_in_play_area(self, frame, dt):
+        """Lobby, games and results draw only on the LEDs the admin left visible."""
+        start, end = self.hidden_offsets()
+        visible = self.count - start - end
+        if visible <= 0:
+            return
+        view = Frame(visible) if (start or end) else frame
+        self._render_scene(view, dt)
+        if view is not frame:
+            frame.pixels[start:start + visible] = view.pixels
+
+    def _render_scene(self, frame, dt):
+        if self.state == ArcadeState.LOBBY:
+            self._render_lobby(frame, dt)
+        elif self.state == ArcadeState.TUTORIAL:
+            self._update_tutorial(dt)
+            if self.state == ArcadeState.TUTORIAL and self.game is not None:
+                steps = self.game_class.tutorial_steps
+                if self.tutorial_index < len(steps):
+                    step = steps[self.tutorial_index]
+                    self.game.render_tutorial(
+                        frame, self.tutorial_index, self.tutorial_elapsed,
+                        step["duration"],
+                    )
+        elif self.state == ArcadeState.COUNTDOWN:
+            self._update_countdown(dt)
+            self._render_countdown(frame, dt)
+        elif self.state == ArcadeState.GAME:
+            self._update_game(dt)
+            if self.game is not None:
+                self.game.render(frame, dt)
+        elif self.state == ArcadeState.RESULTS:
+            self._update_results(dt)
+            self._render_results(frame, dt)
 
     def _refresh_presence(self, dt):
         self._presence_timer -= dt
@@ -650,7 +684,12 @@ class ArcadeManager(MusicRenderingMixin):
         return int(getattr(self.game_class, "min_players", 1))
 
     def _update_countdown(self, dt):
+        before = int(max(0.0, self.countdown)) + 1
         self.countdown -= dt
+        if self.countdown > 0 and int(self.countdown) + 1 != before:
+            self.sound("beep")
+        elif self.countdown <= 0:
+            self.sound("go")
         if self.countdown <= 0:
             self._start_game()
 
@@ -687,7 +726,7 @@ class ArcadeManager(MusicRenderingMixin):
         import math
         import time as _time
         n = len(players)
-        segment = self.count / n
+        segment = frame.count / n
         pulse = (math.sin(_time.monotonic() * 3.0) + 1.0) / 2.0
         for i, player in enumerate(players):
             start = int(i * segment)
@@ -695,7 +734,7 @@ class ArcadeManager(MusicRenderingMixin):
             brightness = 0.35 + 0.65 * pulse if player.ready else 0.25
             r, g, b = player.color
             color = (int(r * brightness), int(g * brightness), int(b * brightness))
-            for j in range(start, min(end, self.count)):
+            for j in range(start, min(end, frame.count)):
                 frame.set(j, color)
 
     def _render_countdown(self, frame, dt):
@@ -711,7 +750,7 @@ class ArcadeManager(MusicRenderingMixin):
         if blink:
             # Fill a shrinking fraction as the countdown approaches zero.
             frac = remaining / COUNTDOWN_SECONDS
-            lit = int(self.count * max(0.15, frac))
+            lit = int(frame.count * max(0.15, frac))
             for i in range(lit):
                 frame.set(i, color)
 
@@ -815,8 +854,8 @@ class ArcadeManager(MusicRenderingMixin):
         if self.tutorial_index >= len(steps):
             return {
                 "index": len(steps), "count": len(steps),
-                "title": "Everyone ready?",
-                "instruction": "Review or replay the demo, then mark yourself ready. The game starts when everyone is ready.",
+                "title": "Waiting for everyone",
+                "instruction": "The game starts when every player is ready. Replay the demo if you need another look.",
                 "remaining": 0.0, "waiting_ready": True,
             }
         if not steps:
@@ -824,6 +863,7 @@ class ArcadeManager(MusicRenderingMixin):
                     "instruction": "The game is about to begin.", "remaining": 0.0}
         step = steps[self.tutorial_index]
         return {
+            "solo": self._is_solo(),
             "index": self.tutorial_index + 1,
             "count": len(steps),
             "title": step["title"],

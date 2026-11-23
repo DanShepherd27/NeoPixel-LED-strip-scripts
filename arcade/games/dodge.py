@@ -71,7 +71,7 @@ class DodgeGame(BaseGame):
 
         # Move the avatar according to the held direction.
         self.avatar += self.move_dir * self.AVATAR_SPEED * dt
-        self.avatar = max(0.0, min(self.manager.count - 1, self.avatar))
+        self.avatar = max(0.0, min(self.manager.play_count - 1, self.avatar))
 
         speed = self._speed()
 
@@ -80,7 +80,7 @@ class DodgeGame(BaseGame):
         if self._spawn_timer <= 0:
             self._spawn_timer = max(0.35, self.SPAWN_INTERVAL - self.elapsed * 0.01)
             direction = 1 if random.random() < 0.5 else -1
-            start = -1.0 if direction == 1 else self.manager.count
+            start = -1.0 if direction == 1 else self.manager.play_count
             self.obstacles.append({
                 "pos": start,
                 "dir": direction,
@@ -100,7 +100,7 @@ class DodgeGame(BaseGame):
 
         # Remove obstacles that left the strip.
         self.obstacles = [
-            o for o in self.obstacles if -2 < o["pos"] < self.manager.count + 1
+            o for o in self.obstacles if -2 < o["pos"] < self.manager.play_count + 1
         ]
 
     def handle_input(self, player_id, action):
@@ -117,6 +117,7 @@ class DodgeGame(BaseGame):
         self.lives -= 1
         self._invuln = self.INVULN_TIME
         self._hit_flash = 1.0
+        self.manager.sound("oops")
         if self.lives <= 0:
             self._finish()
 

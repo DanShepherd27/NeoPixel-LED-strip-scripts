@@ -458,17 +458,19 @@
     const readyCount = connected.filter(function (player) { return player.ready; }).length;
     const waiting = !!tutorial.waiting_ready;
     const mine = connected.find(function (player) { return player.id === App.playerId; });
-    const readyButton = $id("tutorial-ready-btn");
-    readyButton.hidden = !waiting || !mine;
-    $id("tutorial-next-btn").hidden = waiting || !tutorial.count || !mine;
+    // One primary button: Next through the demo, then Ready (Start when playing alone).
+    const nextButton = $id("tutorial-next-btn");
+    nextButton.hidden = !mine || !tutorial.count;
+    if (waiting) {
+      nextButton.textContent = mine && mine.ready ? "NOT READY" : "READY";
+    } else {
+      nextButton.textContent = !tutorial.is_last ? "NEXT" : (tutorial.solo ? "START" : "READY");
+    }
+    nextButton.className = "btn " + (waiting && mine && mine.ready ? "btn-ghost" : "btn-primary");
     $id("replay-tutorial-btn").hidden = !waiting || !mine;
-    $id("tutorial-next-btn").textContent = tutorial.is_last ? "DONE" : "NEXT";
-    readyButton.disabled = !waiting || !mine;
-    readyButton.textContent = mine && mine.ready ? "NOT READY" : "READY";
-    readyButton.className = "btn btn-block " + (mine && mine.ready ? "btn-ghost" : "btn-primary");
     $id("tutorial-ready-status").textContent = waiting
       ? readyCount + " of " + connected.length + " players ready. " + (readyCount === connected.length ? "Starting countdown…" : "Waiting for everyone.")
-      : (mine ? "Watch the LED demo. It repeats until you press " + (tutorial.is_last ? "Done" : "Next") + "." : "You are in the queue and will play after this game.");
+      : (mine ? "Watch the LED strip: the demo repeats until you continue." : "You are in the queue and will play after this game.");
   }
 
   function renderGame(s) {
@@ -693,13 +695,14 @@
       App.socket.emit("start_game");
     });
 
-    $id("tutorial-ready-btn").addEventListener("click", function () {
-      const me = (App.state.players || []).find(function (p) { return p.id === App.playerId; });
-      App.socket.emit("ready", { ready: me ? !me.ready : true });
-    });
-
     $id("tutorial-next-btn").addEventListener("click", function () {
-      App.socket.emit("tutorial_next");
+      const tutorial = App.state && App.state.tutorial || {};
+      if (tutorial.waiting_ready) {
+        const mine = me(App.state);
+        App.socket.emit("ready", { ready: mine ? !mine.ready : true });
+      } else {
+        App.socket.emit("tutorial_next");
+      }
     });
 
     $id("replay-tutorial-btn").addEventListener("click", function () {

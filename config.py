@@ -87,3 +87,6 @@ OUTPUT_AUDIO_DEVICE = os.environ.get("LED_OUTPUT_AUDIO_DEVICE", AUDIO_DEVICE)
 # deployed code so redeploying never touches them.
 SONG_UPLOAD_DIR = os.environ.get(
     "LED_SONG_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "user-songs"))
+
+# Retro game sound effects on the Pi's speaker (OUTPUT_AUDIO_DEVICE); "0" mutes them.
+GAME_SOUNDS = os.environ.get("LED_ARCADE_GAME_SOUNDS", "1") != "0"

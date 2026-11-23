@@ -44,7 +44,7 @@ class ShooterGame(BaseGame):
     # enemies that reach its far edge hit the base.
     @property
     def base_edge(self):
-        return max(3, self.manager.count // 6)
+        return max(3, self.manager.play_count // 6)
 
     def setup(self, players):
         super().setup(players)
@@ -82,7 +82,7 @@ class ShooterGame(BaseGame):
             interval = max(0.5, self.SPAWN_INTERVAL / self._difficulty)
             self._spawn_timer = interval * random.uniform(0.7, 1.3)
             self.enemies.append({
-                "pos": float(self.manager.count - 1),
+                "pos": float(self.manager.play_count - 1),
                 "speed": self.BASE_SPEED * self._difficulty * random.uniform(0.7, 1.4),
                 "value": 1,
             })
@@ -131,7 +131,7 @@ class ShooterGame(BaseGame):
         self.enemies = survivors
         self.projectiles = [
             proj for index, proj in enumerate(self.projectiles)
-            if index not in spent and proj["pos"] < self.manager.count
+            if index not in spent and proj["pos"] < self.manager.play_count
         ]
 
     def handle_input(self, player_id, action):
@@ -142,6 +142,7 @@ class ShooterGame(BaseGame):
             if self.elapsed - self._last_shot.get(player_id, -1.0) < self.FIRE_COOLDOWN:
                 return
             self._last_shot[player_id] = self.elapsed
+            self.manager.sound("fire")
             self.projectiles.append({
                 "pos": float(self.cannons[player_id]),
                 "speed": self.PROJECTILE_SPEED,

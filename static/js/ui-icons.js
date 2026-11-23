@@ -47,7 +47,7 @@
     "use this device's mic": ["mic", "My mic"], "allow mic and visualize": ["mic", "Allow"],
     "waiting for mic…": "spinner", "release microphone": ["micoff", "Release"], "leave mic queue": ["x", "Leave"],
     "ready": ["check", "Ready"], "not ready": ["x", "Not ready"], "leave": "logout", "start game": ["play", "Start"],
-    "back to arcade": "home", "next": "next", "done": "check",
+    "back to arcade": "home", "next": ["next", "Next"], "start": ["play", "Start"],
     "replay demo": ["replay", "Demo"], "rematch": ["replay", "Rematch"], "close": "x",
     "admin login": "lock", "save settings": "save", "admin logout": "logout",
     "analyze and add": ["upload", "Add"], "measure with speaker + mic": ["target", "Measure"],
