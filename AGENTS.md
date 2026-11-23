@@ -177,6 +177,14 @@ delay”. Treat it as a plan, not implemented behavior. In particular, do not
 claim Reaction Race scores are latency-corrected; the physical strip is the
 shared cue, but button arrival time is currently scored on the server.
 
+## Commits and authorship
+
+- Commits are authored only by the repository owner. Agents must not add
+  themselves as an author or co-author: no `Co-Authored-By:` trailer naming
+  Claude or any other AI, and no "Generated with" lines in commit messages.
+- Commit messages describe the change in plain words; end them without any
+  attribution line.
+
 ## Deploy and secrets
 
 - From the repo, run `python deploy/deploy.py`. It prompts for the Pi address
