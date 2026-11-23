@@ -135,6 +135,7 @@ def register_music_routes(app, manager):
         if manager.state.value != "music" or not manager.web_mics.update(
             data.get("token"), data.get("level"), data.get("peak"),
             data.get("clap"), data.get("bands"), data.get("latency_ms", 40),
+            hits={key: data.get(key) for key in ("kick", "kick_ago_ms", "snare", "snare_ago_ms")},
         ):
             return jsonify({"ok": False, "message": "Microphone lease is no longer active."}), 409
         return jsonify({"ok": True})

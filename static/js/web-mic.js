@@ -109,6 +109,66 @@
     micRole = "idle";
   }
 
+  // Kick (30-150 Hz) and snare (1.5-7 kHz) onset strength: the positive change of the
+  // log-compressed spectrum, scaled 0-1 against a slowly decaying recent maximum.
+  // ``take`` returns the strongest value since the last call and how long ago it was.
+  function createOnsetTracker(analyser, sampleRate) {
+    const spectrum = new Float32Array(analyser.frequencyBinCount);
+    const previous = new Float32Array(analyser.frequencyBinCount);
+    const binHz = sampleRate / analyser.fftSize;
+    const ranges = {
+      kick: [Math.max(1, Math.floor(30 / binHz)), Math.ceil(150 / binHz)],
+      snare: [Math.floor(1500 / binHz), Math.min(spectrum.length - 1, Math.ceil(7000 / binHz))],
+    };
+    const ceiling = { kick: 0.05, snare: 0.05 };
+    const held = { kick: 0, snare: 0, kickAt: 0, snareAt: 0 };
+    let primed = false;
+    let lastTime = 0;
+
+    function flux(range) {
+      let total = 0;
+      for (let bin = range[0]; bin <= range[1]; bin++) {
+        const rise = spectrum[bin] - previous[bin];
+        if (rise > 0) total += rise;
+      }
+      return total / (range[1] - range[0] + 1);
+    }
+
+    function measure(now) {
+      analyser.getFloatFrequencyData(spectrum);
+      for (let bin = 0; bin < spectrum.length; bin++) {
+        const magnitude = Math.pow(10, Math.max(-120, spectrum[bin]) / 20);
+        spectrum[bin] = Math.log1p(100 * magnitude);
+      }
+      if (primed) {
+        const decay = Math.exp(-Math.max(0, now - lastTime) / 1000 * 0.25);
+        ["kick", "snare"].forEach(function (name) {
+          const value = flux(ranges[name]);
+          ceiling[name] = Math.max(0.05, ceiling[name] * decay, value);
+          const strength = Math.min(1, value / ceiling[name]);
+          if (strength > held[name]) {
+            held[name] = strength;
+            held[name + "At"] = now;
+          }
+        });
+      }
+      previous.set(spectrum);
+      primed = true;
+      lastTime = now;
+    }
+
+    function take(now) {
+      const result = {
+        kick: held.kick, kickAgo: held.kick ? now - held.kickAt : 0,
+        snare: held.snare, snareAgo: held.snare ? now - held.snareAt : 0,
+      };
+      held.kick = held.snare = 0;
+      return result;
+    }
+
+    return { measure: measure, take: take };
+  }
+
   function startMicCapture() {
     const statusText = $id("web-mic-status");
     const startButton = $id("mic-start-btn");
@@ -169,6 +229,13 @@
       micAnalyser.maxDecibels = -20;
       micAnalyser.smoothingTimeConstant = 0.35;
       source.connect(micAnalyser);
+      // A second, unsmoothed analyser measures how much the spectrum jumps between
+      // frames (spectral flux), the same kick/snare measure the song analyzer uses.
+      const fluxAnalyser = micContext.createAnalyser();
+      fluxAnalyser.fftSize = 1024;
+      fluxAnalyser.smoothingTimeConstant = 0;
+      source.connect(fluxAnalyser);
+      const onsets = createOnsetTracker(fluxAnalyser, micContext.sampleRate);
       const samples = new Float32Array(micAnalyser.fftSize);
       const frequencyData = new Uint8Array(micAnalyser.frequencyBinCount);
       const frequencyBands = [
@@ -176,6 +243,8 @@
         [600, 1500], [1500, 4000], [4000, 10000],
       ];
       const bandGains = [1.55, 1.4, 1.15, 1.05, 1.1, 1.25];
+      let pendingClap = false;
+      let pendingPeak = 0;
       function sample(now) {
         if (!micAnalyser || !micToken || micRole !== "owner") return;
         micAnalyser.getFloatTimeDomainData(samples);
@@ -211,14 +280,26 @@
         const clap = rms > Math.max(0.018, micNoiseFloor * 1.35) && peak > 0.12 &&
           peak / Math.max(0.001, rms) > 3 && now - micLastClap > 160;
         if (clap) micLastClap = now;
+        onsets.measure(now);
+        // Hold transients until the next send: snapshots taken only every 50 ms
+        // would otherwise drop most claps and snare cracks.
+        pendingClap = pendingClap || clap;
+        pendingPeak = Math.max(pendingPeak, peak);
         if (now - micLastSend > 50) {
           micLastSend = now;
+          const hits = onsets.take(now);
+          const sentClap = pendingClap;
+          const sentPeak = pendingPeak;
+          pendingClap = false;
+          pendingPeak = 0;
           const requestStarted = performance.now();
           const captureLatency = (micAnalyser.fftSize / micContext.sampleRate) * 500;
           fetch("/api/music/mic/audio", {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              token: micToken, level: level, peak: peak, clap: clap, bands: bands,
+              token: micToken, level: level, peak: sentPeak, clap: sentClap, bands: bands,
+              kick: hits.kick, kick_ago_ms: hits.kickAgo,
+              snare: hits.snare, snare_ago_ms: hits.snareAgo,
               latency_ms: captureLatency + micRttMs / 2,
             }),
           }).then(function (response) {

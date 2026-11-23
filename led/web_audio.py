@@ -1,13 +1,15 @@
 """Exclusive browser microphone lease and visualizer feature snapshots.
 
-Raw audio remains in the browser. Only normalized volume/clap features are
-sent to this process for rendering on the LED strip.
+Raw audio remains in the browser. Only normalized volume/clap features and
+kick/snare onset strengths are sent to this process for rendering on the LED
+strip.
 """
 
+import collections
+import math
 import secrets
 import threading
 import time
-import math
 
 
 class WebMicQueue:
@@ -26,6 +28,7 @@ class WebMicQueue:
         self._latency_ms = 40.0
         self._clap_until = 0.0
         self._last_update = 0.0
+        self._onsets = collections.deque(maxlen=64)
 
     def request(self, client_id, name="Guest"):
         if not isinstance(client_id, str) or not 8 <= len(client_id) <= 80:
@@ -55,7 +58,10 @@ class WebMicQueue:
                 self._handoff_at = None
             return self._client_status_locked(client_id)
 
-    def update(self, token, level, peak, clap, bands=None, latency_ms=40.0):
+    def update(self, token, level, peak, clap, bands=None, latency_ms=40.0, hits=None):
+        """Store one feature packet. ``hits`` may hold ``kick``/``snare`` onset
+        strengths (0-1) and ``kick_ago_ms``/``snare_ago_ms``: how long before the
+        packet was sent each strongest onset happened."""
         try:
             level = max(0.0, min(1.0, float(level)))
             peak = max(0.0, min(1.0, float(peak)))
@@ -71,6 +77,7 @@ class WebMicQueue:
             if not math.isfinite(latency_ms):
                 return False
             latency_ms = max(0.0, min(500.0, latency_ms))
+            hits = _parse_hits(hits)
         except (TypeError, ValueError):
             return False
         with self._lock:
@@ -82,8 +89,19 @@ class WebMicQueue:
             self._latency_ms = latency_ms
             if bool(clap):
                 self._clap_until = now + 0.18
+            sound_time = now - latency_ms / 1000.0
+            for name, strength, ago in hits:
+                self._onsets.append((sound_time - ago, name, strength))
             self._last_update = now
             return True
+
+    def take_onsets(self):
+        """Kick/snare onset samples received since the last call, as
+        ``(monotonic time the sound happened, "kick" or "snare", strength)``."""
+        with self._lock:
+            samples = sorted(self._onsets)
+            self._onsets.clear()
+            return samples
 
     def status(self, client_id=None):
         with self._lock:
@@ -115,6 +133,7 @@ class WebMicQueue:
             self._bands = [0.0] * self.BAND_COUNT
             self._latency_ms = 40.0
             self._last_update = self._clap_until = 0.0
+            self._onsets.clear()
 
     def _grant_locked(self, client_id, name):
         self._owner = {"client_id": client_id, "name": name, "token": secrets.token_urlsafe(32)}
@@ -155,3 +174,20 @@ class WebMicQueue:
             "queued": len(self._waiting),
             "handoff_in": remaining,
         }
+
+
+def _parse_hits(hits):
+    """``[(name, strength, seconds ago)]`` from a packet's onset fields."""
+    if not hits:
+        return []
+    parsed = []
+    for name in ("kick", "snare"):
+        if hits.get(name) is None:
+            continue
+        strength = float(hits[name])
+        ago = float(hits.get(name + "_ago_ms") or 0.0) / 1000.0
+        if not (math.isfinite(strength) and math.isfinite(ago)):
+            raise ValueError("onset values must be finite")
+        if strength > 0:
+            parsed.append((name, max(0.0, min(1.0, strength)), max(0.0, min(0.5, ago))))
+    return parsed
