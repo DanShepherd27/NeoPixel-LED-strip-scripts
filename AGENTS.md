@@ -155,7 +155,13 @@ participant presses Next, then (for several players) the game waits without a
 timer until all mark ready; players can replay the demo, which resets
 readiness. The browser controller is built once per game; never rebuild it on a
 state poll, or held buttons lose their pointerup. Current games are Reaction Race, Dodge,
-Shooter/LED Battle, and Pong.
+Shooter/LED Battle, and Pong. Pong takes 1-2 players; a lone player faces the
+machine (`PongGame.MACHINE_ID`, right end). It plans one swing per ball sent its
+way (at least `MACHINE_MIN_REACTION` after the hit, aimed at the zone's middle with
+`MACHINE_TIMING_ERROR` seconds of jitter), so it misses more as the ball speeds up
+and the zone's time window shrinks.
+A machine win has no player record, so the game supplies `results["winner_name"]`
+and `results["winner_color"]` for the results screen.
 
 For new work, first look for a plug-and-play library, existing browser API, or
 reusable building block already in the repo/environment. Avoid custom code or

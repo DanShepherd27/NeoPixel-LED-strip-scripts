@@ -719,9 +719,11 @@ class ArcadeManager(MusicRenderingMixin):
         import math
         import time as _time
         winner = None
+        results = {}
         if self.game is not None and self.game.winner:
             winner = self.players.get(self.game.winner)
-        color = winner.color if winner else (255, 255, 255)
+            results = self.game.results or {}
+        color = winner.color if winner else tuple(results.get("winner_color", (255, 255, 255)))
         pulse = (math.sin(_time.monotonic() * 5.0) + 1.0) / 2.0
         r, g, b = color
         frame.fill((int(r * pulse), int(g * pulse), int(b * pulse)))
@@ -734,8 +736,10 @@ class ArcadeManager(MusicRenderingMixin):
                 game_state = self.game.get_state()
                 if self.game.winner:
                     winner = self.players.get(self.game.winner)
-                    game_state["winner_name"] = winner.name if winner else None
-                    game_state["winner_color"] = list(winner.color) if winner else None
+                    results = self.game.results or {}
+                    game_state["winner_name"] = winner.name if winner else results.get("winner_name")
+                    game_state["winner_color"] = (
+                        list(winner.color) if winner else results.get("winner_color"))
 
             return {
                 "state": self.state.value,

@@ -6,6 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from arcade.games.pong import PongGame  # noqa: E402
 from arcade.games.shooter import ShooterGame  # noqa: E402
 from arcade.manager import ArcadeManager  # noqa: E402
 from arcade.state import ArcadeState  # noqa: E402
@@ -173,3 +174,87 @@ class VoteKickTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PongMachineTests(unittest.TestCase):
+    def setUp(self):
+        self.manager = ArcadeManager(count=60)
+        self.human = self.manager.join_player("A")
+
+    def solo_game(self):
+        game = PongGame(self.manager)
+        game.setup([self.human])
+        game.start()
+        return game
+
+    def test_solo_player_can_start_without_readying(self):
+        self.manager.select_game("pong")
+        self.manager.start_game()
+        self.assertEqual(self.manager.state, ArcadeState.TUTORIAL)
+        self.assertTrue(self.manager.get_state()["game"]["vs_machine"])
+
+    def test_two_players_play_each_other(self):
+        other = self.manager.join_player("B")
+        game = PongGame(self.manager)
+        game.setup([self.human, other])
+        game.start()
+        self.assertFalse(game.vs_machine)
+        self.assertEqual(set(game.scores), {self.human.id, other.id})
+
+    def test_machine_returns_the_ball_after_a_reaction_delay(self):
+        game = self.solo_game()
+        game.MACHINE_TIMING_ERROR = 0.0
+        game.ball, game.direction, game.speed = 50.0, 1, game.START_SPEED
+        for _ in range(40):
+            game.update(0.025)
+        self.assertEqual(game.direction, -1)
+        self.assertEqual(game.last_hit_by, game.MACHINE_ID)
+
+    def test_machine_misses_and_the_player_scores(self):
+        game = self.solo_game()
+        game.MACHINE_TIMING_ERROR = 0.0
+        game._plan_machine_swing = lambda: 0.1          # swings long before the ball is in reach
+        game.ball, game.direction = 40.0, 1
+        for _ in range(120):
+            game.update(0.025)
+            if game.scores[self.human.id]:
+                break
+        self.assertEqual(game.scores[self.human.id], 1)
+
+    def test_machine_scores_when_the_player_misses_and_can_win(self):
+        game = self.solo_game()
+        game.scores[game.MACHINE_ID] = game.WIN_SCORE - 1
+        game.ball, game.direction = 2.0, -1
+        game.update(0.5)
+        self.assertEqual(game.winner, game.MACHINE_ID)
+        self.assertTrue(game.finished)
+        self.assertEqual(game.results["winner_name"], "The machine")
+
+    def test_player_cannot_hit_for_the_machine_and_hits_own_end(self):
+        game = self.solo_game()
+        game.ball, game.direction = 58.0, 1
+        game.handle_input(self.human.id, "hit")
+        self.assertEqual(game.direction, 1)          # the human guards the left end only
+        game.ball, game.direction = 2.0, -1
+        game.handle_input(self.human.id, "hit")
+        self.assertEqual(game.direction, 1)
+
+    def test_machine_win_is_named_in_the_results_state(self):
+        self.manager.select_game("pong")
+        self.manager.start_game()
+        game = self.manager.game
+        game.start()
+        game.scores[game.MACHINE_ID] = game.WIN_SCORE - 1
+        game.ball, game.direction = 2.0, -1
+        game.update(0.5)
+        self.assertEqual(self.manager.get_state()["game"]["winner_name"], "The machine")
+
+    def test_machine_never_reacts_faster_than_its_reaction_time(self):
+        game = self.solo_game()
+        game.MACHINE_TIMING_ERROR = 0.0
+        game.ball, game.direction, game.speed = 55.5, 1, 20.0   # inside the zone, point still live
+        game.update(0.1)
+        self.assertEqual(game.direction, 1)                      # 0.1 s < 0.25 s reaction time
+        game.update(0.2)                                         # 0.3 s in: it may swing now
+        self.assertIn(game.direction, (1, -1))
+        self.assertTrue(game._machine_swung or game.scores[self.human.id] == 1)

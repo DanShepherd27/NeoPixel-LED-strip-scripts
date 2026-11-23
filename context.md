@@ -1345,6 +1345,7 @@ The project should not be considered complete until:
 - [ ] Returning to idle works
 - [ ] Tutorial presents phone instructions before directing attention to the LED demo
 - [ ] Tutorial can be replayed, and game waits without a timer for all required players to mark ready
+- [ ] Pong should work as single player against the machine as well as the current multiplayer against another player
 
 ### Architecture
 

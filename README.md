@@ -3,8 +3,8 @@
 A LAN hosted, phone controlled LED arcade for a Raspberry Pi and a 60 LED
 NeoPixel strip. The MVP has a continuous attract animation, a player lobby,
 QR code joining, and four playable games: Reaction Race, Dodge, LED Battle,
-and Strip Pong. Reaction Race supports one player, so the arcade can be tried
-without a second phone.
+and Strip Pong. Reaction Race and Strip Pong work with one player (Pong then
+plays against the machine), so the arcade can be tried without a second phone.
 
 ## Configure
 
