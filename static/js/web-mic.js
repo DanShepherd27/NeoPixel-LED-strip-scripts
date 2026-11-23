@@ -120,7 +120,7 @@
       kick: [Math.max(1, Math.floor(30 / binHz)), Math.ceil(150 / binHz)],
       snare: [Math.floor(1500 / binHz), Math.min(spectrum.length - 1, Math.ceil(7000 / binHz))],
     };
-    const ceiling = { kick: 0.05, snare: 0.05 };
+    const ceiling = { kick: 0.15, snare: 0.15 };  // about a soft real hit
     const held = { kick: 0, snare: 0, kickAt: 0, snareAt: 0 };
     let primed = false;
     let lastTime = 0;
@@ -144,7 +144,7 @@
         const decay = Math.exp(-Math.max(0, now - lastTime) / 1000 * 0.25);
         ["kick", "snare"].forEach(function (name) {
           const value = flux(ranges[name]);
-          ceiling[name] = Math.max(0.05, ceiling[name] * decay, value);
+          ceiling[name] = Math.max(0.15, ceiling[name] * decay, value);
           const strength = Math.min(1, value / ceiling[name]);
           if (strength > held[name]) {
             held[name] = strength;
