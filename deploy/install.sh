@@ -46,6 +46,26 @@ for config in /boot/firmware/config.txt /boot/config.txt; do
 done
 echo "blacklist snd_bcm2835" > /etc/modprobe.d/led-arcade-no-onboard-audio.conf
 
+# Bluetooth speaker: phones stream A2DP audio to the Pi's output. The admin's header
+# button opens the pairing window; the agent below accepts pairing without a PIN.
+if ! command -v bluealsa-aplay >/dev/null 2>&1 || ! command -v bt-agent >/dev/null 2>&1; then
+    echo "Installing Bluetooth audio receiver (BlueZ, bluez-alsa, bluez-tools)"
+    apt-get update || echo "WARNING: apt-get update reported errors; trying the install anyway." >&2
+    if ! apt-get install -y bluez bluez-alsa-utils bluez-tools; then
+        echo "WARNING: could not install the Bluetooth packages; phones cannot stream to the Pi." >&2
+    fi
+fi
+if command -v bluealsa-aplay >/dev/null 2>&1 && command -v bt-agent >/dev/null 2>&1; then
+    echo "Installing Bluetooth audio services"
+    for unit in led-arcade-bt-agent led-arcade-bt-audio; do
+        install -m 0644 "$APP_DIR/deploy/$unit.service" "/etc/systemd/system/$unit.service"
+    done
+    systemctl daemon-reload
+    systemctl enable --now bluetooth.service bluealsa.service
+    systemctl enable led-arcade-bt-agent.service led-arcade-bt-audio.service
+    systemctl restart led-arcade-bt-agent.service led-arcade-bt-audio.service
+fi
+
 echo "Installing Python requirements"
 "$PYTHON" -m pip install --upgrade pip
 "$PYTHON" -m pip install -r "$APP_DIR/requirements.txt"

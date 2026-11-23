@@ -1,0 +1,14 @@
+[Unit]
+Description=LED Arcade Bluetooth pairing agent (accepts pairing without a PIN)
+After=bluetooth.service
+Requires=bluetooth.service
+
+[Service]
+Type=simple
+# Phones pair "just works" only while the admin has opened the discoverable window.
+ExecStart=/usr/bin/bt-agent --capability=NoInputNoOutput
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

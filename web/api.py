@@ -12,6 +12,7 @@ from web.socket_api import register_socket_handlers
 
 from config import MAX_NAME_LENGTH
 from web.admin import register_admin_routes
+from web.bluetooth_api import register_bluetooth_routes
 from web.music_api import register_music_routes
 from web.songs_api import register_song_routes
 from arcade.song.importer import ImportJobs
@@ -37,6 +38,7 @@ def _sanitize_name(name):
 def register_api(app, manager, hardware):
     socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
     register_admin_routes(app, manager, hardware)
+    register_bluetooth_routes(app)
     register_music_routes(app, manager)
     manager.import_jobs = ImportJobs(USER_SONG_DIR)
     register_song_routes(app, manager, manager.import_jobs)

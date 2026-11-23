@@ -16,6 +16,11 @@
       adminMessage.textContent = message || "";
     }
 
+    // Header controls that only admins may use (the Bluetooth button) follow this event.
+    function announceAdmin(isAdmin) {
+      document.dispatchEvent(new CustomEvent("admin-state", { detail: { isAdmin: isAdmin } }));
+    }
+
     function loadAdminSettings() {
       fetch("/api/admin/settings").then(function (response) {
         if (!response.ok) throw new Error("not logged in");
@@ -56,9 +61,11 @@
         loginForm.hidden = true;
         settingsForm.hidden = false;
         showAdminMessage("Admin access enabled.");
+        announceAdmin(true);
       }).catch(function () {
         loginForm.hidden = false;
         settingsForm.hidden = true;
+        announceAdmin(false);
       });
     }
 
@@ -137,6 +144,7 @@
         loginForm.hidden = false;
         $id("admin-password").value = "";
         showAdminMessage("Logged out.");
+        announceAdmin(false);
       });
     });
 

@@ -56,6 +56,12 @@ and usable without internet after installation.
   still says `ready`. `deploy/install.sh` sets `dtparam=audio=off`, blacklists the
   module, and the service unloads it in `ExecStartPre`. Songs use the USB audio
   interface, so this costs nothing.
+- Bluetooth speaker: `deploy/install.sh` installs BlueZ, bluez-alsa and bluez-tools, and two
+  units (`led-arcade-bt-agent` accepts PIN-less pairing; `led-arcade-bt-audio` plays A2DP
+  on `LED_OUTPUT_AUDIO_DEVICE`). The admin-only header button
+  (`POST /api/admin/bluetooth/discoverable`, `web/bluetooth.py`) disconnects and unpairs
+  whoever is connected, then makes the Pi discoverable for
+  `LED_BLUETOOTH_DISCOVERABLE_SECONDS` (default 120).
 - The systemd service runs as root because the current GPIO/DMA setup requires
   it. `/healthz` reports `led_hardware`, `led_error`, count and offsets. A
   `mock` value means the web process is alive but physical LED control failed;
