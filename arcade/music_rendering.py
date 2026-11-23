@@ -68,6 +68,9 @@ class MusicRenderingMixin(BeatPatternMixin, MusicPatternMixin):
         # Each pattern shows kick, snare and downbeat in its own way; there is no
         # shared full-strip tint, which made every hit look the same.
         self._draw_music_animation(frame, level, peak, dt, bands)
+        # Same photosensitivity safety net as song shows: at most three
+        # large-area flashes in any second.
+        frame.pixels = self._music_flash_guard.apply(frame.pixels, ctx.t)
 
     def _take_music_onsets(self, web_active):
         """Kick/snare onsets from the active microphone, honouring the selected bands

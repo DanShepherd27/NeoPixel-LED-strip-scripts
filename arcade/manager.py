@@ -20,6 +20,7 @@ from led.web_audio import WebMicQueue
 from arcade.live_beat import LiveBeatTracker
 from arcade.music_gain import AutoGain
 from arcade.music_rendering import MusicRenderingMixin
+from arcade.song.engine import FlashGuard
 from arcade.song.library import load_song
 from arcade.song.session import SongSession
 
@@ -82,6 +83,7 @@ class ArcadeManager(MusicRenderingMixin):
         self._music_beat = LiveBeatTracker()
         self._music_ctx = self._music_beat.ctx
         self._beat_pattern_state = {}    # per-pattern followers and club layers
+        self._music_flash_guard = FlashGuard()
         self._retro_vu_peak_position = 0.0
         self._retro_vu_peak_hold = 0.0
         self._retro_vu_level = 0.0
@@ -253,6 +255,7 @@ class ArcadeManager(MusicRenderingMixin):
             self._music_beat = LiveBeatTracker()
             self._music_ctx = self._music_beat.ctx
             self._beat_pattern_state = {}
+            self._music_flash_guard = FlashGuard()
             for source in (self.web_mics, self.audio_input):
                 if source is not None:
                     source.take_onsets()   # drop hits from before the mode started

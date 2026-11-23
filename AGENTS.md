@@ -22,11 +22,12 @@ and usable without internet after installation.
 - Admin LED color balance (`led_color_red/green/blue`) scales each RGB output
   channel globally from 0–200%, applies to all scenes, and persists beside the
   other runtime settings. Defaults are 100% per channel.
-- Sound-reactive lighting offers eleven live-switchable browser patterns, prefers
+- Sound-reactive lighting offers thirteen live-switchable browser patterns, prefers
   an opted-in browser microphone and falls back to
   microphone PCM from `arecord` via `led/audio.py`; the ALSA device is
   `LED_AUDIO_DEVICE` (default `default`). Browser audio stays local; only
-  normalized volume/peak/clap and six frequency-band values are sent. One
+  normalized volume/peak/clap, six frequency-band values and kick/snare onset
+  strengths (with how long ago each happened) are sent. One
   browser owns the mic at a time, with
   a FIFO queue and admin-configured handoff (`mic_handoff_seconds` in runtime
   settings). Browser mic requires trusted HTTPS on phones; the default LAN
@@ -43,14 +44,24 @@ and usable without internet after installation.
   The six-band spectrum uses six coarse frequency bands; these represent
   ranges and do not isolate individual instruments. Sound-reactive checkboxes select
   the bands that render. The strip preview uses the renderer's last 60-pixel
-  frame, including peak/beat flashes, with hardware offsets and RGB balance
+  frame, including beat and snare accents, with hardware offsets and RGB balance
   applied; it is horizontal in landscape and vertical in portrait. The six-band
   spectrum keeps its frequency colors confined to their bands.
-  Sound-reactive lighting estimates BPM from bass-band onsets, adds a predicted beat pulse
-  to every pattern, and compensates with measured mic/network latency. Admin
-  beat-sync timing adds a saved -100 to +200 ms manual trim.
-  Keep colors saturated at high levels; the clap flash should not wash the
-  strip white.
+  Both microphones measure kick (30-150 Hz) and snare (1.5-7 kHz) spectral
+  flux like the song analyzer; level and bands may exceed 1 and are scaled by
+  `arcade/music_gain.py` instead of clipped. `arcade/live_beat.py` backdates
+  hits by the mic/network latency, estimates tempo from a 50 Hz onset
+  envelope, phase-locks a beat counter to the hits, settles the downbeat and
+  backbeats from kick/snare per beat of the bar, and fills the song shows'
+  `BeatContext` (plus `locked`, `pulse`, `snare_pulse`, `beat_event`,
+  `snare_event`). Admin beat-sync timing adds a saved -100 to +200 ms trim.
+  Patterns share one visual language (`arcade/music_beat_patterns.py`):
+  downbeat = the biggest change (color swap, shape restart), kick = one pop or
+  step, snare = both strip ends flash, loudness = a slow size envelope only.
+  There is no global beat/clap tint. Club reuses the song club layers live.
+  Live frames pass through `engine.FlashGuard` (at most 3 large flashes per
+  second); `tests/test_music_patterns.py` checks every pattern. Keep colors
+  saturated at high levels.
 - The Pi's on-board audio driver (`snd_bcm2835`) shares the PWM hardware with the
   LED data pin, and when active the strip freezes on one frame while `/healthz`
   still says `ready`. `deploy/install.sh` sets `dtparam=audio=off`, blacklists the
