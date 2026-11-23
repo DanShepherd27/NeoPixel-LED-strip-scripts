@@ -37,7 +37,7 @@
     live_band: "Six band spectrum", bpm_trace: "Beat timing trace",
     laser_dance: "Laser dance", kitt_scanner: "Red scanner",
     inward_diamonds: "Inward diamonds", red_shades: "Red pulse",
-    christmas_glitter: "Christmas glitter",
+    christmas_glitter: "Christmas glitter", club: "Club (kick, snare, lead)",
   };
 
   function configurePatternControls(scope, pattern, bandColors) {

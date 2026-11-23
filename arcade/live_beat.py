@@ -47,6 +47,8 @@ class LiveBeatContext(BeatContext):
         self.period = DEFAULT_PERIOD
         self.kick_hit = 0.0          # envelope of the last detected kick
         self.snare_hit = 0.0         # envelope of the last detected snare
+        self.new_kick = False        # a kick was detected this frame
+        self.new_snare = False       # a snare was detected this frame
 
     @property
     def bpm(self):
@@ -63,6 +65,18 @@ class LiveBeatContext(BeatContext):
         if self.locked and self.backbeat_known:
             return self.hit if self.is_backbeat else 0.0
         return self.snare_hit
+
+    @property
+    def beat_event(self):
+        """True in the frame a beat starts (predicted when locked, else a kick)."""
+        return self.new_beat if self.locked else self.new_kick
+
+    @property
+    def snare_event(self):
+        """True in the frame a snare lands (a predicted backbeat once known)."""
+        if self.locked and self.backbeat_known:
+            return self.new_beat and self.is_backbeat
+        return self.new_snare
 
     @property
     def downbeat_pulse(self):
@@ -160,12 +174,12 @@ class LiveBeatTracker:
         if name == "kick":
             self._alignment += ((1.0 if abs(error) < 0.15 else 0.0) - self._alignment) * 0.15
         if abs(error) < 0.2:
-            self._add_to_slot(name, int(nearest) % 4, strength, time)
+            self._add_to_slot(name, int(nearest) % 4, strength)
             if name == "kick":
                 self.ctx.accent = strength
 
     # -- bar ------------------------------------------------------------------
-    def _add_to_slot(self, name, slot, strength, time):
+    def _add_to_slot(self, name, slot, strength):
         for key in self._slots:
             self._slots[key] = [value * 0.97 for value in self._slots[key]]
         self._slots[name][slot] += strength
@@ -285,6 +299,8 @@ class LiveBeatTracker:
             self._bar_count += 1
         ctx.bar_in_section = self._bar_count
         ctx.bands, ctx.level = list(bands), level
+        ctx.new_kick = self._last_detect["kick"] == now
+        ctx.new_snare = self._last_detect["snare"] == now
         ctx.kick_hit = math.exp(-(now - self._last_detect["kick"]) * HIT_DECAY["kick"])
         ctx.snare_hit = math.exp(-(now - self._last_detect["snare"]) * HIT_DECAY["snare"])
         ctx.kick, ctx.snare = ctx.kick_hit, ctx.snare_hit

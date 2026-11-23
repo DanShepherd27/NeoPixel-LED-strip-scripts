@@ -81,6 +81,7 @@ class ArcadeManager(MusicRenderingMixin):
         self._music_gain = AutoGain(7)   # level + six bands
         self._music_beat = LiveBeatTracker()
         self._music_ctx = self._music_beat.ctx
+        self._beat_pattern_state = {}    # per-pattern followers and club layers
         self._retro_vu_peak_position = 0.0
         self._retro_vu_peak_hold = 0.0
         self._retro_vu_level = 0.0
@@ -93,7 +94,6 @@ class ArcadeManager(MusicRenderingMixin):
         self._kitt_position = 0.0
         self._kitt_direction = 1.0
         self._kitt_speak = 0.0
-        self._diamond_state = {"level": 0.0, "peak": 0.0, "travel": 0.0}
         self._music_led_frame = [(0, 0, 0)] * count
         self._laser_phrase = 0
         self._laser_phrase_length = 4
@@ -106,11 +106,8 @@ class ArcadeManager(MusicRenderingMixin):
         self._laser_motion = 0.0
         self._laser_target = 0.0
         self._laser_step = 0
-        self._laser_previous_bands = [0.0] * 6
         self._laser_kick = 0.0
         self._laser_snare = 0.0
-        self._laser_last_kick = -10.0
-        self._laser_last_snare = -10.0
         self._laser_volume = 0.0
         self._laser_wave = 0.0
         self._laser_wave_origin = 0.0
@@ -255,6 +252,7 @@ class ArcadeManager(MusicRenderingMixin):
             self.game_class = None
             self._music_beat = LiveBeatTracker()
             self._music_ctx = self._music_beat.ctx
+            self._beat_pattern_state = {}
             for source in (self.web_mics, self.audio_input):
                 if source is not None:
                     source.take_onsets()   # drop hits from before the mode started
@@ -413,7 +411,7 @@ class ArcadeManager(MusicRenderingMixin):
         if animation not in (
             "center_pulse", "mirror_bars", "rainbow_wave", "comet",
             "retro_vu", "inward_diamonds", "red_shades", "live_band",
-            "bpm_trace", "laser_dance", "kitt_scanner", "christmas_glitter",
+            "bpm_trace", "laser_dance", "kitt_scanner", "christmas_glitter", "club",
         ):
             raise ValueError("Unknown music animation.")
         if not 0.25 <= float(sensitivity) <= 4.0:

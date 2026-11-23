@@ -10,10 +10,14 @@ import time
 from led.colors import hsv_to_rgb
 from arcade.music_colors import blend_rgb as _blend_rgb
 from arcade.music_gain import AutoGain
+from arcade.music_beat_patterns import BeatPatternMixin
 from arcade.music_patterns import MusicPatternMixin
 
+# Patterns drawn by BeatPatternMixin (``_draw_<name>``).
+BEAT_PATTERNS = ("center_pulse", "mirror_bars", "comet", "rainbow_wave", "inward_diamonds", "club")
 
-class MusicRenderingMixin(MusicPatternMixin):
+
+class MusicRenderingMixin(BeatPatternMixin, MusicPatternMixin):
     def _render_music(self, frame, dt):
         web_audio = self.web_mics.snapshot()
         use_pi = not web_audio["active"]
@@ -61,36 +65,9 @@ class MusicRenderingMixin(MusicPatternMixin):
             bands, level, dt, self.music_beat_lead_ms / 1000.0,
         )
         self._music_ctx = ctx
+        # Each pattern shows kick, snare and downbeat in its own way; there is no
+        # shared full-strip tint, which made every hit look the same.
         self._draw_music_animation(frame, level, peak, dt, bands)
-
-        beat_pulse = ctx.pulse
-        if beat_pulse > 0 and self.music_animation not in (
-            "live_band", "laser_dance", "kitt_scanner", "christmas_glitter",
-        ):
-            flash_color = (
-                (255, 70, 0) if self.music_animation in ("retro_vu", "live_band")
-                else self._music_accent_rgb
-            )
-            amount = min(0.28, 0.28 * beat_pulse)
-            for index in range(frame.count):
-                frame.blend(index, flash_color, amount)
-
-        if audio.get("clap") and filter_gain >= 0.25:
-            self._music_clap_flash = 0.13
-        else:
-            self._music_clap_flash = max(0.0, getattr(self, "_music_clap_flash", 0.0) - dt)
-        if self._music_clap_flash > 0 and self.music_animation not in (
-            "live_band", "laser_dance", "kitt_scanner", "christmas_glitter",
-        ):
-            amount = min(0.32, self._music_clap_flash / 0.13 * 0.32)
-            if self.music_animation == "red_shades":
-                flash_color = (255, 0, 0)
-            elif self.music_animation in ("retro_vu", "rainbow_wave"):
-                flash_color = (255, 80, 12)
-            else:
-                flash_color = self._music_accent_rgb
-            for index in range(frame.count):
-                frame.blend(index, flash_color, amount)
 
     def _take_music_onsets(self, web_active):
         """Kick/snare onsets from the active microphone, honouring the selected bands
@@ -143,31 +120,9 @@ class MusicRenderingMixin(MusicPatternMixin):
                 stripe = ((index + stripe_shift) // 5) % 2
                 color = (235, 8, 22) if stripe == 0 else (255, 245, 230)
                 factor = base_brightness
+                if stripe:   # the snare lights the white stripes
+                    factor = min(1.0, factor + 0.4 * ctx.snare_pulse)
             frame.set(index, tuple(int(channel * factor) for channel in color))
-
-    def _draw_inward_diamonds(self, frame, level, peak, dt, count, half):
-        """Draw diamonds with smoothed size, brightness and travel.
-
-        Raw level/peak change every audio frame, so they only steer slow
-        followers (fast attack, slow release); travel integrates speed so
-        speed changes never make the diamonds jump.
-        """
-        dt = max(0.0, dt)
-        state = self._diamond_state
-        state["level"] += (level - state["level"]) * (1.0 - math.exp(-dt * (14.0 if level > state["level"] else 3.5)))
-        state["peak"] += (peak - state["peak"]) * (1.0 - math.exp(-dt * (10.0 if peak > state["peak"] else 2.0)))
-        state["travel"] = (state["travel"] + dt * (6.0 + state["level"] * 12.0)) % max(1, half)
-        travel = state["travel"]
-        radius = 3.0 + 5.0 * min(1.0, state["peak"])
-        brightness = 0.45 + 0.50 * state["level"]
-        reach = int(math.ceil(radius)) + 1
-        base = int(travel)
-        for pixel in range(base - reach, base + reach + 2):
-            intensity = max(0.0, 1.0 - abs(pixel - travel) / (radius + 1.0)) * brightness
-            if intensity <= 0.0:
-                continue
-            frame.set(pixel, tuple(int(c * intensity) for c in self._music_primary_rgb))
-            frame.set(count - 1 - pixel, tuple(int(c * intensity) for c in self._music_accent_rgb))
 
     def _draw_music_animation(self, frame, level, peak, dt=0.0, bands=None):
         count = self.count
@@ -205,7 +160,8 @@ class MusicRenderingMixin(MusicPatternMixin):
                 self._kitt_position = 0.0
                 self._kitt_direction = 1.0
             head = int(round(self._kitt_position))
-            transient = max(pulse, max(0.0, peak - level * 0.62) * 3.2)
+            transient = max(pulse, self._music_ctx.snare_pulse * 0.8,
+                            max(0.0, peak - level * 0.62) * 3.2)
             self._kitt_speak = max(transient, self._kitt_speak * math.exp(-max(0.0, dt) * 13.0))
             for offset in range(-3, 4):
                 index = head + offset
@@ -225,14 +181,17 @@ class MusicRenderingMixin(MusicPatternMixin):
         if self.music_animation == "christmas_glitter":
             self._draw_christmas_glitter(frame, level, peak)
             return
-        if self.music_animation in ("center_pulse", "mirror_bars", "comet", "inward_diamonds"):
-            # These patterns previously used raw RMS directly, which left
-            # their sparse shapes nearly invisible at ordinary listening
-            # levels. Expand the low/mid range without changing configured
-            # sensitivity or the other full-strip patterns.
+        if self.music_animation in BEAT_PATTERNS:
+            # Sparse shapes need the low/mid range expanded to stay visible at
+            # ordinary listening levels.
             level = min(1.0, (level * 1.5) ** 0.82)
             peak = min(1.0, (peak * 1.5) ** 0.82)
-        brightness = 0.16 + 0.66 * level
+            frame.clear()
+            if self.music_animation == "inward_diamonds":
+                self._draw_inward_diamonds(frame, level, peak, dt)
+            else:
+                getattr(self, "_draw_" + self.music_animation)(frame, level, dt)
+            return
         if self.music_animation == "red_shades":
             bass = max(bands[0], bands[1] * 0.88) if bands else level
             bass = min(1.0, (bass * 1.7) ** 0.72)
@@ -259,28 +218,11 @@ class MusicRenderingMixin(MusicPatternMixin):
                         255,
                         10 + bass * 92 + wave * (18 + 100 * bass) + beat * 110 + peak * 12,
                     )))
+                red = min(255, int(red * (1.0 + 0.4 * ctx.downbeat_pulse)))
                 frame.set(index, (red, 0, 0))
+            self._snare_ends(frame, (255, 0, 0))
             return
 
-        if self.music_animation == "rainbow_wave":
-            for index in range(count):
-                hue = (index * 360.0 / max(1, count) + self._music_phase * 55.0) % 360.0
-                frame.set(index, hsv_to_rgb(hue, 1.0, brightness))
-            return
-
-        if self.music_animation == "comet":
-            head = int(self._music_phase * (3.0 + level * 16.0)) % count
-            tail = max(6, int(6 + peak * count * 0.30))
-            frame.clear()
-            for offset in range(tail):
-                index = (head - offset) % count
-                amount = (1.0 - offset / tail) * (0.42 + 0.50 * level)
-                color = _blend_rgb(self._music_primary_rgb, self._music_accent_rgb, offset / max(1, tail - 1))
-                frame.set(index, tuple(int(channel * amount) for channel in color))
-            return
-
-        half = (count + 1) // 2
-        extent = int(round(level * max(0, half - 1)))
         if self.music_animation == "retro_vu":
             # A vertical strip is a single equalizer column: build it from
             # the bottom with a saturated multicolor VU gradient. Keep a
@@ -323,29 +265,3 @@ class MusicRenderingMixin(MusicPatternMixin):
                 marker = min(count - 1, int(round(self._retro_vu_peak_position)))
                 frame.set(marker, (0, 220, 255))
             return
-
-        if self.music_animation == "inward_diamonds":
-            frame.clear()
-            self._draw_inward_diamonds(frame, level, peak, dt, count, half)
-            return
-
-        if self.music_animation == "mirror_bars":
-            # Paired, alternating color blocks grow symmetrically from center.
-            frame.clear()
-            for offset in range(max(1, extent + 1)):
-                color = self._music_primary_rgb if (offset // 3) % 2 == 0 else self._music_accent_rgb
-                color = tuple(int(channel * (0.58 + 0.42 * level)) for channel in color)
-                frame.set(half - 1 - offset, color)
-                frame.set(half + offset, color)
-            return
-
-        # Center pulse: a smooth, cool-to-warm gradient expands with volume.
-        frame.clear()
-        pulse_brightness = 0.34 + 0.62 * level
-        for offset in range(max(1, extent + 1)):
-            strength = max(0.30, 1.0 - offset / max(2.0, extent + 1.0) * 0.60)
-            color = _blend_rgb(self._music_primary_rgb, self._music_accent_rgb,
-                               offset / max(1, half - 1))
-            color = tuple(int(channel * strength * pulse_brightness) for channel in color)
-            frame.set(half - 1 - offset, color)
-            frame.set(half + offset, color)

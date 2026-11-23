@@ -13,27 +13,18 @@ class MusicPatternMixin:
         bands = [max(0.0, min(1.0, float(value))) for value in bands]
         enabled = [value if self.music_enabled_bands[index] else 0.0
                    for index, value in enumerate(bands)]
-        now = self._music_ctx.t
-        low = max(enabled[0], enabled[1] * 0.90)
-        snare_band = max(enabled[2] * 0.65, enabled[3], enabled[4] * 0.78)
-        low_rise = low - max(self._laser_previous_bands[0], self._laser_previous_bands[1] * 0.90)
-        snare_rise = snare_band - max(
-            self._laser_previous_bands[2] * 0.65,
-            self._laser_previous_bands[3], self._laser_previous_bands[4] * 0.78,
-        )
-        self._laser_previous_bands = list(enabled)
-
-        kick_hit = low >= 0.24 and low_rise >= 0.07 and now - self._laser_last_kick >= 0.22
-        snare_hit = (snare_band >= 0.28 and snare_rise >= 0.08 and
-                     snare_band >= low * 0.62 and now - self._laser_last_snare >= 0.16)
+        ctx = self._music_ctx
+        now = ctx.t
+        # Kicks and snares come from the shared beat tracker: predicted beats and
+        # backbeats once it is locked, detected hits until then.
+        kick_hit = ctx.beat_event
+        snare_hit = ctx.snare_event
         if kick_hit:
-            self._laser_last_kick = now
             self._laser_kick = 1.0
             self._laser_step += 1
         else:
             self._laser_kick *= math.exp(-max(0.0, dt) * 5.0)
         if snare_hit:
-            self._laser_last_snare = now
             self._laser_snare = 1.0
         else:
             self._laser_snare *= math.exp(-max(0.0, dt) * 8.0)
@@ -49,7 +40,11 @@ class MusicPatternMixin:
         rate = 0.14 if target_energy > self._laser_energy else 1.45
         self._laser_energy += (target_energy - self._laser_energy) * min(1.0, max(0.0, dt) / rate)
 
-        phrase_index = int(now / period) // 8
+        # A new phrase starts every two bars on the downbeat once the bar is known.
+        if ctx.locked and ctx.bar_known:
+            phrase_index = ctx.bar_in_section // 2
+        else:
+            phrase_index = int(now / period) // 8
         if phrase_index != self._laser_phrase_index:
             self._laser_phrase_index = phrase_index
             self._laser_phrase = (phrase_index + int(self._laser_energy > 0.58)) % 5
