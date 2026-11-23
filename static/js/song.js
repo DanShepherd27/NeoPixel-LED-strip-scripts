@@ -19,9 +19,7 @@
         select.appendChild(option);
       });
       select.hidden = songs.length < 2;
-      $id("song-description").textContent = songs.length === 1
-        ? select.options[0].textContent + ", choreographed from start to finish."
-        : "Pick a song; every one is choreographed from start to finish.";
+      $id("song-description").textContent = "🎄 " + (songs.length === 1 ? select.options[0].textContent : "");
     }).catch(function () {});
   }
 

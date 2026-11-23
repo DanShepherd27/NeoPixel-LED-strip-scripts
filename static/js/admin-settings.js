@@ -169,7 +169,7 @@
       $id("music-beat-lead-value").textContent = this.value + " ms";
     });
 
-    Array.prototype.forEach.call(document.querySelectorAll('#admin-settings-form input[type="range"]'), function (slider) {
+    Array.prototype.forEach.call(document.querySelectorAll('#admin-settings-form input[type="range"]:not([data-knob])'), function (slider) {
       slider.addEventListener("dblclick", function (event) {
         event.preventDefault();
         this.value = this.defaultValue;
@@ -187,7 +187,7 @@
       reset.className = "range-reset";
       reset.setAttribute("aria-label", "Reset " + (label ? label.textContent.trim() : "slider") + " to default");
       reset.title = "Reset to default";
-      reset.textContent = "↺";
+      reset.innerHTML = window.UI ? window.UI.icon("replay") : "↺";
       reset.addEventListener("click", function () {
         slider.value = slider.defaultValue;
         slider.dispatchEvent(new Event("input", { bubbles: true }));

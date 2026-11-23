@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-admin-accordion">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261122-ui5">
 </head>
 <body>
   <header class="app-header">
     <h1 class="logo">NEON&nbsp;<span>ARCADE</span></h1>
     <div class="header-actions">
       <div id="connection" class="connection-dot" title="connection status"></div>
-      <button id="open-admin" class="settings-cog" type="button" aria-label="Open admin settings" title="Admin settings">⚙</button>
+      <button id="open-admin" class="settings-cog" type="button" data-icon="sliders" aria-label="Admin settings">Admin settings</button>
     </div>
   </header>
 
@@ -35,28 +35,29 @@
     <section id="screen-home" class="screen">
       <div class="card">
         <h2>Welcome<span id="home-name"></span></h2>
-        <p class="muted">Now showing: <strong id="idle-animation">—</strong></p>
-        <p class="muted"><span id="player-count">0</span> player(s) online</p>
-        <button id="enter-lobby" class="btn btn-primary btn-block">ENTER ARCADE</button>
-        <button id="music-mode-btn" class="btn btn-accent btn-block">START SOUND REACTIVE LIGHTING</button>
+        <p class="muted status-line"><span class="status-item" title="Now showing"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><strong id="idle-animation">—</strong></span><span class="status-item" title="Players online"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span id="player-count">0</span></span></p>
+        <div class="btn-row">
+          <button id="enter-lobby" class="btn btn-primary">ENTER ARCADE</button>
+          <button id="music-mode-btn" class="btn btn-accent">START SOUND REACTIVE LIGHTING</button>
+        </div>
         <p id="music-message" class="muted" role="status" aria-live="polite"></p>
         <div id="song-card" class="song-card">
-          <h3>🎄 Christmas light show</h3>
-          <p id="song-description" class="muted">Choreographed light shows, played from start to finish.</p>
+          <p id="song-description" class="song-name" aria-live="polite">🎄</p>
           <select id="song-select" aria-label="Song" hidden></select>
-          <button id="song-btn" class="btn btn-primary btn-block" type="button">PLAY THE SONG SHOW</button>
-          <label class="song-option"><input id="song-pi-audio" type="checkbox" checked> Play on the Pi speakers</label>
-          <label class="song-option"><input id="song-device-audio" type="checkbox"> Also play on this device</label>
+          <div class="btn-row">
+            <button id="song-btn" class="btn btn-primary" type="button">PLAY THE SONG SHOW</button>
+            <label class="icon-toggle" title="Play on the Pi speakers"><input id="song-pi-audio" type="checkbox" checked aria-label="Play on the Pi speakers"><span class="icon-toggle-face"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></span></label>
+            <label class="icon-toggle" title="Also play on this device"><input id="song-device-audio" type="checkbox" aria-label="Also play on this device"><span class="icon-toggle-face"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span></label>
+          </div>
           <div id="song-player" class="song-player" hidden>
             <div class="song-transport">
-              <button id="song-back" class="btn" type="button" aria-label="Back 10 seconds">⏪ 10s</button>
+              <button id="song-back" class="btn" type="button" data-icon="rewind" data-badge="10" aria-label="Back 10 seconds">Back 10 seconds</button>
               <button id="song-pause" class="btn btn-accent" type="button">⏸ PAUSE</button>
-              <button id="song-forward" class="btn" type="button" aria-label="Forward 10 seconds">10s ⏩</button>
+              <button id="song-forward" class="btn" type="button" data-icon="forward" data-badge="10" aria-label="Forward 10 seconds">Forward 10 seconds</button>
             </div>
             <input id="song-seek" type="range" min="0" max="242" step="1" value="0" aria-label="Song position">
             <div class="song-times"><span id="song-time">0:00</span><span id="song-total">0:00</span></div>
-            <label for="song-section-select">Jump to</label>
-            <select id="song-section-select"><option value="">Choose a section…</option></select>
+            <select id="song-section-select" aria-label="Jump to section"><option value="">Jump to…</option></select>
           </div>
           <p id="song-status" class="muted" role="status" aria-live="polite"></p>
         </div>
@@ -64,7 +65,7 @@
         <div id="music-live-effect-controls" class="music-live-effect-controls" hidden>
           <h3>Music effect controls</h3>
           <label for="music-live-glitter-brightness">Glitter burst overdrive <output id="music-live-glitter-brightness-value">255</output></label>
-          <input id="music-live-glitter-brightness" type="range" min="0" max="255" step="1" value="255">
+          <input id="music-live-glitter-brightness" type="range" data-knob min="0" max="255" step="1" value="255">
           <p class="muted">Adjusts the temporary brightness of Christmas Glitter bursts while music is playing.</p>
         </div>
         <div id="web-mic-controls" hidden>
@@ -116,13 +117,14 @@
             </section>
           </div>
           <p id="web-mic-status" class="muted" role="status" aria-live="polite"></p>
-          <button id="mic-queue-btn" class="btn btn-ghost btn-block">USE THIS DEVICE'S MIC</button>
-          <button id="mic-start-btn" class="btn btn-primary btn-block" hidden>ALLOW MIC AND VISUALIZE</button>
+          <div class="btn-row">
+            <button id="mic-queue-btn" class="btn btn-ghost">USE THIS DEVICE'S MIC</button>
+            <button id="mic-start-btn" class="btn btn-primary" hidden>ALLOW MIC AND VISUALIZE</button>
+          </div>
         </div>
       </div>
       <div class="card">
-        <h3>How to join</h3>
-        <p class="muted">Connect to this Wi-Fi and open <strong id="lan-url"></strong></p>
+        <p class="muted status-line" title="Connect to this Wi-Fi and open this address"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg><strong id="lan-url"></strong></p>
         <div id="qr-code" class="qr"></div>
       </div>
 
@@ -147,8 +149,10 @@
         <h3>Choose a game</h3>
         <p class="muted">Strip orientation: <strong id="strip-orientation">vertical</strong></p>
         <div id="game-list" class="game-list"></div>
-        <button id="start-btn" class="btn btn-accent btn-block" disabled>START GAME</button>
-        <button id="back-to-idle" class="btn btn-ghost btn-block">Back to arcade</button>
+        <div class="btn-row">
+          <button id="start-btn" class="btn btn-accent" disabled>START GAME</button>
+          <button id="back-to-idle" class="btn btn-ghost">Back to arcade</button>
+        </div>
       </div>
     </section>
 
@@ -162,9 +166,11 @@
         <p id="tutorial-step" class="tutorial-step"></p>
         <div class="tutorial-progress"><span id="tutorial-progress"></span></div>
         <p id="tutorial-ready-status" class="muted" role="status" aria-live="polite"></p>
-        <button id="tutorial-next-btn" class="btn btn-primary btn-block">NEXT</button>
-        <button id="tutorial-ready-btn" class="btn btn-primary btn-block" disabled hidden>READY</button>
-        <button id="replay-tutorial-btn" class="btn btn-ghost btn-block">REPLAY DEMO</button>
+        <div class="btn-row">
+          <button id="tutorial-next-btn" class="btn btn-primary">NEXT</button>
+          <button id="tutorial-ready-btn" class="btn btn-primary" disabled hidden>READY</button>
+          <button id="replay-tutorial-btn" class="btn btn-ghost">REPLAY DEMO</button>
+        </div>
       </div>
     </section>
 
@@ -216,7 +222,7 @@
         </form>
         <form id="admin-settings-form" hidden>
           <details class="admin-section" name="admin-section" open>
-            <summary><span class="admin-section-title">LED strip</span><span class="admin-section-hint">Hidden ends, brightness, colors</span></summary>
+            <summary data-icon="bulb"><span class="admin-section-title">LED strip</span><span class="admin-section-hint">Hidden ends, brightness, colors</span></summary>
             <div class="admin-section-body">
           <p class="muted">Number of hidden LEDs at each physical end of the strip.</p>
           <label for="hidden-start">Hidden at start</label>
@@ -226,20 +232,20 @@
           <h4>Color calibration</h4>
           <p class="muted">Adjust each channel if strip colors differ from the color picker. Applies globally to every pattern and game.</p>
           <label for="led-brightness">Hardware brightness <output id="led-brightness-value">40</output></label>
-          <input id="led-brightness" type="range" min="0" max="255" step="1" value="40">
+          <input id="led-brightness" type="range" data-knob min="0" max="255" step="1" value="40">
           <p class="muted">Changes the physical strip immediately and persists across restarts. The emulator remains at theoretical RGB values.</p>
           <label for="led-color-red">Red output <output id="led-color-red-value">100%</output></label>
-          <input id="led-color-red" type="range" min="0" max="200" step="1" value="100">
+          <input id="led-color-red" type="range" data-knob min="0" max="200" step="1" value="100">
           <label for="led-color-green">Green output <output id="led-color-green-value">100%</output></label>
-          <input id="led-color-green" type="range" min="0" max="200" step="1" value="100">
+          <input id="led-color-green" type="range" data-knob min="0" max="200" step="1" value="100">
           <label for="led-color-blue">Blue output <output id="led-color-blue-value">100%</output></label>
-          <input id="led-color-blue" type="range" min="0" max="200" step="1" value="100">
+          <input id="led-color-blue" type="range" data-knob min="0" max="200" step="1" value="100">
           <label><input id="preview-invert-order" type="checkbox"> Invert LED order in preview</label>
           <p class="muted">Mirror the emulator’s LED order when the strip appears upside down.</p>
             </div>
           </details>
           <details class="admin-section" name="admin-section">
-            <summary><span class="admin-section-title">Sound-reactive lighting</span><span class="admin-section-hint">Pattern, colors, sensitivity, microphone</span></summary>
+            <summary data-icon="wave"><span class="admin-section-title">Sound-reactive lighting</span><span class="admin-section-hint">Pattern, colors, sensitivity, microphone</span></summary>
             <div class="admin-section-body">
           <label for="music-animation">Startup light pattern</label>
           <select id="music-animation">
@@ -267,7 +273,7 @@
             </select>
             <p class="muted">Candy cane blocks respond to the music between bursts. Glitter accents the selected beat only when its kick is strong.</p>
             <label for="music-glitter-brightness">Glitter burst brightness <output id="music-glitter-brightness-value">255</output></label>
-            <input id="music-glitter-brightness" type="range" min="0" max="255" step="1" value="255">
+            <input id="music-glitter-brightness" type="range" data-knob min="0" max="255" step="1" value="255">
             <p class="muted">Temporarily overrides hardware brightness during the glitter burst; candy cane blocks keep the main hardware setting.</p>
           </div>
           <div id="admin-standard-colors">
@@ -282,8 +288,11 @@
           </div>
           <div id="admin-band-color-controls" class="pattern-color-controls" hidden></div>
           <label for="music-sensitivity">Music sensitivity <output id="music-sensitivity-value">1.00×</output></label>
-          <input id="music-sensitivity" type="range" min="0.25" max="4" step="0.25" value="1">
+          <input id="music-sensitivity" type="range" data-knob min="0.25" max="4" step="0.25" value="1">
           <p class="muted">Raise sensitivity for a quiet mic; lower it if sound drives the lights too strongly.</p>
+          <label for="music-beat-lead-ms">Beat sync timing <output id="music-beat-lead-value">0 ms</output></label>
+          <input id="music-beat-lead-ms" type="range" data-knob min="-100" max="200" step="10" value="0">
+          <p class="muted">The beat tracker predicts from bass rhythm and estimated mic/network delay. Positive values pulse earlier; negative values pulse later.</p>
           <label for="music-sound-profile">Speaker profile</label>
           <select id="music-sound-profile">
             <option value="balanced">Balanced</option>
@@ -291,16 +300,13 @@
             <option value="bass_forward">Bass-forward · emphasize available bass</option>
           </select>
           <p class="muted">Small speakers can lose sub-bass; this profile lets low-mid kick harmonics drive bass-reactive effects. It cannot recreate frequencies the mic does not capture.</p>
-          <label for="music-beat-lead-ms">Beat sync timing <output id="music-beat-lead-value">0 ms</output></label>
-          <input id="music-beat-lead-ms" type="range" min="-100" max="200" step="10" value="0">
-          <p class="muted">The beat tracker predicts from bass rhythm and estimated mic/network delay. Positive values pulse earlier; negative values pulse later.</p>
           <label for="mic-handoff-seconds">Web microphone handoff (seconds)</label>
           <input id="mic-handoff-seconds" type="number" min="15" max="1800" step="1" required>
           <p class="muted">When someone is queued, the active web microphone is handed off after this time.</p>
             </div>
           </details>
           <details class="admin-section" name="admin-section">
-            <summary><span class="admin-section-title">Songs</span><span class="admin-section-hint">Add or remove songs</span></summary>
+            <summary data-icon="music"><span class="admin-section-title">Songs</span><span class="admin-section-hint">Add or remove songs</span></summary>
             <div class="admin-section-body">
           <p class="muted">Upload an MP3 (a track you own). The Pi finds the tempo and arrangement and plans a light show; the song appears in the list when it is ready, usually within a minute or two.</p>
           <input id="song-import-file" type="file" accept=".mp3,audio/mpeg">
@@ -320,7 +326,7 @@
             </div>
           </details>
           <details class="admin-section" name="admin-section">
-            <summary><span class="admin-section-title">Song audio sync</span><span class="admin-section-hint">Speaker latency calibration</span></summary>
+            <summary data-icon="target"><span class="admin-section-title">Song audio sync</span><span class="admin-section-hint">Speaker latency calibration</span></summary>
             <div class="admin-section-body">
           <p class="muted">Lights must be shifted by the delay between starting the Pi player and sound leaving the speaker. The Pi can hear its own speakers, so it can measure that itself.</p>
           <label for="song-latency-ms">Song audio latency <output id="song-latency-value">250 ms</output></label>
@@ -355,5 +361,8 @@
   <script src="/static/js/song-import.js?v=20261122-song-lead"></script>
   <script src="/static/js/games.js?v=20261122-pong-player-color"></script>
   <script src="/static/js/controller.js?v=20261122-pong-player-color"></script>
+  <script src="/static/js/knob.js?v=20261122-ui"></script>
+  <script src="/static/js/ui-compact.js?v=20261122-ui"></script>
+  <script src="/static/js/ui-icons.js?v=20261122-ui3"></script>
 </body>
 </html>

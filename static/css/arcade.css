@@ -553,3 +553,62 @@ input[type="text"]:focus {
 .admin-section-hint { color: var(--muted); font-size: 0.78rem; }
 .admin-section-body { padding: 4px 14px 14px; }
 .admin-section-body h4 { margin: 16px 0 6px; }
+
+/* ---- Icon buttons, knobs and compact layout ---- */
+.icon { width: 22px; height: 22px; flex: none; vertical-align: middle; }
+.btn.icon-only, .settings-cog { display: inline-flex; align-items: center; justify-content: center; gap: 3px; }
+.btn.icon-only { min-width: 56px; min-height: 52px; padding: 10px 16px; position: relative; }
+.btn.icon-only .icon { width: 26px; height: 26px; }
+.icon-badge { font-size: 0.7rem; font-weight: 800; letter-spacing: 0; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; align-items: center; }
+.btn-row .btn, .btn-row .btn-ghost { margin: 0; flex: 1 1 56px; }
+.btn-row .btn.icon-only { flex: 1 1 56px; }
+.btn-row .icon-toggle { flex: 0 0 auto; }
+.settings-cog .icon { width: 22px; height: 22px; }
+.admin-card-heading .btn.icon-only { min-height: 44px; min-width: 44px; padding: 8px 12px; }
+.status-line { display: flex; gap: 16px; align-items: center; margin: 4px 0; }
+.status-item { display: inline-flex; align-items: center; gap: 6px; }
+.status-item .icon { width: 18px; height: 18px; }
+.song-name { margin: 0 0 8px; font-weight: 600; }
+.admin-section-hint { display: none; }
+.admin-section > summary { padding-top: 10px; padding-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+.admin-section > summary .icon { width: 20px; height: 20px; color: var(--neon); }
+
+.icon-toggle { position: relative; display: inline-flex; margin: 0; }
+.icon-toggle input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.icon-toggle-face {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 52px; min-height: 52px; border: 1px solid var(--border); border-radius: 12px;
+  color: var(--muted); background: rgba(0,0,0,.18); transition: color .15s, border-color .15s, box-shadow .15s;
+}
+.icon-toggle input:checked + .icon-toggle-face { color: var(--neon); border-color: var(--neon); box-shadow: 0 0 10px rgba(0,229,255,.35); }
+.icon-toggle input:focus-visible + .icon-toggle-face { outline: 2px solid var(--neon); outline-offset: 2px; }
+
+.hint-btn {
+  display: inline-flex; vertical-align: middle; margin-left: 6px; padding: 0; width: 26px; height: 26px;
+  align-items: center; justify-content: center; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer;
+}
+.hint-btn .icon { width: 16px; height: 16px; }
+.hint-btn[aria-expanded="true"], .hint-btn:hover { color: var(--neon); }
+.hint-text { margin: 4px 0 10px; font-size: 0.8rem; }
+
+/* Rotary knobs: a 64px dial with the value in the middle; 4 per row on a phone. */
+.knob-cell { display: inline-flex; flex-direction: column; align-items: center; width: 24%; min-width: 68px; margin: 6px 0; vertical-align: top; position: relative; }
+.knob { position: relative; width: 64px; height: 64px; touch-action: none; cursor: ns-resize; border-radius: 50%; outline-offset: 2px; user-select: none; -webkit-user-select: none; }
+.knob:focus-visible { outline: 2px solid var(--neon); }
+.knob svg { width: 100%; height: 100%; display: block; }
+.knob-track, .knob-fill { fill: none; stroke-linecap: round; stroke-width: 5; }
+.knob-track { stroke: rgba(255,255,255,.14); }
+.knob-fill { stroke: var(--neon); filter: drop-shadow(0 0 3px rgba(0,229,255,.6)); }
+.knob-dot { fill: #fff; }
+.knob.active .knob-fill { stroke: var(--accent); }
+.knob-value { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; color: var(--text); pointer-events: none; }
+.knob-label { margin-top: 2px; font-size: 0.72rem; color: var(--muted); text-align: center; line-height: 1.15; max-width: 72px; }
+.knob-cell .hint-btn { position: absolute; top: -4px; right: 2px; margin: 0; width: 22px; height: 22px; }
+.knob-cell .hint-btn .icon { width: 13px; height: 13px; }
+.btn.icon-only.has-label { flex-direction: column; gap: 3px; padding: 8px 12px; min-height: 58px; }
+.btn.icon-only.has-label .icon { width: 22px; height: 22px; }
+.icon-label { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.4px; line-height: 1; text-transform: uppercase; }
+.btn-ghost.has-label .icon-label { color: var(--text); }
+[hidden] { display: none !important; }   /* component display rules must not defeat the hidden attribute */
+.admin-section-body .knob-cell { margin-right: 0; }
