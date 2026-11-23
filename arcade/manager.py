@@ -17,6 +17,7 @@ from arcade.players import PlayerManager
 from arcade.games import GAMES, game_catalog
 from led.effects import EFFECTS
 from led.web_audio import WebMicQueue
+from arcade.live_beat import LiveBeatTracker
 from arcade.music_gain import AutoGain
 from arcade.music_rendering import MusicRenderingMixin
 from arcade.song.library import load_song
@@ -78,22 +79,8 @@ class ArcadeManager(MusicRenderingMixin):
         self.music_beat_lead_ms = int(music_beat_lead_ms)
         self._music_phase = 0.0
         self._music_gain = AutoGain(7)   # level + six bands
-        self._music_beat_clock = 0.0
-        self._music_beat_last_onset = None
-        self._music_beat_onset_count = 0
-        self._music_downbeat_phase = 1
-        self._music_downbeat_scores = [0.0] * 4
-        self._music_beat_bar_strengths = []
-        self._music_beat_period = None
-        self._music_beat_confidence = 0.0
-        self._music_beat_low = 0.0
-        self._music_beat_pulse = 0.0
-        self._music_onset_history = []
-        self._music_onset_sample_clock = 0.0
-        self._music_onset_sample_value = 0.0
-        self._music_tempo_update_clock = 0.0
-        self._music_tempo_candidate = None
-        self._music_tempo_candidate_hits = 0
+        self._music_beat = LiveBeatTracker()
+        self._music_ctx = self._music_beat.ctx
         self._retro_vu_peak_position = 0.0
         self._retro_vu_peak_hold = 0.0
         self._retro_vu_level = 0.0
@@ -266,22 +253,11 @@ class ArcadeManager(MusicRenderingMixin):
             self.selected_game = None
             self.game = None
             self.game_class = None
-            self._music_beat_clock = 0.0
-            self._music_beat_last_onset = None
-            self._music_beat_period = None
-            self._music_beat_confidence = 0.0
-            self._music_beat_low = 0.0
-            self._music_beat_pulse = 0.0
-            self._music_beat_onset_count = 0
-            self._music_downbeat_phase = 1
-            self._music_downbeat_scores = [0.0] * 4
-            self._music_beat_bar_strengths.clear()
-            self._music_onset_history.clear()
-            self._music_onset_sample_clock = 0.0
-            self._music_onset_sample_value = 0.0
-            self._music_tempo_update_clock = 0.0
-            self._music_tempo_candidate = None
-            self._music_tempo_candidate_hits = 0
+            self._music_beat = LiveBeatTracker()
+            self._music_ctx = self._music_beat.ctx
+            for source in (self.web_mics, self.audio_input):
+                if source is not None:
+                    source.take_onsets()   # drop hits from before the mode started
             if self.audio_input is not None:
                 self.audio_input.set_enabled(True)
                 self._music_pi_enabled = True
@@ -804,11 +780,7 @@ class ArcadeManager(MusicRenderingMixin):
                     "accent_color": self.music_accent_color,
                     "enabled_bands": list(self.music_enabled_bands),
                     "band_colors": list(self.music_band_colors),
-                    "bpm": (
-                        int(round(60.0 / self._music_beat_period))
-                        if self._music_beat_period and self._music_beat_confidence >= 0.25
-                        else None
-                    ),
+                    "bpm": int(round(self._music_ctx.bpm)) if self._music_ctx.locked else None,
                     "beat_lead_ms": self.music_beat_lead_ms,
                     "glitter_brightness": self.music_glitter_brightness,
                 },

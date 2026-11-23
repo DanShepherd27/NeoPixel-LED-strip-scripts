@@ -13,7 +13,7 @@ class MusicPatternMixin:
         bands = [max(0.0, min(1.0, float(value))) for value in bands]
         enabled = [value if self.music_enabled_bands[index] else 0.0
                    for index, value in enumerate(bands)]
-        now = self._music_beat_clock
+        now = self._music_ctx.t
         low = max(enabled[0], enabled[1] * 0.90)
         snare_band = max(enabled[2] * 0.65, enabled[3], enabled[4] * 0.78)
         low_rise = low - max(self._laser_previous_bands[0], self._laser_previous_bands[1] * 0.90)
@@ -38,7 +38,7 @@ class MusicPatternMixin:
         else:
             self._laser_snare *= math.exp(-max(0.0, dt) * 8.0)
 
-        period = self._music_beat_period or 0.55
+        period = self._music_ctx.period
         selected = [value for index, value in enumerate(enabled)
                     if self.music_enabled_bands[index]]
         target_energy = sum(selected) / max(1, len(selected))
