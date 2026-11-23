@@ -17,6 +17,7 @@ from arcade.players import PlayerManager
 from arcade.games import GAMES, game_catalog
 from led.effects import EFFECTS
 from led.web_audio import WebMicQueue
+from arcade.music_gain import AutoGain
 from arcade.music_rendering import MusicRenderingMixin
 from arcade.song.library import load_song
 from arcade.song.session import SongSession
@@ -76,6 +77,7 @@ class ArcadeManager(MusicRenderingMixin):
         self._music_band_rgb = [_parse_hex_color(color) for color in self.music_band_colors]
         self.music_beat_lead_ms = int(music_beat_lead_ms)
         self._music_phase = 0.0
+        self._music_gain = AutoGain(7)   # level + six bands
         self._music_beat_clock = 0.0
         self._music_beat_last_onset = None
         self._music_beat_onset_count = 0

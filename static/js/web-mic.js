@@ -259,7 +259,8 @@
         const rms = Math.sqrt(squares / samples.length);
         if (rms < micNoiseFloor) micNoiseFloor += (rms - micNoiseFloor) * 0.08;
         else if (rms < micNoiseFloor * 2) micNoiseFloor += (rms - micNoiseFloor) * 0.004;
-        const level = Math.max(0, Math.min(1, (rms - micNoiseFloor) / Math.max(0.025, micNoiseFloor * 5)));
+        // Level and bands may exceed 1 for loud music; the Pi auto-gain scales them.
+        const level = Math.max(0, Math.min(4, (rms - micNoiseFloor) / Math.max(0.025, micNoiseFloor * 5)));
         const binHz = micContext.sampleRate / micAnalyser.fftSize;
         const bands = frequencyBands.map(function (range, bandIndex) {
           const firstBin = Math.max(1, Math.floor(range[0] / binHz));
@@ -274,8 +275,8 @@
           let power = 0;
           for (let vi = 0; vi < selectedCount; vi++) power += values[vi] * values[vi];
           let bandLevel = Math.sqrt(power / selectedCount);
-          bandLevel = Math.max(0, Math.min(1, (bandLevel - 0.18) / 0.42));
-          return Math.max(0, Math.min(1, Math.pow(bandLevel, 0.8) * bandGains[bandIndex]));
+          bandLevel = Math.max(0, (bandLevel - 0.18) / 0.42);
+          return Math.max(0, Math.min(4, Math.pow(bandLevel, 0.8) * bandGains[bandIndex]));
         });
         const clap = rms > Math.max(0.018, micNoiseFloor * 1.35) && peak > 0.12 &&
           peak / Math.max(0.001, rms) > 3 && now - micLastClap > 160;

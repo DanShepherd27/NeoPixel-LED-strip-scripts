@@ -222,13 +222,14 @@ class AudioInput:
 
             floor = self._noise_floor
             dynamic_range = max(600.0, floor * 5.0)
-            self._level = max(0.0, min(1.0, (rms - floor) / dynamic_range))
+            # Level and bands may exceed 1 for loud music; the renderer auto-gain scales them.
+            self._level = max(0.0, min(4.0, (rms - floor) / dynamic_range))
             self._peak = max(0.0, min(1.0, (peak - floor) / (floor * 10.0 + 900.0)))
             band_noise = floor / 32768.0 * 2.0
             band_range = max(0.025, floor / 32768.0 * 8.0)
             amplitudes, kick_spectrum, snare_spectrum = self._spectrum(samples)
             self._bands = [
-                max(0.0, min(1.0, (magnitude - band_noise) / band_range)) ** 0.75
+                max(0.0, min(4.0, (magnitude - band_noise) / band_range)) ** 0.75
                 for magnitude in amplitudes
             ]
             sound_time = now - len(samples) / self.SAMPLE_RATE

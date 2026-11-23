@@ -12,6 +12,11 @@ import threading
 import time
 
 
+# Level and bands above 1 mean "louder than the calibrated range"; the
+# renderer's auto-gain scales them back instead of clipping.
+MAX_FEATURE = 4.0
+
+
 class WebMicQueue:
     OWNER_STALE_SECONDS = 8.0
     BAND_COUNT = 6
@@ -63,7 +68,7 @@ class WebMicQueue:
         strengths (0-1) and ``kick_ago_ms``/``snare_ago_ms``: how long before the
         packet was sent each strongest onset happened."""
         try:
-            level = max(0.0, min(1.0, float(level)))
+            level = max(0.0, min(MAX_FEATURE, float(level)))
             peak = max(0.0, min(1.0, float(peak)))
             if bands is None:
                 bands = [level] * self.BAND_COUNT
@@ -72,7 +77,7 @@ class WebMicQueue:
             bands = [float(value) for value in bands]
             if any(not math.isfinite(value) for value in bands):
                 return False
-            bands = [max(0.0, min(1.0, value)) for value in bands]
+            bands = [max(0.0, min(MAX_FEATURE, value)) for value in bands]
             latency_ms = float(latency_ms)
             if not math.isfinite(latency_ms):
                 return False

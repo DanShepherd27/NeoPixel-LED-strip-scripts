@@ -8,6 +8,7 @@ import math
 
 from led.colors import hsv_to_rgb
 from arcade.music_colors import blend_rgb as _blend_rgb
+from arcade.music_gain import AutoGain
 from arcade.music_patterns import MusicPatternMixin
 
 
@@ -21,15 +22,16 @@ class MusicRenderingMixin(MusicPatternMixin):
         audio = web_audio if web_audio["active"] else (
             self.audio_input.snapshot() if self.audio_input else {}
         )
-        level = max(0.0, min(1.0, float(audio.get("level", 0.0)) * self.music_sensitivity))
-        peak = max(0.0, min(1.0, float(audio.get("peak", 0.0)) * self.music_sensitivity))
-        bands = audio.get("bands", [level] * 6)
+        raw_level = float(audio.get("level", 0.0))
+        bands = audio.get("bands", [raw_level] * 6)
         if not isinstance(bands, (list, tuple)) or len(bands) != 6:
-            bands = [level] * 6
-        bands = [
-            max(0.0, min(1.0, float(value) * self.music_sensitivity))
-            for value in bands
-        ]
+            bands = [raw_level] * 6
+        # Auto-gain first, so loud music is scaled down rather than clipped and
+        # the configured sensitivity still applies on top.
+        gained = self._music_gain.apply([raw_level, *bands], dt)
+        level = min(1.0, gained[0] * self.music_sensitivity)
+        peak = max(0.0, min(1.0, float(audio.get("peak", 0.0)) * self.music_sensitivity))
+        bands = [min(1.0, value * self.music_sensitivity) for value in gained[1:]]
         enabled = self.music_enabled_bands
         if self.music_sound_profile == "small_speakers":
             # Small speakers often lose sub-bass. Let low-mid kick harmonics
