@@ -1,5 +1,7 @@
 """Pattern-specific frame rendering routines for music mode."""
 
+import math
+
 from arcade.music_colors import blend_rgb as _blend_rgb
 
 
