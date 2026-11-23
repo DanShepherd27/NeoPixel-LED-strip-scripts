@@ -33,6 +33,19 @@ if ! command -v mpg123 >/dev/null 2>&1; then
     fi
 fi
 
+# The on-board (headphone jack) audio driver uses the same PWM hardware as the
+# LED strip on GPIO18; when it is active the strip freezes. Songs play through
+# the USB audio interface, so keep the on-board driver off.
+echo "Disabling on-board audio so it cannot take over the LED PWM"
+for config in /boot/firmware/config.txt /boot/config.txt; do
+    if [ -f "$config" ] && grep -q "^dtparam=audio=on" "$config"; then
+        cp -n "$config" "$config.led-arcade.bak"
+        sed -i 's/^dtparam=audio=on/dtparam=audio=off/' "$config"
+        echo "Set dtparam=audio=off in $config (backup: $config.led-arcade.bak)"
+    fi
+done
+echo "blacklist snd_bcm2835" > /etc/modprobe.d/led-arcade-no-onboard-audio.conf
+
 echo "Installing Python requirements"
 "$PYTHON" -m pip install --upgrade pip
 "$PYTHON" -m pip install -r "$APP_DIR/requirements.txt"

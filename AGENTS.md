@@ -51,6 +51,11 @@ and usable without internet after installation.
   beat-sync timing adds a saved -100 to +200 ms manual trim.
   Keep colors saturated at high levels; the clap flash should not wash the
   strip white.
+- The Pi's on-board audio driver (`snd_bcm2835`) shares the PWM hardware with the
+  LED data pin, and when active the strip freezes on one frame while `/healthz`
+  still says `ready`. `deploy/install.sh` sets `dtparam=audio=off`, blacklists the
+  module, and the service unloads it in `ExecStartPre`. Songs use the USB audio
+  interface, so this costs nothing.
 - The systemd service runs as root because the current GPIO/DMA setup requires
   it. `/healthz` reports `led_hardware`, `led_error`, count and offsets. A
   `mock` value means the web process is alive but physical LED control failed;

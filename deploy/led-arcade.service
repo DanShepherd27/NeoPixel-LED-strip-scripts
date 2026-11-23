@@ -9,6 +9,8 @@ Type=simple
 User=root
 WorkingDirectory=/home/pi/led-arcade
 EnvironmentFile=-/etc/led-arcade.env
+# On-board audio shares the LED strip's PWM; unload it if it is loaded (the "-" ignores failure).
+ExecStartPre=-/sbin/rmmod snd_bcm2835
 ExecStart=/home/pi/neopixel-env/bin/python /home/pi/led-arcade/app.py
 Restart=always
 RestartSec=5
