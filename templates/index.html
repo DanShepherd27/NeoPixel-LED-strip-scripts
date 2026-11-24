@@ -42,6 +42,10 @@
           <button id="music-mode-btn" class="btn btn-accent">START SOUND REACTIVE LIGHTING</button>
         </div>
         <p id="music-message" class="muted" role="status" aria-live="polite"></p>
+        <div id="music-input-control" hidden>
+          <label for="music-input-select" class="music-control-label">Sound source</label>
+          <select id="music-input-select"><option value="microphone">Microphone</option></select>
+        </div>
         <div id="song-card" class="song-card">
           <p id="song-description" class="song-name" aria-live="polite">🎄</p>
           <select id="song-select" aria-label="Song" hidden></select>
@@ -113,8 +117,8 @@
           </fieldset>
           <div class="music-preview-grid" aria-label="Live audio and LED previews">
             <section class="music-preview-panel">
-              <h4>Live mic · graphic EQ</h4>
-              <canvas id="music-eq-preview" width="360" height="130" role="img" aria-label="Live six-band microphone spectrum"></canvas>
+              <h4>Live audio · graphic EQ</h4>
+              <canvas id="music-eq-preview" width="360" height="130" role="img" aria-label="Live six-band spectrum"></canvas>
               <div class="music-preview-labels"><span>Sub-bass</span><span>Bass</span><span>Low mids</span><span>Mids</span><span>High mids</span><span>Treble</span></div>
             </section>
           </div>
@@ -295,6 +299,12 @@
           <label for="music-beat-lead-ms">Beat sync timing <output id="music-beat-lead-value">0 ms</output></label>
           <input id="music-beat-lead-ms" type="range" data-knob min="-100" max="200" step="10" value="0">
           <p class="muted">The beat tracker predicts from bass rhythm and estimated mic/network delay. Positive values pulse earlier; negative values pulse later.</p>
+          <label for="music-input">Startup sound source</label>
+          <select id="music-input"><option value="microphone">Microphone</option></select>
+          <p class="muted">What the lights listen to by default. Anyone can switch it live from the sound-reactive screen.</p>
+          <label for="bluetooth-latency-ms">Bluetooth audio delay <output id="bluetooth-latency-value">300 ms</output></label>
+          <input id="bluetooth-latency-ms" type="range" data-knob min="0" max="1500" step="10" value="300">
+          <p class="muted">Bluetooth music is analyzed before it plays, so the lights are held back by the speaker delay. If the lights lead the sound, raise this; if they lag, lower it.</p>
           <label for="music-sound-profile">Speaker profile</label>
           <select id="music-sound-profile">
             <option value="balanced">Balanced</option>
@@ -361,10 +371,11 @@
   </aside>
 
   <script src="/static/js/music-preview.js?v=20261124-club"></script>
-  <script src="/static/js/admin-settings.js?v=20261123-admin-state"></script>
+  <script src="/static/js/admin-settings.js?v=20261124-music-input"></script>
   <script src="/static/js/bluetooth-pair.js?v=20261124-bluetooth-reset"></script>
+  <script src="/static/js/music-input.js?v=20261124-music-input"></script>
   <script src="/static/js/web-mic.js?v=20261123-onsets"></script>
-  <script src="/static/js/app.js?v=20261123-tutorial-buttons"></script>
+  <script src="/static/js/app.js?v=20261124-music-input"></script>
   <script src="/static/js/song.js?v=20261122-song-import"></script>
   <script src="/static/js/song-transport.js?v=20261122-song-player"></script>
   <script src="/static/js/song-sync.js?v=20261122-song-sync"></script>

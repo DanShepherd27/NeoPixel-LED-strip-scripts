@@ -107,6 +107,15 @@ def register_music_routes(app, manager):
             "glitter_brightness": manager.music_glitter_brightness,
         })
 
+    @app.post("/api/music/input")
+    def set_music_input():
+        name = (request.get_json(silent=True) or {}).get("input")
+        try:
+            manager.set_music_input(name)
+        except ValueError as exc:
+            return jsonify({"ok": False, "message": str(exc)}), 400
+        return jsonify({"ok": True, "input": manager.music_input})
+
     @app.post("/api/music/mic/request")
     def music_mic_request():
         if manager.state.value != "music":

@@ -196,14 +196,8 @@
     if (musicButton) {
       const musicActive = s.state === "music";
       musicButton.textContent = musicActive ? "STOP SOUND REACTIVE LIGHTING" : "START SOUND REACTIVE LIGHTING";
-      const audio = s.audio || {};
-      musicMessage.textContent = musicActive
-        ? (audio.source === "web"
-          ? "Listening to this browser microphone; only analyzed sound levels are sent to the Pi."
-          : (audio.status === "listening"
-            ? "Using the Pi microphone fallback (" + (audio.device || "default") + ")."
-            : (audio.error || "Waiting for a web microphone or Pi input.")))
-        : "Uses this browser microphone when available, with the Pi microphone as fallback.";
+      window.MusicInput.render(s);
+      musicMessage.textContent = window.MusicInput.message(s, musicActive);
       const visualizer = s.music_visualizer || {};
       const visualizerStatus = $id("music-visualizer-status");
       if (visualizerStatus) {
@@ -231,7 +225,7 @@
         input.checked = enabledBands[Number(input.dataset.band)] !== false;
       });
       window.MusicPreview.updateColors();
-      $id("web-mic-controls").hidden = !musicActive;
+      $id("web-mic-controls").hidden = !musicActive || !window.MusicInput.usesBrowserMicrophone(s);
     }
     const orientation = s.led_orientation || "vertical";
     const orientationLabel = $id("strip-orientation");
@@ -570,6 +564,7 @@
     });
 
     window.WebMic.bindControls(App);
+    window.MusicInput.bind(App, render);
 
     function submitMusicVisualizer() {
       const requestId = ++musicVisualizerRequestId;

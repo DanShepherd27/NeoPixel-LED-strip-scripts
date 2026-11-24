@@ -54,6 +54,9 @@ def register_admin_routes(app, manager, hardware):
             "preview_invert_order": getattr(manager, "preview_invert_order", False),
             "song_audio_latency_ms": manager.song_audio_latency_ms,
             "song_auto_sync": manager.song_auto_sync,
+            "music_input": manager.music_input,
+            "music_sources": manager.music_input_snapshot()["sources"],
+            "bluetooth_latency_ms": manager.bluetooth_latency_ms,
         })
 
     @app.put("/api/admin/settings")
@@ -80,6 +83,8 @@ def register_admin_routes(app, manager, hardware):
         preview_invert_order = data.get("preview_invert_order", getattr(manager, "preview_invert_order", False))
         song_latency = data.get("song_audio_latency_ms", manager.song_audio_latency_ms)
         song_auto_sync = data.get("song_auto_sync", manager.song_auto_sync)
+        music_input = data.get("music_input", manager.music_input)
+        bluetooth_latency = data.get("bluetooth_latency_ms", manager.bluetooth_latency_ms)
         if type(start_value) is not int or type(end_value) is not int or type(handoff_value) is not int:
             return jsonify({"ok": False, "message": "Enter whole numbers for offsets and microphone handoff."}), 400
         if type(beat_lead_value) is not int or not -100 <= beat_lead_value <= 200:
@@ -88,6 +93,10 @@ def register_admin_routes(app, manager, hardware):
             return jsonify({"ok": False, "message": "LED color balance values must be whole percentages."}), 400
         if type(song_latency) is not int or not 0 <= song_latency <= 1500:
             return jsonify({"ok": False, "message": "Song audio latency must be between 0 and 1500 milliseconds."}), 400
+        if music_input not in manager.music_sources:
+            return jsonify({"ok": False, "message": "Choose one of the available sound sources."}), 400
+        if type(bluetooth_latency) is not int or not 0 <= bluetooth_latency <= 1500:
+            return jsonify({"ok": False, "message": "Bluetooth audio delay must be between 0 and 1500 milliseconds."}), 400
         if type(song_auto_sync) is not bool:
             return jsonify({"ok": False, "message": "Song auto-sync must be true or false."}), 400
         if type(brightness) is not int or not 0 <= brightness <= 255:
@@ -146,6 +155,8 @@ def register_admin_routes(app, manager, hardware):
                 "preview_invert_order": preview_invert_order,
                 "song_audio_latency_ms": song_latency,
                 "song_auto_sync": song_auto_sync,
+                "music_input": music_input,
+                "bluetooth_latency_ms": bluetooth_latency,
             })
         except OSError:
             return jsonify({"ok": False, "message": "Could not save settings on the server."}), 500
@@ -165,6 +176,8 @@ def register_admin_routes(app, manager, hardware):
         manager.preview_invert_order = preview_invert_order
         manager.song_audio_latency_ms = song_latency
         manager.song_auto_sync = song_auto_sync
+        manager.bluetooth_latency_ms = bluetooth_latency
+        manager.set_music_input(music_input)
         return jsonify({
             "ok": True, "hidden_start": start, "hidden_end": end,
             "mic_handoff_seconds": handoff_value,
@@ -184,5 +197,7 @@ def register_admin_routes(app, manager, hardware):
             "preview_invert_order": preview_invert_order,
             "song_audio_latency_ms": song_latency,
             "song_auto_sync": song_auto_sync,
+            "music_input": music_input,
+            "bluetooth_latency_ms": bluetooth_latency,
         })
 

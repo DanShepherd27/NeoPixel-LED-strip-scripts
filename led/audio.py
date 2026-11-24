@@ -40,6 +40,7 @@ class AudioInput:
     LOW_LATENCY_ARGS = ("-F", "20000", "-B", "80000")
     HISTORY_SECONDS = 60
     FFT_SIZE = 1024
+    RETRY_SECONDS = 2.0
 
     def __init__(self, device="default"):
         self.device = device or "default"
@@ -102,6 +103,10 @@ class AudioInput:
                 self._bands = [0.0] * len(self.BAND_CENTERS_HZ)
                 self._rms = 0.0
                 self._clap_until = 0.0
+            # A capture waiting for data (a paused phone) would otherwise stay open.
+            process = self._process
+            if process and process.poll() is None:
+                process.terminate()
 
     def stop(self):
         self._enabled.clear()
@@ -134,19 +139,14 @@ class AudioInput:
                 continue
             if not shutil.which("arecord"):
                 self._set_failure("arecord not found; install alsa-utils on the Pi")
-                self._stopping.wait(2.0)
+                self._stopping.wait(self.RETRY_SECONDS)
                 continue
 
             process = None
             started = time.monotonic()
             try:
                 process = subprocess.Popen(
-                    [
-                        "arecord", "-q", "-D", self.device,
-                        "-t", "raw", "-f", "S16_LE", "-c", "1",
-                        "-r", str(self.SAMPLE_RATE),
-                        *(self.LOW_LATENCY_ARGS if self._low_latency else ()),
-                    ],
+                    self._capture_command(),
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     bufsize=0,
@@ -176,21 +176,31 @@ class AudioInput:
                     self._low_latency = False
                     continue
                 if self._enabled.is_set() and not self._stopping.is_set():
-                    detail = error_output or "no ALSA error details were reported"
-                    self._set_failure(
-                        f"arecord exited with status {return_code}: {detail} "
-                        "Check the microphone and LED_AUDIO_DEVICE."
-                    )
-                    self._stopping.wait(2.0)
+                    self._set_failure(self._exit_message(return_code, error_output))
+                    self._stopping.wait(self.RETRY_SECONDS)
             except Exception as exc:
                 if process and process.poll() is None:
                     process.terminate()
                 self._process = None
                 self._set_failure(f"microphone capture failed: {exc}")
                 log.exception("Microphone capture failed")
-                self._stopping.wait(2.0)
+                self._stopping.wait(self.RETRY_SECONDS)
 
         self._process = None
+
+    def _capture_command(self):
+        """The ``arecord`` command that streams this source as mono 16-bit PCM."""
+        return [
+            "arecord", "-q", "-D", self.device,
+            "-t", "raw", "-f", "S16_LE", "-c", "1",
+            "-r", str(self.SAMPLE_RATE),
+            *(self.LOW_LATENCY_ARGS if self._low_latency else ()),
+        ]
+
+    def _exit_message(self, return_code, error_output):
+        detail = error_output or "no ALSA error details were reported"
+        return (f"arecord exited with status {return_code}: {detail} "
+                "Check the microphone and LED_AUDIO_DEVICE.")
 
     def _set_failure(self, message):
         with self._lock:
@@ -221,17 +231,8 @@ class AudioInput:
                 self._noise_floor += (rms - self._noise_floor) * 0.004
 
             floor = self._noise_floor
-            dynamic_range = max(600.0, floor * 5.0)
-            # Level and bands may exceed 1 for loud music; the renderer auto-gain scales them.
-            self._level = max(0.0, min(4.0, (rms - floor) / dynamic_range))
-            self._peak = max(0.0, min(1.0, (peak - floor) / (floor * 10.0 + 900.0)))
-            band_noise = floor / 32768.0 * 2.0
-            band_range = max(0.025, floor / 32768.0 * 8.0)
             amplitudes, kick_spectrum, snare_spectrum = self._spectrum(samples)
-            self._bands = [
-                max(0.0, min(4.0, (magnitude - band_noise) / band_range)) ** 0.75
-                for magnitude in amplitudes
-            ]
+            self._level, self._peak, self._bands = self._features(rms, peak, floor, amplitudes)
             sound_time = now - len(samples) / self.SAMPLE_RATE
             for name, strength in self._onset.measure(now, kick_spectrum, snare_spectrum):
                 self._onsets.append((sound_time, name, strength))
@@ -247,6 +248,22 @@ class AudioInput:
             if is_clap:
                 self._last_clap = now
                 self._clap_until = now + 0.18
+
+    def _features(self, rms, peak, floor, amplitudes):
+        """Normalized ``(level, peak, bands)``, calibrated for a room microphone.
+
+        Level and bands may exceed 1 for loud music; the renderer auto-gain scales them.
+        """
+        dynamic_range = max(600.0, floor * 5.0)
+        level = max(0.0, min(4.0, (rms - floor) / dynamic_range))
+        peak = max(0.0, min(1.0, (peak - floor) / (floor * 10.0 + 900.0)))
+        band_noise = floor / 32768.0 * 2.0
+        band_range = max(0.025, floor / 32768.0 * 8.0)
+        bands = [
+            max(0.0, min(4.0, (magnitude - band_noise) / band_range)) ** 0.75
+            for magnitude in amplitudes
+        ]
+        return level, peak, bands
 
     def _spectrum(self, samples):
         """Band amplitudes plus the kick and snare range spectra for onsets."""

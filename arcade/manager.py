@@ -19,7 +19,9 @@ from led.effects import EFFECTS
 from led.web_audio import WebMicQueue
 from arcade.live_beat import LiveBeatTracker
 from arcade.music_gain import AutoGain
+from arcade.music_input import MusicInputMixin
 from arcade.music_rendering import MusicRenderingMixin
+from led.audio_sources import MicrophoneSource
 from arcade.song.engine import FlashGuard
 from arcade.song.library import load_song
 from arcade.song.session import SongSession
@@ -51,17 +53,19 @@ def _parse_hex_color(value):
         raise ValueError("Colors must use #RRGGBB format.") from exc
 
 
-class ArcadeManager(MusicRenderingMixin):
+class ArcadeManager(MusicRenderingMixin, MusicInputMixin):
     def __init__(self, count=LED_COUNT, audio_input=None, mic_handoff_seconds=120,
                  music_animation="center_pulse", music_sensitivity=1.0,
                  music_primary_color="#00E5FF", music_accent_color="#FF2EA6",
                  music_beat_lead_ms=0, music_band_colors=None,
                  music_sound_profile="small_speakers",
-                 music_glitter_brightness=255, music_glitter_every_beats=8):
+                 music_glitter_brightness=255, music_glitter_every_beats=8,
+                 extra_music_sources=(), music_input="microphone"):
         self.count = count
         self.audio_input = audio_input
         self.web_mics = WebMicQueue(mic_handoff_seconds)
-        self._music_pi_enabled = False
+        self._init_music_input(
+            [MicrophoneSource(self.web_mics, audio_input), *extra_music_sources], music_input)
         self.music_animation = music_animation
         self.music_sensitivity = float(music_sensitivity)
         self.music_sound_profile = music_sound_profile
@@ -252,26 +256,16 @@ class ArcadeManager(MusicRenderingMixin):
             self.selected_game = None
             self.game = None
             self.game_class = None
-            self._music_beat = LiveBeatTracker()
-            self._music_ctx = self._music_beat.ctx
-            self._beat_pattern_state = {}
-            self._music_flash_guard = FlashGuard()
-            for source in (self.web_mics, self.audio_input):
-                if source is not None:
-                    source.take_onsets()   # drop hits from before the mode started
-            if self.audio_input is not None:
-                self.audio_input.set_enabled(True)
-                self._music_pi_enabled = True
+            self._reset_music_tracking()
+            self._music_source.reset()     # drop hits from before the mode started
+            self._music_source.activate()
             self.state = ArcadeState.MUSIC
-            log.info("State -> MUSIC (microphone visualizer)")
+            log.info("State -> MUSIC (%s visualizer)", self.music_input)
             return True
 
     def stop_music_mode(self):
         with self._lock:
-            if self.audio_input is not None:
-                self.audio_input.set_enabled(False)
-                self._music_pi_enabled = False
-            self.web_mics.reset()
+            self._deactivate_music_sources()
             if self.state == ArcadeState.MUSIC:
                 self.state = ArcadeState.IDLE
                 log.info("State -> IDLE (music visualizer stopped)")
@@ -460,10 +454,7 @@ class ArcadeManager(MusicRenderingMixin):
     # -- lifecycle transitions (must hold self._lock) ------------------------
     def _enter_idle(self, clear_players=True):
         self._stop_song_session()
-        if self.audio_input is not None:
-            self.audio_input.set_enabled(False)
-            self._music_pi_enabled = False
-        self.web_mics.reset()
+        self._deactivate_music_sources()
         if clear_players:
             for p in list(self.players.players()):
                 self.players.remove_player(p.id)
@@ -774,6 +765,7 @@ class ArcadeManager(MusicRenderingMixin):
                 "tutorial": self._tutorial_snapshot(),
                 "audio": self._audio_snapshot(),
                 "web_mic": self.web_mics.snapshot(),
+                "music_input": self.music_input_snapshot(),
                 "music_visualizer": {
                     "animation": self.music_animation,
                     "sensitivity": self.music_sensitivity,
@@ -813,15 +805,7 @@ class ArcadeManager(MusicRenderingMixin):
         return snapshot
 
     def _audio_snapshot(self):
-        web_audio = self.web_mics.snapshot()
-        if web_audio["active"]:
-            return dict(web_audio, source="web")
-        if self.audio_input:
-            return dict(self.audio_input.snapshot(), source="pi")
-        return {
-            "status": "unavailable", "error": "No audio input configured.",
-            "level": 0.0, "peak": 0.0, "clap": False, "source": "none",
-        }
+        return self._music_source.describe()
 
     def _tutorial_snapshot(self):
         if self.state != ArcadeState.TUTORIAL or self.game_class is None:

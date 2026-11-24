@@ -19,14 +19,7 @@ BEAT_PATTERNS = ("center_pulse", "mirror_bars", "comet", "rainbow_wave", "inward
 
 class MusicRenderingMixin(BeatPatternMixin, MusicPatternMixin):
     def _render_music(self, frame, dt):
-        web_audio = self.web_mics.snapshot()
-        use_pi = not web_audio["active"]
-        if self.audio_input is not None and self._music_pi_enabled != use_pi:
-            self.audio_input.set_enabled(use_pi)
-            self._music_pi_enabled = use_pi
-        audio = web_audio if web_audio["active"] else (
-            self.audio_input.snapshot() if self.audio_input else {}
-        )
+        audio = self._music_source.features()
         raw_level = float(audio.get("level", 0.0))
         bands = audio.get("bands", [raw_level] * 6)
         if not isinstance(bands, (list, tuple)) or len(bands) != 6:
@@ -61,7 +54,7 @@ class MusicRenderingMixin(BeatPatternMixin, MusicPatternMixin):
         bands = [value if enabled[index] else 0.0 for index, value in enumerate(bands)]
         self._music_phase += dt
         ctx = self._music_beat.update(
-            time.monotonic(), self._take_music_onsets(web_audio["active"]),
+            time.monotonic(), self._take_music_onsets(),
             bands, level, dt, self.music_beat_lead_ms / 1000.0,
         )
         self._music_ctx = ctx
@@ -72,18 +65,10 @@ class MusicRenderingMixin(BeatPatternMixin, MusicPatternMixin):
         # large-area flashes in any second.
         frame.pixels = self._music_flash_guard.apply(frame.pixels, ctx.t)
 
-    def _take_music_onsets(self, web_active):
-        """Kick/snare onsets from the active microphone, honouring the selected bands
+    def _take_music_onsets(self):
+        """Kick/snare onsets from the selected source, honouring the selected bands
         (kick needs a bass band, snare a mid or high band)."""
-        sources = (self.web_mics, self.audio_input)
-        active = self.web_mics if web_active else self.audio_input
-        samples = []
-        for source in sources:
-            if source is None:
-                continue
-            taken = source.take_onsets()
-            if source is active:
-                samples = taken
+        samples = self._music_source.take_onsets()
         enabled = self.music_enabled_bands
         allowed = {
             "kick": enabled[0] or enabled[1],

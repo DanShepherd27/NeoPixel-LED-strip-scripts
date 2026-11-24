@@ -73,6 +73,16 @@ and usable without internet after installation.
   (`POST /api/admin/bluetooth/discoverable`, `web/bluetooth.py`) disconnects and unpairs
   whoever is connected, then makes the Pi discoverable for
   `LED_BLUETOOTH_DISCOVERABLE_SECONDS` (default 120).
+- Sound-reactive input is an `AudioSource` (`led/audio_sources.py`): the microphone
+  (browser mic lease with the Pi mic as fallback) or Bluetooth audio from a phone. The
+  manager holds the registered sources (`arcade/music_input.py`), the selected one is a
+  live switch on the sound-reactive screen, and the admin startup source persists as
+  `music_input`. Bluetooth audio is read from BlueALSA with `arecord`
+  (`LED_BLUETOOTH_AUDIO_DEVICE`, `led/bluetooth_audio.py`), analyzed like the mic but on a
+  digital scale, then held back by `bluetooth_latency_ms` (the speaker playback delay;
+  default 300) so lights and onsets land when the sound is heard. The same kick/snare
+  onsets feed the BPM tracker. To add an input, subclass `AudioSource` and pass it to the
+  manager as an extra source.
 - The systemd service runs as root because the current GPIO/DMA setup requires
   it. `/healthz` reports `led_hardware`, `led_error`, count and offsets. A
   `mock` value means the web process is alive but physical LED control failed;

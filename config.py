@@ -68,6 +68,10 @@ WEB_MIC_HANDOFF_SECONDS = int(os.environ.get("LED_WEB_MIC_HANDOFF_SECONDS", "120
 MUSIC_VISUALIZER = "retro_vu"
 MUSIC_SENSITIVITY = 1.0
 MUSIC_BEAT_LEAD_MS = int(os.environ.get("LED_MUSIC_BEAT_LEAD_MS", "0"))
+# Bluetooth input for the sound-reactive lights: the ALSA capture device BlueALSA exposes for
+# the phone's stream, and how long the lights are held back for the speaker playback delay.
+BLUETOOTH_AUDIO_DEVICE = os.environ.get("LED_BLUETOOTH_AUDIO_DEVICE", "bluealsa:PROFILE=a2dp")
+BLUETOOTH_LATENCY_MS = int(os.environ.get("LED_BLUETOOTH_LATENCY_MS", "300"))
 MUSIC_PRIMARY_COLOR = "#00E5FF"
 MUSIC_ACCENT_COLOR = "#FF2EA6"
 MUSIC_BAND_COLORS = (

@@ -54,6 +54,17 @@
         App.previewInvertOrder = data.preview_invert_order === true;
         $id("preview-invert-order").checked = App.previewInvertOrder;
         window.SongSync.setLatency(data.song_audio_latency_ms);
+        const sourceSelect = $id("music-input");
+        sourceSelect.innerHTML = "";
+        (data.music_sources || []).forEach(function (source) {
+          const option = document.createElement("option");
+          option.value = source.name;
+          option.textContent = source.label;
+          sourceSelect.appendChild(option);
+        });
+        sourceSelect.value = data.music_input || "microphone";
+        $id("bluetooth-latency-ms").value = data.bluetooth_latency_ms == null ? 300 : data.bluetooth_latency_ms;
+        $id("bluetooth-latency-value").textContent = $id("bluetooth-latency-ms").value + " ms";
         $id("song-auto-sync").checked = data.song_auto_sync !== false;
         $id("music-sensitivity-value").textContent = Number($id("music-sensitivity").value).toFixed(2) + "×";
         $id("hidden-start").max = data.led_count;
@@ -117,6 +128,8 @@
           preview_invert_order: $id("preview-invert-order").checked,
           song_audio_latency_ms: Number($id("song-latency-ms").value),
           song_auto_sync: $id("song-auto-sync").checked,
+          music_input: $id("music-input").value,
+          bluetooth_latency_ms: Number($id("bluetooth-latency-ms").value),
         }),
       }).then(function (response) {
         return response.json().then(function (body) {
@@ -171,6 +184,10 @@
       window.MusicPreview.configurePatternControls(
         "admin", this.value, window.MusicPreview.getBandColors("admin"),
       );
+    });
+
+    $id("bluetooth-latency-ms").addEventListener("input", function () {
+      $id("bluetooth-latency-value").textContent = this.value + " ms";
     });
 
     $id("music-beat-lead-ms").addEventListener("input", function () {

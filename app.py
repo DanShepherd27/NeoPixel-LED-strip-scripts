@@ -25,9 +25,12 @@ from config import (
     MUSIC_BEAT_LEAD_MS,
     MUSIC_PRIMARY_COLOR, MUSIC_ACCENT_COLOR, MUSIC_BAND_COLORS,
     SONG_AUDIO_LATENCY_MS, GAME_SOUNDS, OUTPUT_AUDIO_DEVICE,
+    BLUETOOTH_AUDIO_DEVICE, BLUETOOTH_LATENCY_MS,
 )
 from led.hardware import LEDHardware
 from led.audio import AudioInput
+from led.audio_sources import BluetoothSource
+from led.bluetooth_audio import BluetoothAudioInput
 from led.renderer import Renderer
 from arcade.manager import ArcadeManager
 from arcade.sounds import SoundPlayer
@@ -68,6 +71,8 @@ def main():
     preview_invert_order = False
     song_audio_latency_ms = SONG_AUDIO_LATENCY_MS
     song_auto_sync = True
+    music_input = "microphone"
+    bluetooth_latency_ms = BLUETOOTH_LATENCY_MS
     try:
         with open(RUNTIME_SETTINGS_FILE, "r", encoding="utf-8") as settings_file:
             saved = json.load(settings_file)
@@ -92,6 +97,12 @@ def main():
         preview_invert_order = saved.get("preview_invert_order", preview_invert_order)
         song_audio_latency_ms = int(saved.get("song_audio_latency_ms", song_audio_latency_ms))
         song_auto_sync = saved.get("song_auto_sync", song_auto_sync)
+        music_input = saved.get("music_input", music_input)
+        bluetooth_latency_ms = int(saved.get("bluetooth_latency_ms", bluetooth_latency_ms))
+        if music_input not in ("microphone", "bluetooth"):
+            raise ValueError("saved sound source is not supported")
+        if not 0 <= bluetooth_latency_ms <= 1500:
+            raise ValueError("saved Bluetooth latency must be between 0 and 1500 ms")
         if hidden_start < 0 or hidden_end < 0 or hidden_start + hidden_end > LED_COUNT:
             raise ValueError("saved LED offsets are outside the valid strip range")
         if any(not 0 <= value <= 200 for value in (color_red, color_green, color_blue)):
@@ -143,6 +154,7 @@ def main():
         brightness = LED_BRIGHTNESS
         preview_invert_order = False
         song_audio_latency_ms, song_auto_sync = SONG_AUDIO_LATENCY_MS, True
+        music_input, bluetooth_latency_ms = "microphone", BLUETOOTH_LATENCY_MS
 
     hardware = LEDHardware(
         LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT,
@@ -155,11 +167,15 @@ def main():
 
     audio_input = AudioInput(AUDIO_DEVICE)
     audio_input.start()
+    bluetooth_input = BluetoothAudioInput(BLUETOOTH_AUDIO_DEVICE)
+    bluetooth_input.start()
     manager = ArcadeManager(
         LED_COUNT, audio_input, mic_handoff_seconds,
         music_animation, music_sensitivity, music_primary_color, music_accent_color,
         music_beat_lead_ms, music_band_colors, music_sound_profile,
         music_glitter_brightness, music_glitter_every_beats,
+        extra_music_sources=[BluetoothSource(bluetooth_input, bluetooth_latency_ms)],
+        music_input=music_input,
     )
     manager.preview_invert_order = preview_invert_order
     manager.hidden_offsets = hardware.visible_range
@@ -190,6 +206,7 @@ def main():
     finally:
         renderer.stop()
         audio_input.stop()
+        bluetooth_input.stop()
         hardware.clear()
 
 
