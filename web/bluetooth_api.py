@@ -1,4 +1,4 @@
-"""Admin-only Bluetooth pairing route."""
+"""Admin-only Bluetooth pairing routes."""
 
 from flask import jsonify, session
 
@@ -18,3 +18,13 @@ def register_bluetooth_routes(app, pairing=None):
         except BluetoothUnavailable as error:
             return jsonify({"ok": False, "message": str(error)}), 503
         return jsonify({"ok": True, "seconds": BLUETOOTH_DISCOVERABLE_SECONDS, "kicked": kicked})
+
+    @app.post("/api/admin/bluetooth/reset")
+    def bluetooth_reset():
+        if not session.get("is_admin"):
+            return jsonify({"ok": False, "message": "Admin login required."}), 401
+        try:
+            forgotten = pairing.forget_all()
+        except BluetoothUnavailable as error:
+            return jsonify({"ok": False, "message": str(error)}), 503
+        return jsonify({"ok": True, "forgotten": forgotten})

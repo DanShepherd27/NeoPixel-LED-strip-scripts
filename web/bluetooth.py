@@ -28,6 +28,15 @@ def run_bluetoothctl(*args):
     return result.stdout
 
 
+def unblock_bluetooth():
+    """Clear a software block on the radio; without it BlueZ cannot power the adapter on."""
+    try:
+        subprocess.run(["rfkill", "unblock", "bluetooth"], capture_output=True,
+                       timeout=COMMAND_TIMEOUT_SECONDS, check=False)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        log.warning("Could not run rfkill to unblock Bluetooth")
+
+
 def parse_devices(output):
     """Return [(address, name)] from `bluetoothctl devices` output."""
     devices = []
@@ -39,11 +48,27 @@ def parse_devices(output):
 
 
 class BluetoothPairing:
-    def __init__(self, run=run_bluetoothctl):
+    def __init__(self, run=run_bluetoothctl, unblock=unblock_bluetooth):
         self._run = run
+        self._unblock = unblock
 
     def connected_devices(self):
         return parse_devices(self._run("devices", "Connected"))
+
+    def paired_devices(self):
+        return parse_devices(self._run("devices", "Paired"))
+
+    def forget_all(self):
+        """Disconnect and unpair every known device, e.g. to clear a pairing a phone lost.
+
+        Returns the names of the devices that were forgotten.
+        """
+        forgotten = self.paired_devices()
+        for address, _name in forgotten:
+            self._run("disconnect", address)
+            self._run("remove", address)
+        log.info("Bluetooth pairings reset; removed %s", [name for _a, name in forgotten])
+        return [name for _address, name in forgotten]
 
     def start_pairing(self, seconds):
         """Disconnect and unpair whoever is connected, then open a discoverable window.
@@ -56,6 +81,7 @@ class BluetoothPairing:
             # `remove` drops the bond too, so a trusted phone cannot just reconnect.
             self._run("disconnect", address)
             self._run("remove", address)
+        self._unblock()
         self._run("power", "on")
         self._run("pairable", "on")
         self._run("discoverable-timeout", str(seconds))

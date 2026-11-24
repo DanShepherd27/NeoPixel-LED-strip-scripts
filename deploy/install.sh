@@ -61,9 +61,34 @@ if command -v bluealsa-aplay >/dev/null 2>&1 && command -v bt-agent >/dev/null 2
         install -m 0644 "$APP_DIR/deploy/$unit.service" "/etc/systemd/system/$unit.service"
     done
     systemctl daemon-reload
+    # iPhones only list devices that announce an audio device class; a stock Pi announces none.
+    BLUETOOTH_CONF=/etc/bluetooth/main.conf
+    if [ -f "$BLUETOOTH_CONF" ] && ! grep -q "^Class *= *0x200414" "$BLUETOOTH_CONF"; then
+        cp -n "$BLUETOOTH_CONF" "$BLUETOOTH_CONF.led-arcade.bak"
+        if grep -Eq "^#?Class *=" "$BLUETOOTH_CONF"; then
+            sed -i -E "s/^#?Class *=.*/Class = 0x200414/" "$BLUETOOTH_CONF"
+        else
+            sed -i "/^\\[General\\]/a Class = 0x200414" "$BLUETOOTH_CONF"
+        fi
+        echo "Set the Bluetooth device class to audio speaker in $BLUETOOTH_CONF"
+        systemctl restart bluetooth.service
+    fi
+    # The Lite image ships the radio soft-blocked and without the rfkill tool.
+    command -v rfkill >/dev/null 2>&1 || apt-get install -y rfkill || echo "WARNING: could not install rfkill." >&2
+    rfkill unblock bluetooth || true
     systemctl enable --now bluetooth.service bluealsa.service
+    # The package's own player would also grab every phone stream; ours targets the right output.
+    systemctl disable --now bluealsa-aplay.service 2>/dev/null || true
     systemctl enable led-arcade-bt-agent.service led-arcade-bt-audio.service
     systemctl restart led-arcade-bt-agent.service led-arcade-bt-audio.service
+fi
+
+# rpi_ws281x compiles from source on newer Python versions and needs the headers.
+PYTHON_INCLUDE="$("$PYTHON" -c 'import sysconfig; print(sysconfig.get_path("include"))')"
+if [ ! -f "$PYTHON_INCLUDE/Python.h" ]; then
+    echo "Installing Python headers to build rpi_ws281x"
+    apt-get update || echo "WARNING: apt-get update reported errors; trying the install anyway." >&2
+    apt-get install -y python3-dev build-essential
 fi
 
 echo "Installing Python requirements"

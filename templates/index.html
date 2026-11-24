@@ -339,6 +339,13 @@
           <label><input id="song-auto-sync" type="checkbox" checked> Keep adjusting automatically while the song plays</label>
             </div>
           </details>
+          <details class="admin-section" name="admin-section">
+            <summary data-icon="speaker"><span class="admin-section-title">Bluetooth speaker</span><span class="admin-section-hint">Fix a phone that cannot pair</span></summary>
+            <div class="admin-section-body">
+          <p class="muted">The Bluetooth button in the header opens a two-minute pairing window. If a phone says pairing failed, forget the Pi on the phone too, then use this button and pair again.</p>
+          <button id="bluetooth-reset" class="btn btn-ghost btn-block" type="button">FORGET ALL BLUETOOTH DEVICES</button>
+            </div>
+          </details>
           <button type="submit" class="btn btn-primary btn-block">SAVE SETTINGS</button>
           <button id="admin-logout" type="button" class="btn btn-ghost btn-block">ADMIN LOGOUT</button>
         </form>
@@ -355,7 +362,7 @@
 
   <script src="/static/js/music-preview.js?v=20261124-club"></script>
   <script src="/static/js/admin-settings.js?v=20261123-admin-state"></script>
-  <script src="/static/js/bluetooth-pair.js?v=20261123-bluetooth"></script>
+  <script src="/static/js/bluetooth-pair.js?v=20261124-bluetooth-reset"></script>
   <script src="/static/js/web-mic.js?v=20261123-onsets"></script>
   <script src="/static/js/app.js?v=20261123-tutorial-buttons"></script>
   <script src="/static/js/song.js?v=20261122-song-import"></script>
