@@ -34,6 +34,7 @@ from led.bluetooth_audio import BluetoothAudioInput
 from led.pcm_sink import AplaySink
 from led.renderer import Renderer
 from arcade.manager import ArcadeManager
+from arcade.bluetooth_sync import BluetoothDelaySync
 from arcade.music_animations import MUSIC_ANIMATIONS
 from arcade.sounds import SoundPlayer
 from web.runtime_settings import update_runtime_settings
@@ -75,6 +76,7 @@ def main():
     song_auto_sync = True
     music_input = "microphone"
     bluetooth_latency_ms = BLUETOOTH_LATENCY_MS
+    bluetooth_auto_sync = True
     try:
         with open(RUNTIME_SETTINGS_FILE, "r", encoding="utf-8") as settings_file:
             saved = json.load(settings_file)
@@ -101,6 +103,9 @@ def main():
         song_auto_sync = saved.get("song_auto_sync", song_auto_sync)
         music_input = saved.get("music_input", music_input)
         bluetooth_latency_ms = int(saved.get("bluetooth_latency_ms", bluetooth_latency_ms))
+        bluetooth_auto_sync = saved.get("bluetooth_auto_sync", bluetooth_auto_sync)
+        if type(bluetooth_auto_sync) is not bool:
+            raise ValueError("saved Bluetooth auto-sync must be a boolean")
         if music_input not in ("microphone", "bluetooth"):
             raise ValueError("saved sound source is not supported")
         if not 0 <= bluetooth_latency_ms <= 1500:
@@ -154,6 +159,7 @@ def main():
         preview_invert_order = False
         song_audio_latency_ms, song_auto_sync = SONG_AUDIO_LATENCY_MS, True
         music_input, bluetooth_latency_ms = "microphone", BLUETOOTH_LATENCY_MS
+        bluetooth_auto_sync = True
 
     hardware = LEDHardware(
         LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT,
@@ -173,7 +179,9 @@ def main():
         music_animation, music_sensitivity, music_primary_color, music_accent_color,
         music_beat_lead_ms, music_band_colors, music_sound_profile,
         music_glitter_brightness, music_glitter_every_beats,
-        extra_music_sources=[BluetoothSource(bluetooth_input, bluetooth_latency_ms)],
+        extra_music_sources=[BluetoothSource(bluetooth_input, bluetooth_latency_ms, BluetoothDelaySync(
+            bluetooth_input, audio_input, bluetooth_auto_sync,
+            on_learned=lambda ms: update_runtime_settings({"bluetooth_latency_ms": ms})))],
         music_input=music_input,
     )
     manager.preview_invert_order = preview_invert_order

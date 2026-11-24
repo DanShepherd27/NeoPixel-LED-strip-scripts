@@ -33,6 +33,22 @@ class MusicInputMixin:
         if source:
             source.delay_ms = int(milliseconds)
 
+    @property
+    def bluetooth_auto_sync(self):
+        sync = self._bluetooth_sync
+        return bool(sync and sync.enabled)
+
+    @bluetooth_auto_sync.setter
+    def bluetooth_auto_sync(self, enabled):
+        sync = self._bluetooth_sync
+        if sync:
+            sync.enabled = bool(enabled)
+
+    @property
+    def _bluetooth_sync(self):
+        source = self.music_sources.get("bluetooth")
+        return getattr(source, "sync", None)
+
     def set_music_input(self, name):
         """Switch the sound-reactive source live; the tempo and gain start over for it."""
         if name not in self.music_sources:
@@ -55,6 +71,8 @@ class MusicInputMixin:
             "sources": [{"name": source.name, "label": source.label}
                         for source in self.music_sources.values()],
             "bluetooth_latency_ms": self.bluetooth_latency_ms,
+            "bluetooth_sync": (self._bluetooth_sync.describe() if self._bluetooth_sync
+                               else {"enabled": False, "state": "off", "score": None}),
         }
 
     def _reset_music_tracking(self):

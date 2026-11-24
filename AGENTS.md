@@ -100,7 +100,13 @@ and usable without internet after installation.
   `music_input`. Bluetooth audio is read once from BlueALSA with `arecord`
   (`LED_BLUETOOTH_AUDIO_DEVICE`), analyzed like the mic but on a digital scale while the
   source is selected, then held back by `bluetooth_latency_ms` (the speaker playback
-  delay; default 300) so lights and onsets land when the sound is heard. The same kick/snare
+  delay; default 300) so lights and onsets land when the sound is heard. With
+  `bluetooth_auto_sync` on (default), `arcade/bluetooth_sync.py` (a `DelaySync` the
+  source composes) turns on the Pi microphone while Bluetooth is the selected source and
+  every 3 s compares what it hears with the stream's own loudness history (the song
+  estimator in `arcade/song/latency.py`, via `RecordedLoudness`): the first match of a
+  stream searches 0-1.2 s and jumps there, later ones look within 180 ms and move at most
+  30 ms; settled values are saved to `bluetooth_latency_ms`. The same kick/snare
   onsets feed the BPM tracker. To add an input, subclass `AudioSource` and pass it to the
   manager as an extra source.
 - The systemd service runs as root because the current GPIO/DMA setup requires

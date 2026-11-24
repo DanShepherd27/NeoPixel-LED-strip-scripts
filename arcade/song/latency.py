@@ -1,10 +1,11 @@
 """Speaker-to-microphone latency measurement.
 
-The Pi plays the song while its own microphone listens. Because the song's
-loudness over time is known exactly (from the analysis file), sliding that
-known envelope against the microphone's envelope finds how long after
-starting the player the sound actually leaves the speakers. That delay is
-what the lights must be shifted by to land on the beat.
+The Pi plays audio while its own microphone listens. Because the audio's
+loudness over time is known exactly (from a song's analysis file, or from the
+Bluetooth stream analyzed just before it is played), sliding that known
+envelope against the microphone's envelope finds how long after the audio
+enters the player the sound actually leaves the speakers. That delay is what
+the lights must be shifted by to land on the beat.
 """
 
 import math
@@ -18,17 +19,18 @@ MIN_MARGIN = 0.06       # how far the best lag must beat the best alternative
 ALTERNATIVE_EXCLUSION = 0.12
 
 
-def _mic_envelope(history, origin, first, count):
-    """Mic loudness on the comparison grid, times measured from ``origin``."""
+def _envelope(history, origin, first, count, step=GRID, transform=math.sqrt):
+    """Loudness chunks ``(arrival, rms, seconds)`` resampled every ``step`` seconds from
+    ``first``, times measured from ``origin``; each chunk counts at its midpoint."""
     points = sorted(
-        (arrival - duration / 2.0 - origin, math.sqrt(rms))
+        (arrival - duration / 2.0 - origin, transform(rms))
         for arrival, rms, duration in history
     )
     if not points:
         return None
     values, cursor = [], 0
     for i in range(count):
-        t = first + i * GRID
+        t = first + i * step
         while cursor + 1 < len(points) and points[cursor + 1][0] <= t:
             cursor += 1
         before = points[cursor]
@@ -39,6 +41,19 @@ def _mic_envelope(history, origin, first, count):
         else:
             values.append(before[1])
     return values
+
+
+class RecordedLoudness:
+    """A loudness reference made from recorded chunks instead of a song analysis: the
+    Bluetooth stream as it entered the speaker pipeline. Same ``level_series`` as
+    ``SongAnalysis``, with times measured from ``origin``."""
+
+    def __init__(self, history, origin):
+        self._history, self._origin = history, origin
+
+    def level_series(self, step, count, first=0.0):
+        values = _envelope(self._history, self._origin, first, count, step, transform=float)
+        return values if values is not None else [0.0] * count
 
 
 def _detrend(values):
@@ -61,17 +76,19 @@ def _correlation(a, b):
 
 
 def estimate_latency(history, origin, analysis, window, lag_range, song_offset=0.0):
-    """Find the latency (seconds) that best aligns the song with the microphone.
+    """Find the latency (seconds) that best aligns the reference with the microphone.
 
     ``history`` holds (arrival, rms, seconds) mic chunks; ``origin`` is the
-    monotonic time the song clock started; ``window`` is the (start, end)
+    monotonic time the reference clock started; ``window`` is the (start, end)
     seconds after origin to compare; ``lag_range`` the latencies to test;
     ``song_offset`` the song position the clock started from (after a seek).
+    ``analysis`` is anything with ``level_series``: a ``SongAnalysis`` or
+    ``RecordedLoudness``.
     """
     steps = int(round(GRID / LAG_STEP))
     first = round(window[0] / LAG_STEP) * LAG_STEP
     count = int((window[1] - first) / GRID)
-    mic = _mic_envelope(history, origin, first, count)
+    mic = _envelope(history, origin, first, count)
     if mic is None or count < 40:
         return {"ok": False, "message": "No microphone audio was captured."}
     mic = _detrend(mic)

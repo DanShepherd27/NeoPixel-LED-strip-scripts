@@ -66,6 +66,7 @@
         $id("bluetooth-latency-ms").value = data.bluetooth_latency_ms == null ? 300 : data.bluetooth_latency_ms;
         $id("bluetooth-latency-value").textContent = $id("bluetooth-latency-ms").value + " ms";
         $id("song-auto-sync").checked = data.song_auto_sync !== false;
+        $id("bluetooth-auto-sync").checked = data.bluetooth_auto_sync !== false;
         $id("music-sensitivity-value").textContent = Number($id("music-sensitivity").value).toFixed(2) + "×";
         $id("hidden-start").max = data.led_count;
         $id("hidden-end").max = data.led_count;
@@ -128,6 +129,7 @@
           preview_invert_order: $id("preview-invert-order").checked,
           song_audio_latency_ms: Number($id("song-latency-ms").value),
           song_auto_sync: $id("song-auto-sync").checked,
+          bluetooth_auto_sync: $id("bluetooth-auto-sync").checked,
           music_input: $id("music-input").value,
           bluetooth_latency_ms: Number($id("bluetooth-latency-ms").value),
         }),

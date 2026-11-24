@@ -318,6 +318,8 @@
           <label for="bluetooth-latency-ms">Bluetooth audio delay <output id="bluetooth-latency-value">300 ms</output></label>
           <input id="bluetooth-latency-ms" type="range" data-knob min="0" max="1500" step="10" value="300">
           <p class="muted">Bluetooth music is analyzed before it plays, so the lights are held back by the speaker delay. If the lights lead the sound, raise this; if they lag, lower it.</p>
+          <label><input id="bluetooth-auto-sync" type="checkbox" checked> Keep adjusting automatically while Bluetooth audio plays</label>
+          <p class="muted">The Pi microphone listens to the speakers and compares what it hears with the stream, then moves the delay above to match (saved as it settles). Needs the speakers audible to the Pi microphone; quiet passages are skipped.</p>
           <label for="music-sound-profile">Speaker profile</label>
           <select id="music-sound-profile">
             <option value="balanced">Balanced</option>
@@ -388,9 +390,9 @@
   </aside>
 
   <script src="/static/js/music-preview.js?v=20261124-stage"></script>
-  <script src="/static/js/admin-settings.js?v=20261124-music-input"></script>
+  <script src="/static/js/admin-settings.js?v=20261124-bt-sync"></script>
   <script src="/static/js/bluetooth-pair.js?v=20261124-bluetooth-reset"></script>
-  <script src="/static/js/music-input.js?v=20261124-music-input"></script>
+  <script src="/static/js/music-input.js?v=20261124-bt-sync"></script>
   <script src="/static/js/web-mic.js?v=20261123-onsets"></script>
   <script src="/static/js/app.js?v=20261124-music-source-fix"></script>
   <script src="/static/js/song.js?v=20261122-song-import"></script>

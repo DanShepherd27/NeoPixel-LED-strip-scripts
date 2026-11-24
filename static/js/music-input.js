@@ -31,7 +31,7 @@
     if (selected(state) === "bluetooth") {
       if (!active) return "Uses the music your phone streams to the Pi over Bluetooth.";
       return audio.status === "listening"
-        ? "Listening to the Bluetooth stream from your phone."
+        ? "Listening to the Bluetooth stream from your phone." + syncNote(state)
         : (audio.error || "Waiting for a phone to stream Bluetooth audio. An admin can open pairing with the Bluetooth button.");
     }
     if (!active) return "Uses this browser microphone when available, with the Pi microphone as fallback.";
@@ -39,6 +39,22 @@
     return audio.status === "listening"
       ? "Using the Pi microphone fallback (" + (audio.device || "default") + ")."
       : (audio.error || "Waiting for a web microphone or Pi input.");
+  }
+
+  const syncStates = {
+    listening: "measuring the speaker delay soon",
+    adjusting: "matching the lights to the speakers",
+    locked: "lights matched to the speakers",
+    weak: "too quiet to measure the speaker delay right now",
+    "no microphone": "no Pi microphone to measure the speaker delay",
+  };
+
+  function syncNote(state) {
+    const input = state.music_input || {};
+    const sync = input.bluetooth_sync || {};
+    const delay = " Light delay " + (input.bluetooth_latency_ms || 0) + " ms";
+    if (!sync.enabled || !syncStates[sync.state]) return delay + ".";
+    return delay + " · " + syncStates[sync.state] + ".";
   }
 
   function usesBrowserMicrophone(state) { return selected(state) === "microphone"; }

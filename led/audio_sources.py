@@ -121,27 +121,54 @@ class DelayedFeed:
         return self._shown, audible
 
 
+class DelaySync(abc.ABC):
+    """Keeps a source's playback delay matched to the speakers while it plays."""
+
+    @abc.abstractmethod
+    def start(self):
+        """The source became active: begin listening."""
+
+    @abc.abstractmethod
+    def stop(self):
+        """The source stopped: release anything ``start`` took."""
+
+    @abc.abstractmethod
+    def update(self, delay_ms):
+        """Called every frame with the current delay; returns the delay to use."""
+
+    @abc.abstractmethod
+    def describe(self):
+        """Status for the UI: ``enabled``, ``state`` and the last match ``score``."""
+
+
 class BluetoothSource(AudioSource):
     """Audio a phone streams to the Pi over Bluetooth, analyzed before it reaches the speakers."""
 
     name = "bluetooth"
     label = "Bluetooth (phone audio)"
 
-    def __init__(self, capture, delay_ms=0):
+    def __init__(self, capture, delay_ms=0, sync=None):
         self._capture = capture
         self.delay_ms = int(delay_ms)    # speaker playback delay the lights are held back by
+        self.sync = sync                 # optional DelaySync that measures that delay live
         self._feed = DelayedFeed()
         self._audible = []
 
     def activate(self):
         self._capture.set_enabled(True)
+        if self.sync is not None:
+            self.sync.start()
 
     def deactivate(self):
         self._capture.set_enabled(False)
+        if self.sync is not None:
+            self.sync.stop()
         self._feed.clear()
         self._audible = []
 
     def features(self):
+        if self.sync is not None:
+            self.delay_ms = int(round(self.sync.update(self.delay_ms)))
         shown, audible = self._feed.advance(
             time.monotonic(), self._capture.snapshot(), self._capture.take_onsets(),
             self.delay_ms / 1000.0,
@@ -154,7 +181,8 @@ class BluetoothSource(AudioSource):
         return audible
 
     def describe(self):
-        return dict(self._capture.snapshot(), source=self.name, delay_ms=self.delay_ms)
+        sync = self.sync.describe() if self.sync is not None else {"enabled": False, "state": "off"}
+        return dict(self._capture.snapshot(), source=self.name, delay_ms=self.delay_ms, sync=sync)
 
     def reset(self):
         self._capture.take_onsets()
