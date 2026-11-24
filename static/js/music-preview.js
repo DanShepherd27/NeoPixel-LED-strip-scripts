@@ -38,6 +38,8 @@
     laser_dance: "Laser dance", kitt_scanner: "Red scanner",
     inward_diamonds: "Inward diamonds", red_shades: "Red pulse",
     christmas_glitter: "Christmas glitter", club: "Club (kick, snare, lead)",
+    genesys: "Genesys (Anyma style)", holo: "Holo (Eric Prydz style)",
+    paradise: "Paradise (Swedish House Mafia style)", rave: "Rave (Fred again.. style)",
   };
 
   function configurePatternControls(scope, pattern, bandColors) {

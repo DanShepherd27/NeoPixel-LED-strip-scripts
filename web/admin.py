@@ -6,6 +6,7 @@ import re
 
 from flask import jsonify, request, session
 
+from arcade.music_animations import MUSIC_ANIMATIONS
 from config import ADMIN_PASSWORD, LED_COUNT
 from web.runtime_settings import update_runtime_settings
 
@@ -112,10 +113,7 @@ def register_admin_routes(app, manager, hardware):
             return jsonify({"ok": False, "message": "Offsets must be nonnegative and total no more than the strip length."}), 400
         if not 15 <= handoff_value <= 1800:
             return jsonify({"ok": False, "message": "Microphone handoff must be between 15 and 1800 seconds."}), 400
-        if animation_value not in (
-            "center_pulse", "mirror_bars", "rainbow_wave", "comet",
-            "retro_vu", "inward_diamonds", "red_shades", "live_band", "bpm_trace", "laser_dance", "kitt_scanner", "christmas_glitter", "club",
-        ):
+        if animation_value not in MUSIC_ANIMATIONS:
             return jsonify({"ok": False, "message": "Choose one of the available music animations."}), 400
         sensitivity = float(sensitivity_value)
         if not 0.25 <= sensitivity <= 4.0:

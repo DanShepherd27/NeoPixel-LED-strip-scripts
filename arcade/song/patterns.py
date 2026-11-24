@@ -8,6 +8,7 @@ only parameters (palette, speed, ...); no code ever comes from a show file.
 from arcade.song.effects import GOLD, GREEN, RED, WARM, WHITE_HOT, Comets
 from arcade.song.moods import Afterglow, Bells, Verse, Whisper
 from arcade.song.peaks import Build, Chorus, Dream, Finale
+from arcade.stage import LOOKS as STAGE_LOOKS, create_look
 from arcade.song.techno import Accents, Countdown, Field, Lead, Pulse, Shutdown
 
 
@@ -63,6 +64,9 @@ PATTERNS = {
     "shutdown": lambda params: Shutdown(params.get("bars", 8)),
     "lead": lambda params: Lead(params.get("color", (255, 0, 0)), params.get("core", (255, 80, 80)),
                                 params.get("gain", 1.0)),
+    # artist-inspired stage looks; "section" is breakdown, build or drop
+    "stage": lambda params: create_look(params["look"] if params.get("look") in STAGE_LOOKS else "genesys",
+                                        params.get("section", "drop")),
     # names used by earlier generated club shows, kept so those files still play
     "sentinel": lambda params: Pulse(0.5),
     "drone": lambda params: Field(0.3, True),

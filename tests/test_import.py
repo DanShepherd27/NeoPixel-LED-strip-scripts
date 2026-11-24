@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT))
 
 from arcade.song.cuesheet import compile_cuesheet  # noqa: E402
 from arcade.song.importer import ImportJobs, slugify  # noqa: E402
-from arcade.song.showgen import generate_show  # noqa: E402
+from arcade.song.showgen import LOOKS, generate_show  # noqa: E402
 
 try:
     import numpy as np
@@ -88,7 +88,7 @@ class GeneratorTests(unittest.TestCase):
             self.assertAlmostEqual(found, expected, delta=1)
         sheet = compile_cuesheet(show)
         self.assertEqual(sheet.warnings, [])
-        for look in ("club", "neon"):   # both looks compile cleanly
+        for look in LOOKS:   # every look compiles cleanly
             other = compile_cuesheet(generate_show(analysis, {"id": "t", "title": "T", "audio": "t.mp3",
                                                                 "analysis": "t.json"}, look))
             self.assertEqual(other.warnings, [])
@@ -105,9 +105,11 @@ class GeneratorTests(unittest.TestCase):
         # Photosensitivity: no more than three large-area flashes in any second, from the
         # patterns themselves (the engine's flash guard is switched off here), for both looks.
         self.assertLessEqual(flash_events_per_second(sheet, analysis), 3)
-        neon = compile_cuesheet(generate_show(analysis, {"id": "t", "title": "T", "audio": "t.mp3",
-                                                         "analysis": "t.json"}, "neon"))
-        self.assertLessEqual(flash_events_per_second(neon, analysis), 3)
+        for look in set(LOOKS) - {"club"}:
+            with self.subTest(look=look):
+                other = compile_cuesheet(generate_show(analysis, {"id": "t", "title": "T", "audio": "t.mp3",
+                                                                  "analysis": "t.json"}, look))
+                self.assertLessEqual(flash_events_per_second(other, analysis), 3)
 
 
 @unittest.skipIf(np is None, "numpy not installed")

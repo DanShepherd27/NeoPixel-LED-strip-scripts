@@ -16,10 +16,12 @@ from led.frame import Frame
 from arcade.players import PlayerManager
 from arcade.games import GAMES, game_catalog
 from led.effects import EFFECTS
+from arcade.stage.ambient import AMBIENT_EFFECTS
 from led.web_audio import WebMicQueue
 from arcade.live_beat import LiveBeatTracker
 from arcade.music_gain import AutoGain
 from arcade.music_input import MusicInputMixin
+from arcade.music_animations import MUSIC_ANIMATIONS
 from arcade.music_rendering import MusicRenderingMixin
 from led.audio_sources import MicrophoneSource
 from arcade.song.engine import FlashGuard
@@ -128,7 +130,7 @@ class ArcadeManager(MusicRenderingMixin, MusicInputMixin):
         self.players = PlayerManager()
 
         # Idle effect rotation.
-        self._idle_effects = [(name, cls(count)) for name, cls in EFFECTS]
+        self._idle_effects = [(name, cls(count)) for name, cls in EFFECTS + AMBIENT_EFFECTS]
         self._idle_order = list(range(len(self._idle_effects)))
         if IDLE_RANDOM_ORDER:
             random.shuffle(self._idle_order)
@@ -405,11 +407,7 @@ class ArcadeManager(MusicRenderingMixin, MusicInputMixin):
 
     def set_music_visualizer(self, animation, sensitivity, primary_color=None, accent_color=None,
                              enabled_bands=None, band_colors=None):
-        if animation not in (
-            "center_pulse", "mirror_bars", "rainbow_wave", "comet",
-            "retro_vu", "inward_diamonds", "red_shades", "live_band",
-            "bpm_trace", "laser_dance", "kitt_scanner", "christmas_glitter", "club",
-        ):
+        if animation not in MUSIC_ANIMATIONS:
             raise ValueError("Unknown music animation.")
         if not 0.25 <= float(sensitivity) <= 4.0:
             raise ValueError("Music sensitivity must be between 0.25 and 4.0.")

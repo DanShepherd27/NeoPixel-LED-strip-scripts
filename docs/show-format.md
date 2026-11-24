@@ -211,5 +211,9 @@ acid palettes every 16 bars). The downbeat is where the kick returns after a
 breakdown. The "club" look is red, black and white only and gives each sound one fixed visual
 (kick wave from the centre, snare blocks at the ends, a bar for the acid/lead line, one
 full-strip flash per 8-bar phrase, a fill of rounds before the next phrase), with no
-randomness and at most three large-area flashes per second. The result can be edited
-like any other show file.
+randomness and at most three large-area flashes per second. The four stage looks
+("genesys", "holo", "paradise", "rave"; see `docs/stage-looks.md`) use one pattern,
+`stage`, with `look` and `section` (`breakdown`, `build` or `drop`) parameters, e.g.
+`{"pattern": "stage", "look": "holo", "section": "drop"}`. Intros, breakdowns and
+outros use the breakdown, and the build ends with half a beat of darkness before the
+drop. The result can be edited like any other show file.

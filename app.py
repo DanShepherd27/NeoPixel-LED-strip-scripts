@@ -34,6 +34,7 @@ from led.bluetooth_audio import BluetoothAudioInput
 from led.pcm_sink import AplaySink
 from led.renderer import Renderer
 from arcade.manager import ArcadeManager
+from arcade.music_animations import MUSIC_ANIMATIONS
 from arcade.sounds import SoundPlayer
 from web.runtime_settings import update_runtime_settings
 from web.server import create_app
@@ -116,10 +117,7 @@ def main():
             raise ValueError("saved song latency must be 0-1500 ms and auto-sync a boolean")
         if not 15 <= mic_handoff_seconds <= 1800:
             raise ValueError("saved microphone handoff must be between 15 and 1800 seconds")
-        if music_animation not in (
-            "center_pulse", "mirror_bars", "rainbow_wave", "comet",
-            "retro_vu", "inward_diamonds", "red_shades", "live_band", "bpm_trace", "laser_dance", "kitt_scanner", "christmas_glitter", "club",
-        ):
+        if music_animation not in MUSIC_ANIMATIONS:
             raise ValueError("saved music animation is not supported")
         if not 0.25 <= music_sensitivity <= 4.0:
             raise ValueError("saved music sensitivity must be between 0.25 and 4.0")

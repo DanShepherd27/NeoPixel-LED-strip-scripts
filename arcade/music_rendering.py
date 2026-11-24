@@ -12,6 +12,7 @@ from arcade.music_colors import blend_rgb as _blend_rgb
 from arcade.music_gain import AutoGain
 from arcade.music_beat_patterns import BeatPatternMixin
 from arcade.music_patterns import MusicPatternMixin
+from arcade.stage import LOOKS as STAGE_LOOKS, create_look
 
 # Patterns drawn by BeatPatternMixin (``_draw_<name>``).
 BEAT_PATTERNS = ("center_pulse", "mirror_bars", "comet", "rainbow_wave", "inward_diamonds", "club")
@@ -76,6 +77,15 @@ class MusicRenderingMixin(BeatPatternMixin, MusicPatternMixin):
         }
         return [sample for sample in samples if allowed[sample[1]]]
 
+    def _draw_stage_look(self, frame):
+        """An artist-inspired look; it keeps its own arrangement state per pattern."""
+        looks = self._beat_pattern_state.setdefault("stage", {})
+        name = self.music_animation
+        if name not in looks:
+            looks[name] = create_look(name)
+        frame.clear()
+        looks[name].render(frame, self._music_ctx)
+
     def _draw_christmas_glitter(self, frame, level, peak):
         """Show slow candy-cane blocks, then a brief multicolor glitter burst."""
         palette = (
@@ -115,6 +125,9 @@ class MusicRenderingMixin(BeatPatternMixin, MusicPatternMixin):
     def _draw_music_animation(self, frame, level, peak, dt=0.0, bands=None):
         count = self.count
         if not count:
+            return
+        if self.music_animation in STAGE_LOOKS:
+            self._draw_stage_look(frame)
             return
         if self.music_animation == "live_band":
             self._draw_live_band(frame, bands or [level] * 6, dt)

@@ -75,6 +75,21 @@ LOOKS = {
         "comet": "#00E5FF",
     },
 }
+
+
+def _stage_look(name):
+    """An artist-inspired look (``arcade/stage``): one pattern that draws the whole
+    strip, told which section it is in so it can build tension and land the drop."""
+    roles = {"intro": "breakdown", "breakdown": "breakdown", "build": "build",
+             "drop": "drop", "outro": "breakdown"}
+    presets = {"%s_%s" % (name, section): {"pattern": "stage", "look": name, "section": section}
+               for section in ("breakdown", "build", "drop")}
+    return {"palettes": {}, "presets": presets, "comet": None,
+            "roles": {role: [[("base", "%s_%s" % (name, section))]] for role, section in roles.items()}}
+
+
+# Stage looks after Anyma, Eric Prydz, Swedish House Mafia and Fred again.. (docs/stage-looks.md).
+LOOKS.update({name: _stage_look(name) for name in ("genesys", "holo", "paradise", "rave")})
 DEFAULT_LOOK = "club"
 TRACKS = [{"id": "base", "blend": "replace"}, {"id": "fx", "blend": "add"},
           {"id": "flash", "blend": "add"}, {"id": "lead", "blend": "add"}]

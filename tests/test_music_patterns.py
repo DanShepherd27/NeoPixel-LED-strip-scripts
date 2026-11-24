@@ -5,16 +5,12 @@ import unittest
 from unittest import mock
 
 import arcade.music_rendering as music_rendering
+from arcade.music_animations import MUSIC_ANIMATIONS as PATTERNS
 import led.web_audio as web_audio
 from arcade.manager import ArcadeManager
 from led.frame import Frame
 
 FPS = 40
-PATTERNS = (
-    "center_pulse", "mirror_bars", "comet", "rainbow_wave", "retro_vu", "inward_diamonds",
-    "red_shades", "live_band", "bpm_trace", "laser_dance", "kitt_scanner",
-    "christmas_glitter", "club",
-)
 
 
 def play(pattern, bpm=120, seconds=12.0):

@@ -3,12 +3,15 @@
 Every pattern here reads the live ``BeatContext`` (``self._music_ctx``) and
 keeps the same meaning for each sound, so the rhythm is readable at a glance:
 
-* **downbeat** (beat 1 of the bar) - the biggest change: colors swap or the
-  shape starts over, at most once per bar;
+* **downbeat** (beat 1 of the bar) - the shape starts over; colors swap only on
+  the downbeat that opens an 8-bar phrase, the way stage looks change;
 * **kick / beat** - a pop of brightness or a step of motion on the main shape;
 * **snare** (beats 2 and 4) - the blocks at both ends of the strip flash in the
   accent color, a place the kick never uses;
 * **loudness** - only a slow envelope that sets the overall size.
+
+Resting brightness stays low so the strip is mostly dark between hits: contrast,
+not constant brightness, is what makes a hit read as big (see docs/stage-looks.md).
 
 Until the beat grid locks, kicks and snares come straight from the detected
 hits, and shapes move freely.
@@ -19,6 +22,7 @@ import math
 from arcade.music_colors import blend_rgb as _blend_rgb
 from arcade.song.effects import add, scaled
 from arcade.song.techno import Accents, Field, Lead, Pulse
+from arcade.stage.cues import PHRASE_BARS
 from led.colors import hsv_to_rgb
 
 END_BLOCK = 5            # pixels at each end that flash on the snare
@@ -43,10 +47,11 @@ def _soft_span(frame, center, radius, color, strength):
 class BeatPatternMixin:
     # -- shared accents ------------------------------------------------------
     def _beat_colors(self):
-        """Primary and accent, swapped on every other bar once the bar is known."""
+        """Primary and accent, swapped at each 8-bar phrase once the bar is known:
+        stage designers change looks on phrases, not on every bar."""
         ctx = self._music_ctx
         primary, accent = self._music_primary_rgb, self._music_accent_rgb
-        if ctx.locked and ctx.bar_known and ctx.bar_in_section % 2:
+        if ctx.locked and ctx.bar_known and (ctx.bar_in_section // PHRASE_BARS) % 2:
             return accent, primary
         return primary, accent
 
@@ -73,7 +78,7 @@ class BeatPatternMixin:
         middle = (frame.count - 1) / 2.0
         reach = (0.25 + 0.6 * size + 0.15 * ctx.pulse) * (frame.count / 2.0)
         primary, accent = self._beat_colors()
-        brightness = 0.3 + 0.35 * size + 0.35 * ctx.pulse
+        brightness = 0.15 + 0.4 * size + 0.45 * ctx.pulse
         for index in range(frame.count):
             distance = abs(index - middle)
             edge = max(0.0, min(1.0, reach - distance + 0.5))
@@ -92,7 +97,7 @@ class BeatPatternMixin:
         reach = (0.3 + 0.7 * size) * half
         step = int(ctx.stepped(1)) if ctx.locked else 0
         primary, accent = self._beat_colors()
-        brightness = 0.45 + 0.25 * size + 0.3 * ctx.pulse
+        brightness = 0.25 + 0.3 * size + 0.45 * ctx.pulse
         for offset in range(half):
             edge = max(0.0, min(1.0, reach - offset))
             if edge <= 0.0:
@@ -118,7 +123,7 @@ class BeatPatternMixin:
         state["comet_head"] = head
         tail = 6 + int(10 * size)
         primary, accent = self._beat_colors()
-        strength = 0.4 + 0.3 * size + 0.3 * ctx.pulse
+        strength = 0.3 + 0.3 * size + 0.4 * ctx.pulse
         for offset in range(tail):
             index = int(head - offset) % frame.count
             fade = (1.0 - offset / tail) ** 1.5
@@ -156,7 +161,7 @@ class BeatPatternMixin:
             travel = (state.get("diamond_travel", 0.0) + max(0.0, dt) * (6.0 + 12.0 * size)) % half
         state["diamond_travel"] = travel
         radius = 2.0 + 3.0 * min(1.0, spread) + 2.0 * ctx.pulse
-        brightness = 0.4 + 0.3 * size + 0.3 * ctx.pulse
+        brightness = 0.3 + 0.3 * size + 0.4 * ctx.pulse
         primary, accent = self._beat_colors()
         _soft_span(frame, travel, radius, primary, brightness)
         _soft_span(frame, frame.count - 1 - travel, radius, accent, brightness)

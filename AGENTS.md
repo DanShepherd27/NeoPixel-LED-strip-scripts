@@ -22,7 +22,7 @@ and usable without internet after installation.
 - Admin LED color balance (`led_color_red/green/blue`) scales each RGB output
   channel globally from 0–200%, applies to all scenes, and persists beside the
   other runtime settings. Defaults are 100% per channel.
-- Sound-reactive lighting offers thirteen live-switchable browser patterns, prefers
+- Sound-reactive lighting offers seventeen live-switchable browser patterns, prefers
   an opted-in browser microphone and falls back to
   microphone PCM from `arecord` via `led/audio.py`; the ALSA device is
   `LED_INPUT_AUDIO_DEVICE` (default `default`). Browser audio stays local; only
@@ -56,9 +56,20 @@ and usable without internet after installation.
   `BeatContext` (plus `locked`, `pulse`, `snare_pulse`, `beat_event`,
   `snare_event`). Admin beat-sync timing adds a saved -100 to +200 ms trim.
   Patterns share one visual language (`arcade/music_beat_patterns.py`):
-  downbeat = the biggest change (color swap, shape restart), kick = one pop or
+  downbeat = the shape restarts (colors swap only at 8-bar phrase starts), kick = one pop or
   step, snare = both strip ends flash, loudness = a slow size envelope only.
   There is no global beat/clap tint. Club reuses the song club layers live.
+  Pattern names live in `arcade/music_animations.py` (validation in the manager, admin
+  and app settings loader); the selects in `templates/index.html` and labels in
+  `static/js/music-preview.js` list them for the browser.
+  Four stage looks (`arcade/stage/`, research and rules in `docs/stage-looks.md`) style
+  the strip after Anyma (`genesys`), Eric Prydz (`holo`), Swedish House Mafia
+  (`paradise`) and Fred again.. (`rave`). Each `StageLook` draws a breakdown, build
+  and drop; `Arrangement` pins the section in song shows or infers it live (no kick =
+  breakdown, swelling = build, kick returns = drop with one reveal flash). The same
+  looks are live patterns, song-show looks (`stage` pattern) and, for genesys/holo,
+  idle effects (`arcade/stage/ambient.py`). Add one by subclassing `StageLook` and
+  registering it in `arcade/stage/__init__.py`.
   Live frames pass through `engine.FlashGuard` (at most 3 large flashes per
   second); `tests/test_music_patterns.py` checks every pattern. Keep colors
   saturated at high levels.
@@ -118,7 +129,7 @@ deployed over): `importer.py` runs `analyzer.py` (numpy; mpg123/ffmpeg decode) a
 everyone when ready (`song_imports` in `/api/state`). `showgen.py` is stdlib-only and
 plans dance tracks from kick presence: intro, breakdown, build, drop, outro; the
 tempo grid is the comb fold in `track_beats`, shifted to the kick if the off-beat hats
-dominate. Non-dance music gets one long "drop" with alternating palettes. Two looks: "club" (red, black and white only; `techno.py` gives each sound one fixed visual for the whole song: kick = a wave from the centre paced to reach the ends on the next beat, snare = end blocks on beats 2/4, acid/lead = bar height from the 300 Hz-5 kHz bands, phrase start = the only full-strip flash, phrase fill = rounds from both ends; no randomness; layers on the base/fx/flash/lead tracks) and "neon". Keep large-area flashes (a quarter of the strip brightening by 30% in one frame) at or below 3 per second in every show: tests check the patterns of the Christmas show and both generated looks, and `engine.FlashGuard` holds back any fourth flash in a second as a safety net. Moves that land on a beat must happen in the same frame as the beat's pop (`stepped` is instant by default) so they read as one flash. Run
+dominate. Non-dance music gets one long "drop" with alternating palettes. Looks: the four stage looks above (one `stage` pattern each), plus "club" (red, black and white only; `techno.py` gives each sound one fixed visual for the whole song: kick = a wave from the centre paced to reach the ends on the next beat, snare = end blocks on beats 2/4, acid/lead = bar height from the 300 Hz-5 kHz bands, phrase start = the only full-strip flash, phrase fill = rounds from both ends; no randomness; layers on the base/fx/flash/lead tracks) and "neon". Keep large-area flashes (a quarter of the strip brightening by 30% in one frame) at or below 3 per second in every show: tests check the patterns of the Christmas show and both generated looks, and `engine.FlashGuard` holds back any fourth flash in a second as a safety net. Moves that land on a beat must happen in the same frame as the beat's pop (`stepped` is instant by default) so they read as one flash. Run
 `python -m unittest discover tests` after touching any of this.
 
 `SongSession` owns the clock and Pi playback (`mpg123`; `LED_OUTPUT_AUDIO_DEVICE`,
