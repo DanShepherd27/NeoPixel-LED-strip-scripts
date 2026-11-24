@@ -225,7 +225,8 @@
         input.checked = enabledBands[Number(input.dataset.band)] !== false;
       });
       window.MusicPreview.updateColors();
-      $id("web-mic-controls").hidden = !musicActive || !window.MusicInput.usesBrowserMicrophone(s);
+      $id("web-mic-controls").hidden = !musicActive;
+      $id("web-mic-actions").hidden = !window.MusicInput.usesBrowserMicrophone(s);
     }
     const orientation = s.led_orientation || "vertical";
     const orientationLabel = $id("strip-orientation");

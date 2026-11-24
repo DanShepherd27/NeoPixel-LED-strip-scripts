@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0a0a14">
   <title>LED Arcade</title>
-  <link rel="stylesheet" href="/static/css/arcade.css?v=20261123-bluetooth">
+  <link rel="stylesheet" href="/static/css/arcade.css?v=20261124-song-section">
 </head>
 <body>
   <header class="app-header">
@@ -46,26 +46,29 @@
           <label for="music-input-select" class="music-control-label">Sound source</label>
           <select id="music-input-select"><option value="microphone">Microphone</option></select>
         </div>
-        <div id="song-card" class="song-card">
-          <p id="song-description" class="song-name" aria-live="polite">🎄</p>
-          <select id="song-select" aria-label="Song" hidden></select>
-          <div class="btn-row">
-            <button id="song-btn" class="btn btn-primary" type="button">PLAY THE SONG SHOW</button>
-            <label class="icon-toggle" title="Play on the Pi speakers"><input id="song-pi-audio" type="checkbox" checked aria-label="Play on the Pi speakers"><span class="icon-toggle-face"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></span></label>
-            <label class="icon-toggle" title="Also play on this device"><input id="song-device-audio" type="checkbox" aria-label="Also play on this device"><span class="icon-toggle-face"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span></label>
-          </div>
-          <div id="song-player" class="song-player" hidden>
-            <div class="song-transport">
-              <button id="song-back" class="btn" type="button" data-icon="rewind" data-badge="10" aria-label="Back 10 seconds">Back 10 seconds</button>
-              <button id="song-pause" class="btn btn-accent" type="button">⏸ PAUSE</button>
-              <button id="song-forward" class="btn" type="button" data-icon="forward" data-badge="10" aria-label="Forward 10 seconds">Forward 10 seconds</button>
+        <details id="song-card" class="admin-section song-section">
+          <summary data-icon="music"><span class="admin-section-title">Song show</span><span class="admin-section-hint">Light show with music</span></summary>
+          <div class="admin-section-body">
+            <p id="song-description" class="song-name" aria-live="polite">🎄</p>
+            <select id="song-select" aria-label="Song" hidden></select>
+            <div class="btn-row">
+              <button id="song-btn" class="btn btn-primary" type="button">PLAY THE SONG SHOW</button>
+              <label class="icon-toggle" title="Play on the Pi speakers"><input id="song-pi-audio" type="checkbox" checked aria-label="Play on the Pi speakers"><span class="icon-toggle-face"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></span></label>
+              <label class="icon-toggle" title="Also play on this device"><input id="song-device-audio" type="checkbox" aria-label="Also play on this device"><span class="icon-toggle-face"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span></label>
             </div>
-            <input id="song-seek" type="range" min="0" max="242" step="1" value="0" aria-label="Song position">
-            <div class="song-times"><span id="song-time">0:00</span><span id="song-total">0:00</span></div>
-            <select id="song-section-select" aria-label="Jump to section"><option value="">Jump to…</option></select>
+            <div id="song-player" class="song-player" hidden>
+              <div class="song-transport">
+                <button id="song-back" class="btn" type="button" data-icon="rewind" data-badge="10" aria-label="Back 10 seconds">Back 10 seconds</button>
+                <button id="song-pause" class="btn btn-accent" type="button">⏸ PAUSE</button>
+                <button id="song-forward" class="btn" type="button" data-icon="forward" data-badge="10" aria-label="Forward 10 seconds">Forward 10 seconds</button>
+              </div>
+              <input id="song-seek" type="range" min="0" max="242" step="1" value="0" aria-label="Song position">
+              <div class="song-times"><span id="song-time">0:00</span><span id="song-total">0:00</span></div>
+              <select id="song-section-select" aria-label="Jump to section"><option value="">Jump to…</option></select>
+            </div>
+            <p id="song-status" class="muted" role="status" aria-live="polite"></p>
           </div>
-          <p id="song-status" class="muted" role="status" aria-live="polite"></p>
-        </div>
+        </details>
         <p id="music-visualizer-status" class="muted"></p>
         <div id="music-live-effect-controls" class="music-live-effect-controls" hidden>
           <h3>Music effect controls</h3>
@@ -122,10 +125,12 @@
               <div class="music-preview-labels"><span>Sub-bass</span><span>Bass</span><span>Low mids</span><span>Mids</span><span>High mids</span><span>Treble</span></div>
             </section>
           </div>
-          <p id="web-mic-status" class="muted" role="status" aria-live="polite"></p>
-          <div class="btn-row">
-            <button id="mic-queue-btn" class="btn btn-ghost">USE THIS DEVICE'S MIC</button>
-            <button id="mic-start-btn" class="btn btn-primary" hidden>ALLOW MIC AND VISUALIZE</button>
+          <div id="web-mic-actions">
+            <p id="web-mic-status" class="muted" role="status" aria-live="polite"></p>
+            <div class="btn-row">
+              <button id="mic-queue-btn" class="btn btn-ghost">USE THIS DEVICE'S MIC</button>
+              <button id="mic-start-btn" class="btn btn-primary" hidden>ALLOW MIC AND VISUALIZE</button>
+            </div>
           </div>
         </div>
       </div>
@@ -375,9 +380,9 @@
   <script src="/static/js/bluetooth-pair.js?v=20261124-bluetooth-reset"></script>
   <script src="/static/js/music-input.js?v=20261124-music-input"></script>
   <script src="/static/js/web-mic.js?v=20261123-onsets"></script>
-  <script src="/static/js/app.js?v=20261124-music-input"></script>
+  <script src="/static/js/app.js?v=20261124-music-source-fix"></script>
   <script src="/static/js/song.js?v=20261122-song-import"></script>
-  <script src="/static/js/song-transport.js?v=20261122-song-player"></script>
+  <script src="/static/js/song-transport.js?v=20261124-song-section"></script>
   <script src="/static/js/song-sync.js?v=20261122-song-sync"></script>
   <script src="/static/js/song-import.js?v=20261122-song-lead"></script>
   <script src="/static/js/games.js?v=20261123-pong-levels"></script>

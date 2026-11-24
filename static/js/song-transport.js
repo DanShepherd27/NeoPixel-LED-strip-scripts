@@ -49,6 +49,7 @@
 
   function render(state) {
     const song = state.state === "song" && state.song && !state.song.calibrating ? state.song : null;
+    if (song && !latestSong) $id("song-card").open = true;   // show the controls when a song starts
     latestSong = song;
     $id("song-player").hidden = !song;
     if (!song) return;
