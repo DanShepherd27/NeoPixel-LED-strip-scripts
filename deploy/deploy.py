@@ -3,6 +3,7 @@
 Requires Python 3 and OpenSSH ``ssh``/``scp`` on the computer running it.
 """
 
+import argparse
 import getpass
 import os
 from pathlib import Path
@@ -52,6 +53,21 @@ def ask(values, key, prompt, default=""):
     return value
 
 
+def save_env_value(key, value):
+    """Replace KEY in .deploy.env so a corrected value is the next default."""
+    if not ENV_FILE.exists():
+        return
+    lines = ENV_FILE.read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(lines):
+        if line.strip().split("=", 1)[0].strip() == key:
+            lines[index] = f"{key}={value}"
+            break
+    else:
+        lines.append(f"{key}={value}")
+    ENV_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"Saved {key}={value} to {ENV_FILE.name}.")
+
+
 def ensure_resolvable_host(host):
     try:
         socket.getaddrinfo(host, 22)
@@ -80,7 +96,19 @@ def systemd_env_value(value):
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Deploy the LED arcade to the Raspberry Pi.")
+    parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="rebuild the Python environment and rerun every install step "
+             "(by default unchanged packages, services and requirements are skipped)",
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
     values = read_env_file()
     host = ask(values, "PI_HOST", "Raspberry Pi IP or hostname")
     try:
@@ -91,6 +119,7 @@ def main():
         if not host:
             raise ValueError("A resolvable Raspberry Pi address is required") from exc
         ensure_resolvable_host(host)
+        save_env_value("PI_HOST", host)
     user = ask(values, "PI_USER", "Pi login username", "pi")
     app_dir = ask(values, "REMOTE_APP_DIR", "Remote install directory", f"/home/{user}/led-arcade")
     venv = ask(values, "REMOTE_VENV", "Python environment directory", f"/home/{user}/neopixel-env")
@@ -134,7 +163,7 @@ def main():
         f"sudo install -o root -g root -m 600 {shlex.quote(env_remote)} /etc/led-arcade.env",
         f"rm -f {shlex.quote(archive_remote)} {shlex.quote(env_remote)}",
         "sudo env "
-        f"APP_DIR={shlex.quote(app_dir)} VENV={shlex.quote(venv)} "
+        f"APP_DIR={shlex.quote(app_dir)} VENV={shlex.quote(venv)} CLEAN={int(args.clean)} "
         f"bash {shlex.quote(app_dir + '/deploy/install.sh')}",
     ])
     print("Installing and restarting the arcade service on the Pi.")

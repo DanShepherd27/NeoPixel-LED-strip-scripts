@@ -50,6 +50,11 @@ python deploy/deploy.py
 Use the Pi's LAN IP if raspberrypi.local does not resolve on Windows. Find the
 address on the Pi with hostname -I or in the router's DHCP client list.
 
+Repeat deploys skip packages, services and Python requirements that are already
+installed and unchanged. Run `python deploy/deploy.py --clean` to rebuild the
+Python environment and rerun every install step, for example after a failed or
+partial install.
+
 It prompts for the Pi hostname/IP and SSH username. If SSH key authentication
 is not set up, OpenSSH prompts for the Pi login password during file copy and
 installation. The default remote paths are `/home/<user>/led-arcade` and

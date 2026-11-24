@@ -279,7 +279,12 @@ shared cue, but button arrival time is currently scored on the server.
 - The site admin password is `LED_ARCADE_ADMIN_PASSWORD`. Do not commit
   `.deploy.env`, runtime settings, or credentials.
 - `deploy/install.sh` creates the configured venv if missing, installs
-  requirements, and installs/enables/restarts `led-arcade.service`.
+  requirements, and installs/enables/restarts `led-arcade.service`. Like
+  `npm i` it skips what is already in place: apt packages whose command exists,
+  units already enabled, unchanged unit files, and pip when `requirements.txt`
+  (plus Python version) matches the hash stamped in the venv.
+  `deploy.py --clean` (`CLEAN=1`) works like `npm ci`: it rebuilds the venv and
+  reruns every step. Keep new install steps idempotent with the same checks.
 - After a deploy, check `sudo systemctl status led-arcade`,
   `sudo journalctl -u led-arcade -n 100 --no-pager`, and
   `http://<pi-ip>:5000/healthz`.
