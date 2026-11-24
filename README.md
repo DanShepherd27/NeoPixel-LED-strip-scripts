@@ -103,7 +103,7 @@ as fallback. Browser microphone access requires trusted HTTPS; the default
 trusted HTTPS URL to use web microphones. The deploy script installs
 `alsa-utils` if `arecord` is missing. To select a specific fallback microphone,
 run `arecord -l` on the Pi and set
-`LED_AUDIO_DEVICE` in `.deploy.env` (for example `plughw:1,0`) before deploying.
+`LED_INPUT_AUDIO_DEVICE` in `.deploy.env` (for example `plughw:1,0`) before deploying.
 The home screen reports microphone source and capture errors while the mode is
 active. Admin settings control the web microphone handoff interval (15 to
 1800 seconds); it applies when other users are waiting. The sound-reactive card
@@ -130,7 +130,7 @@ sudo arecord -D default -t raw -f S16_LE -c 1 -r 16000 -d 5 /tmp/mic-test.raw
 ```
 
 If `default` cannot open the microphone, test the matching `plughw:CARD,DEVICE`
-value shown by `arecord -l`, set that as `LED_AUDIO_DEVICE` in `.deploy.env`,
+value shown by `arecord -l`, set that as `LED_INPUT_AUDIO_DEVICE` in `.deploy.env`,
 and redeploy. The service runs as root, so test capture with `sudo` too.
 
 ## MVP scope and roadmap

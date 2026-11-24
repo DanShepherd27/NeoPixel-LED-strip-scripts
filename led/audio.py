@@ -135,7 +135,8 @@ class AudioInput:
 
     def _run(self):
         while not self._stopping.is_set():
-            if not self._enabled.wait(timeout=0.2):
+            if not self._wants_capture():
+                self._stopping.wait(0.2)
                 continue
             if not shutil.which("arecord"):
                 self._set_failure("arecord not found; install alsa-utils on the Pi")
@@ -155,27 +156,27 @@ class AudioInput:
                 with self._lock:
                     self._status = "listening"
                     self._error = None
-                log.info("Microphone capture started (ALSA device=%s)", self.device)
+                self._capture_started()
 
-                while self._enabled.is_set() and not self._stopping.is_set():
+                while self._wants_capture() and not self._stopping.is_set():
                     chunk = process.stdout.read(self.CHUNK_BYTES)
                     if not chunk:
                         break
-                    self._analyze(chunk[:len(chunk) & ~1])
+                    self._consume(chunk)
 
                 if process.poll() is None:
                     process.terminate()
                 return_code = process.wait(timeout=1.0)
                 error_output = process.stderr.read().decode("utf-8", errors="replace").strip()
                 self._process = None
-                if (self._low_latency and self._enabled.is_set() and
+                if (self._low_latency and self._wants_capture() and
                         time.monotonic() - started < 3.0):
                     # The device rejected the small buffer; use ALSA defaults.
                     log.warning("arecord failed with low-latency buffers (%s); retrying with defaults",
                                 error_output or return_code)
                     self._low_latency = False
                     continue
-                if self._enabled.is_set() and not self._stopping.is_set():
+                if self._wants_capture() and not self._stopping.is_set():
                     self._set_failure(self._exit_message(return_code, error_output))
                     self._stopping.wait(self.RETRY_SECONDS)
             except Exception as exc:
@@ -187,6 +188,18 @@ class AudioInput:
                 self._stopping.wait(self.RETRY_SECONDS)
 
         self._process = None
+
+    def _wants_capture(self):
+        """Whether the capture process should be running right now."""
+        return self._enabled.is_set()
+
+    def _capture_started(self):
+        """Called after each capture process starts."""
+        log.info("Microphone capture started (ALSA device=%s)", self.device)
+
+    def _consume(self, chunk):
+        """Handle one chunk of captured audio."""
+        self._analyze(chunk[:len(chunk) & ~1])
 
     def _capture_command(self):
         """The ``arecord`` command that streams this source as mono 16-bit PCM."""
@@ -200,7 +213,7 @@ class AudioInput:
     def _exit_message(self, return_code, error_output):
         detail = error_output or "no ALSA error details were reported"
         return (f"arecord exited with status {return_code}: {detail} "
-                "Check the microphone and LED_AUDIO_DEVICE.")
+                "Check the microphone and LED_INPUT_AUDIO_DEVICE.")
 
     def _set_failure(self, message):
         with self._lock:
@@ -213,14 +226,15 @@ class AudioInput:
         if should_log:
             log.error("%s", message)
 
-    def _analyze(self, chunk):
+    def _analyze(self, chunk, now=None):
+        """Analyze mono S16 samples; ``now`` is when the chunk's last sample was heard."""
         samples = [sample[0] for sample in struct.iter_unpack("<h", chunk)]
         if not samples:
             return
         squares = sum(sample * sample for sample in samples)
         rms = math.sqrt(squares / len(samples))
         peak = max(abs(sample) for sample in samples)
-        now = time.monotonic()
+        now = time.monotonic() if now is None else now
 
         with self._lock:
             if self._noise_floor is None:

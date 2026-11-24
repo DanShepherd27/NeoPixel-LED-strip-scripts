@@ -25,7 +25,7 @@ and usable without internet after installation.
 - Sound-reactive lighting offers thirteen live-switchable browser patterns, prefers
   an opted-in browser microphone and falls back to
   microphone PCM from `arecord` via `led/audio.py`; the ALSA device is
-  `LED_AUDIO_DEVICE` (default `default`). Browser audio stays local; only
+  `LED_INPUT_AUDIO_DEVICE` (default `default`). Browser audio stays local; only
   normalized volume/peak/clap, six frequency-band values and kick/snare onset
   strengths (with how long ago each happened) are sent. One
   browser owns the mic at a time, with
@@ -67,20 +67,29 @@ and usable without internet after installation.
   still says `ready`. `deploy/install.sh` sets `dtparam=audio=off`, blacklists the
   module, and the service unloads it in `ExecStartPre`. Songs use the USB audio
   interface, so this costs nothing.
-- Bluetooth speaker: `deploy/install.sh` installs BlueZ, bluez-alsa and bluez-tools, and two
-  units (`led-arcade-bt-agent` accepts PIN-less pairing; `led-arcade-bt-audio` plays A2DP
-  on `LED_OUTPUT_AUDIO_DEVICE`). The admin-only header button
+- Bluetooth speaker: `deploy/install.sh` installs BlueZ, bluez-alsa and bluez-tools, and
+  the `led-arcade-bt-agent` unit (accepts PIN-less pairing). Phone audio is played by the
+  arcade app itself (`led/bluetooth_audio.py` forwards it through an `AplaySink` to
+  `LED_OUTPUT_AUDIO_DEVICE`, started only while audio flows so game sounds and songs can
+  still use the device), because BlueALSA lets only one program read the stream and the
+  lights need that same audio. The admin-only header button
   (`POST /api/admin/bluetooth/discoverable`, `web/bluetooth.py`) disconnects and unpairs
   whoever is connected, then makes the Pi discoverable for
   `LED_BLUETOOTH_DISCOVERABLE_SECONDS` (default 120).
+- Optional ALSA software mixer: setting `LED_DMIX_SLAVE` (plus `LED_DMIX_CHANNELS`, default
+  2, and `LED_DMIX_RATE`, default 48000) makes `deploy/install.sh` write `/etc/asound.conf`
+  from `deploy/make-asound-conf.sh` with a mixing device `arcade_out`. Setting
+  `LED_OUTPUT_AUDIO_DEVICE=arcade_out` then lets game sounds, the song show and Bluetooth
+  audio play together (without it `plughw` is exclusive). An `/etc/asound.conf` that the
+  installer did not generate is never overwritten.
 - Sound-reactive input is an `AudioSource` (`led/audio_sources.py`): the microphone
   (browser mic lease with the Pi mic as fallback) or Bluetooth audio from a phone. The
   manager holds the registered sources (`arcade/music_input.py`), the selected one is a
   live switch on the sound-reactive screen, and the admin startup source persists as
-  `music_input`. Bluetooth audio is read from BlueALSA with `arecord`
-  (`LED_BLUETOOTH_AUDIO_DEVICE`, `led/bluetooth_audio.py`), analyzed like the mic but on a
-  digital scale, then held back by `bluetooth_latency_ms` (the speaker playback delay;
-  default 300) so lights and onsets land when the sound is heard. The same kick/snare
+  `music_input`. Bluetooth audio is read once from BlueALSA with `arecord`
+  (`LED_BLUETOOTH_AUDIO_DEVICE`), analyzed like the mic but on a digital scale while the
+  source is selected, then held back by `bluetooth_latency_ms` (the speaker playback
+  delay; default 300) so lights and onsets land when the sound is heard. The same kick/snare
   onsets feed the BPM tracker. To add an input, subclass `AudioSource` and pass it to the
   manager as an extra source.
 - The systemd service runs as root because the current GPIO/DMA setup requires
@@ -113,7 +122,7 @@ dominate. Non-dance music gets one long "drop" with alternating palettes. Two lo
 `python -m unittest discover tests` after touching any of this.
 
 `SongSession` owns the clock and Pi playback (`mpg123`; `LED_OUTPUT_AUDIO_DEVICE`,
-default `LED_AUDIO_DEVICE`, selects the ALSA output, e.g.
+default `LED_INPUT_AUDIO_DEVICE`, selects the ALSA output, e.g.
 `plughw:CARD=U192k,DEV=0`). The lights are shifted by the speaker latency
 (`song_audio_latency_ms` in runtime settings, env default
 `LED_SONG_AUDIO_LATENCY_MS`). `arcade/song/latency.py` measures it with the Pi's
@@ -163,6 +172,16 @@ Browsers can also stream `/api/song/audio`
   consider a focused extraction. This is a review signal, not a strict limit;
   keep cohesive code together when splitting would make dependencies harder to
   follow.
+- Object-oriented, modular design with explicit interfaces is expected, not optional.
+  Anything that can have more than one implementation (audio inputs, games, light
+  patterns, LED backends, song sources) sits behind a small abstract base class, and
+  callers depend on that interface instead of a concrete class. New variants are added
+  by subclassing and registering them (as `AudioSource` in `led/audio_sources.py` and
+  `BaseGame` do), never by adding `if name == ...` branches to shared code such as the
+  manager or renderer. Share behavior through the base class or composition, keep
+  configuration and hardware behind the interface, and make each implementation testable
+  with a fake. When code you touch hard-codes a choice that should be an interface,
+  extract the interface as part of the change.
 - In JavaScript, use `const` by default and `let` only for bindings that are
   reassigned. Do not introduce `var`. Keep browser code compatible with current
   mobile browsers and usable offline; avoid adding runtime dependencies without
@@ -229,7 +248,7 @@ shared cue, but button arrival time is currently scored on the server.
   and SSH username; OpenSSH handles password prompts. `.deploy.env.example`
   can be copied to the git-ignored `.deploy.env` for saved connection values.
 - Deployment archives exclude `.deploy.env` and local runtime settings.
-  `LED_ARCADE_*` and `LED_AUDIO_*` values are copied separately to
+  `LED_ARCADE_*` and `LED_INPUT_*` values are copied separately to
   `/etc/led-arcade.env` with root-only permissions.
 - The site admin password is `LED_ARCADE_ADMIN_PASSWORD`. Do not commit
   `.deploy.env`, runtime settings, or credentials.

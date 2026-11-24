@@ -31,6 +31,7 @@ from led.hardware import LEDHardware
 from led.audio import AudioInput
 from led.audio_sources import BluetoothSource
 from led.bluetooth_audio import BluetoothAudioInput
+from led.pcm_sink import AplaySink
 from led.renderer import Renderer
 from arcade.manager import ArcadeManager
 from arcade.sounds import SoundPlayer
@@ -167,7 +168,7 @@ def main():
 
     audio_input = AudioInput(AUDIO_DEVICE)
     audio_input.start()
-    bluetooth_input = BluetoothAudioInput(BLUETOOTH_AUDIO_DEVICE)
+    bluetooth_input = BluetoothAudioInput(BLUETOOTH_AUDIO_DEVICE, AplaySink(OUTPUT_AUDIO_DEVICE))
     bluetooth_input.start()
     manager = ArcadeManager(
         LED_COUNT, audio_input, mic_handoff_seconds,

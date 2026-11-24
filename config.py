@@ -61,7 +61,7 @@ PLAYER_TIMEOUT = 20.0            # seconds before a silent player is dropped
 
 # Admin settings. Set LED_ARCADE_ADMIN_PASSWORD in the service environment.
 ADMIN_PASSWORD = os.environ.get("LED_ARCADE_ADMIN_PASSWORD", "")
-AUDIO_DEVICE = os.environ.get("LED_AUDIO_DEVICE", "default")
+AUDIO_DEVICE = os.environ.get("LED_INPUT_AUDIO_DEVICE", "default")
 # How long the admin's "Bluetooth pairing" button leaves the Pi discoverable.
 BLUETOOTH_DISCOVERABLE_SECONDS = int(os.environ.get("LED_BLUETOOTH_DISCOVERABLE_SECONDS", "120"))
 WEB_MIC_HANDOFF_SECONDS = int(os.environ.get("LED_WEB_MIC_HANDOFF_SECONDS", "120"))

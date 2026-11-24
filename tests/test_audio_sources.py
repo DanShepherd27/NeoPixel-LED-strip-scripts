@@ -13,6 +13,7 @@ from led.audio_sources import (  # noqa: E402
     AudioSource, BluetoothSource, DelayedFeed, MicrophoneSource, SILENT,
 )
 from led.bluetooth_audio import BluetoothAudioInput, WAITING_MESSAGE  # noqa: E402
+from led.pcm_sink import AplaySink, PcmSink  # noqa: E402
 
 
 def features(level):
@@ -53,6 +54,21 @@ class FakeWebMics:
 
     def reset(self):
         self.was_reset = True
+
+
+class RecordingSink(PcmSink):
+    def __init__(self):
+        self.chunks = []
+        self.started = self.closed = False
+
+    def start(self):
+        self.started = True
+
+    def write(self, chunk):
+        self.chunks.append(chunk)
+
+    def close(self):
+        self.closed = True
 
 
 class DelayedFeedTests(unittest.TestCase):
@@ -148,7 +164,8 @@ class BluetoothSourceTests(unittest.TestCase):
 
 class BluetoothAudioInputTests(unittest.TestCase):
     def setUp(self):
-        self.capture = BluetoothAudioInput("bluealsa:PROFILE=a2dp")
+        self.sink = RecordingSink()
+        self.capture = BluetoothAudioInput("bluealsa:PROFILE=a2dp", self.sink)
 
     def test_loud_digital_music_is_not_pinned_at_the_ceiling(self):
         level, peak, bands = self.capture._features(
@@ -177,9 +194,127 @@ class BluetoothAudioInputTests(unittest.TestCase):
         snapshot = self.capture.snapshot()
         self.assertEqual((snapshot["status"], snapshot["level"]), ("waiting", 0.0))
 
-    def test_capture_uses_the_bluealsa_device(self):
+    def test_capture_uses_the_bluealsa_device_as_stereo_cd_audio(self):
         command = self.capture._capture_command()
         self.assertEqual(command[command.index("-D") + 1], "bluealsa:PROFILE=a2dp")
+        self.assertEqual((command[command.index("-c") + 1], command[command.index("-r") + 1]), ("2", "44100"))
+
+    def test_audio_reaches_the_speakers_even_when_the_lights_do_not_use_it(self):
+        self.capture.set_enabled(False)
+        self.capture._consume(b"\x00\x01" * 100)
+        self.assertEqual(self.sink.chunks, [b"\x00\x01" * 100])
+        self.assertEqual(self.capture.take_onsets(), [])
+
+    def test_analysis_downmixes_stereo_to_half_rate_mono(self):
+        import struct
+        frames = struct.pack("<8h", 100, 300, 200, 400, -100, -300, -200, -400)   # four stereo frames
+        mono = self.capture._analysis_samples(frames)
+        self.assertEqual(struct.unpack("<2h", mono), (250, -250))
+
+    def test_partial_groups_are_carried_to_the_next_chunk(self):
+        import struct
+        data = struct.pack("<8h", *([1000] * 8))
+        first = self.capture._analysis_samples(data[:6])
+        second = self.capture._analysis_samples(data[6:])
+        self.assertEqual(first + second, struct.pack("<2h", 1000, 1000))
+
+    def test_analysis_stamps_audio_on_a_steady_clock_despite_bursty_delivery(self):
+        import types
+        from unittest import mock
+        import led.bluetooth_audio as module
+        chunk_seconds = 512 / 22050
+        clock = types.SimpleNamespace(now=100.0)
+        fake_time = types.SimpleNamespace(monotonic=lambda: clock.now)
+        self.capture._capture_started()
+        stamps = []
+        with mock.patch.object(module, "time", fake_time):
+            for _ in range(8):                   # bursts of five chunks arriving at the same instant
+                clock.now += 5 * chunk_seconds
+                stamps.append([self.capture._heard_at(512) for _ in range(5)])
+        settled = [stamp for burst in stamps[2:] for stamp in burst]
+        gaps = [later - earlier for earlier, later in zip(settled, settled[1:])]
+        self.assertTrue(all(abs(gap - chunk_seconds) < 0.001 for gap in gaps), gaps)
+        self.assertLessEqual(stamps[-1][-1], clock.now + 1e-9)   # never claims to be from the future
+
+    def test_sink_is_required(self):
+        with self.assertRaises(TypeError):
+            BluetoothAudioInput("x", object())
+
+    def test_starting_and_stopping_manage_the_sink(self):
+        self.capture.start()
+        self.assertTrue(self.sink.started)
+        self.capture.stop()
+        self.assertTrue(self.sink.closed)
+
+
+class FakePlayer:
+    def __init__(self, fail_writes=False):
+        self.written = []
+        self.fail_writes = fail_writes
+        self.stdin = self
+        self.closed = False
+
+    def write(self, chunk):
+        if self.fail_writes:
+            raise BrokenPipeError
+        self.written.append(chunk)
+
+    def flush(self):
+        pass
+
+    def close(self):
+        self.closed = True
+
+    def poll(self):
+        return None
+
+    def wait(self, timeout=None):
+        return 0
+
+    def kill(self):
+        pass
+
+
+def wait_for(condition, seconds=2.0):
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if condition():
+            return True
+        time.sleep(0.01)
+    return False
+
+
+class AplaySinkTests(unittest.TestCase):
+    def test_audio_is_played_and_the_player_stops_when_audio_stops(self):
+        players = []
+        def spawn(command, **kwargs):
+            players.append(FakePlayer())
+            self.command = command
+            return players[-1]
+        sink = AplaySink("plughw:CARD=X", spawn=spawn)
+        sink.IDLE_SECONDS = 0.1
+        sink.start()
+        sink.write(b"abcd")
+        self.assertTrue(wait_for(lambda: players and players[0].written == [b"abcd"]))
+        self.assertEqual(self.command[self.command.index("-D") + 1], "plughw:CARD=X")
+        self.assertTrue(wait_for(lambda: players[0].closed))   # idle: the device is released
+        sink.close()
+
+    def test_a_failing_player_never_blocks_the_caller(self):
+        sink = AplaySink("busy", spawn=lambda command, **kwargs: FakePlayer(fail_writes=True))
+        sink.RETRY_SECONDS = 0.05
+        sink.start()
+        started = time.monotonic()
+        for _ in range(500):
+            sink.write(b"x" * 4096)
+        self.assertLess(time.monotonic() - started, 0.5)
+        sink.close()
+
+    def test_a_full_queue_drops_audio_instead_of_waiting(self):
+        sink = AplaySink("any")     # not started: nothing drains the queue
+        for _ in range(sink.QUEUE_CHUNKS + 20):
+            sink.write(b"x")
+        self.assertEqual(sink._queue.qsize(), sink.QUEUE_CHUNKS)
 
 
 class ManagerSourceSwitchTests(unittest.TestCase):

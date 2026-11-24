@@ -58,5 +58,5 @@ mkdir -p /etc/systemd/system/bluealsa.service.d
 printf '[Service]\nExecStart=\n%s\n' "$NEW_EXEC" > /etc/systemd/system/bluealsa.service.d/aac.conf
 
 systemctl daemon-reload
-systemctl restart bluealsa.service led-arcade-bt-audio.service
+systemctl restart bluealsa.service
 echo "Done. Reconnect the phone, then check: bluealsa-cli list-pcms"
