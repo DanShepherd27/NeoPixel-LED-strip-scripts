@@ -213,7 +213,13 @@
       const animationSelect = $id("music-animation-select");
       const selectedPattern = selection.animation || "center_pulse";
       if (animationSelect) animationSelect.value = selectedPattern;
-      $id("music-live-effect-controls").hidden = !musicActive || selectedPattern !== "christmas_glitter";
+      const usesFx = window.MusicPreview.usesFxIntensity(selectedPattern);
+      const usesGlitter = selectedPattern === "christmas_glitter";
+      $id("music-live-effect-controls").hidden = !musicActive || !(usesFx || usesGlitter);
+      $id("music-live-fx-control").hidden = !usesFx;
+      $id("music-live-glitter-control").hidden = !usesGlitter;
+      $id("music-live-fx-intensity").value = selection.fx_intensity == null ? 100 : selection.fx_intensity;
+      $id("music-live-fx-intensity-value").textContent = $id("music-live-fx-intensity").value + "%";
       $id("music-live-glitter-brightness").value = selection.glitter_brightness == null
         ? 255 : selection.glitter_brightness;
       $id("music-live-glitter-brightness-value").textContent = $id("music-live-glitter-brightness").value;
@@ -577,6 +583,7 @@
         enabled_bands: Array.prototype.map.call(
           document.querySelectorAll("#live-band-controls [data-band]"), function (input) { return input.checked; }),
         glitter_brightness: Number($id("music-live-glitter-brightness").value),
+        fx_intensity: Number($id("music-live-fx-intensity").value),
       };
       musicVisualizerPending = selection;
       fetch("/api/music/visualizer", {
@@ -602,6 +609,7 @@
           App.state.music_visualizer.enabled_bands = body.enabled_bands;
           App.state.music_visualizer.band_colors = body.band_colors;
           App.state.music_visualizer.glitter_brightness = body.glitter_brightness;
+          App.state.music_visualizer.fx_intensity = body.fx_intensity;
         }
         render();
       }).catch(function (error) {
@@ -622,6 +630,7 @@
         enabled_bands: Array.prototype.map.call(
           document.querySelectorAll("#live-band-controls [data-band]"), function (input) { return input.checked; }),
         glitter_brightness: Number($id("music-live-glitter-brightness").value),
+        fx_intensity: Number($id("music-live-fx-intensity").value),
       };
     }
 
@@ -638,6 +647,11 @@
       rememberMusicVisualizerDraft();
     });
     $id("music-live-glitter-brightness").addEventListener("change", submitMusicVisualizer);
+    $id("music-live-fx-intensity").addEventListener("input", function () {
+      $id("music-live-fx-intensity-value").textContent = this.value + "%";
+      rememberMusicVisualizerDraft();
+    });
+    $id("music-live-fx-intensity").addEventListener("change", submitMusicVisualizer);
     document.querySelectorAll("#live-band-controls [data-band]").forEach(function (input) {
       input.addEventListener("change", submitMusicVisualizer);
     });

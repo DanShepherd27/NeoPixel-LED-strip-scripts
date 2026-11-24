@@ -77,6 +77,7 @@ def main():
     music_input = "microphone"
     bluetooth_latency_ms = BLUETOOTH_LATENCY_MS
     bluetooth_auto_sync = True
+    music_fx_intensity = 100
     try:
         with open(RUNTIME_SETTINGS_FILE, "r", encoding="utf-8") as settings_file:
             saved = json.load(settings_file)
@@ -104,6 +105,9 @@ def main():
         music_input = saved.get("music_input", music_input)
         bluetooth_latency_ms = int(saved.get("bluetooth_latency_ms", bluetooth_latency_ms))
         bluetooth_auto_sync = saved.get("bluetooth_auto_sync", bluetooth_auto_sync)
+        music_fx_intensity = saved.get("music_fx_intensity", music_fx_intensity)
+        if type(music_fx_intensity) is not int or not 0 <= music_fx_intensity <= 200:
+            raise ValueError("saved effect intensity must be 0-200 percent")
         if type(bluetooth_auto_sync) is not bool:
             raise ValueError("saved Bluetooth auto-sync must be a boolean")
         if music_input not in ("microphone", "bluetooth"):
@@ -160,6 +164,7 @@ def main():
         song_audio_latency_ms, song_auto_sync = SONG_AUDIO_LATENCY_MS, True
         music_input, bluetooth_latency_ms = "microphone", BLUETOOTH_LATENCY_MS
         bluetooth_auto_sync = True
+        music_fx_intensity = 100
 
     hardware = LEDHardware(
         LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT,
@@ -189,6 +194,7 @@ def main():
     manager.sounds = SoundPlayer(OUTPUT_AUDIO_DEVICE, GAME_SOUNDS)
     manager.song_audio_latency_ms = song_audio_latency_ms
     manager.song_auto_sync = song_auto_sync
+    manager.music_fx_intensity = music_fx_intensity
     manager.on_song_latency_changed = lambda ms: update_runtime_settings(
         {"song_audio_latency_ms": ms})
 

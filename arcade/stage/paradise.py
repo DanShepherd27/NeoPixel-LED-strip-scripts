@@ -43,11 +43,11 @@ class ParadiseLook(StageLook):
     def draw_breakdown(self, frame, cues, seconds):
         # Warm, euphoric: the ring glows amber and one pair circles once per bar,
         # cross-fading so the rotation has no hard edges.
-        self._ring(frame, AMBER, 0.06 + 0.1 * cues.vocal)
+        self._ring(frame, AMBER, (0.05 + 0.12 * cues.vocal + 0.4 * cues.fx * cues.hit) * cues.volume)
         position = cues.bars(1) * len(STEP)
         current = int(position) % len(STEP)
         mix = position - int(position)
-        strength = 0.3 + 0.35 * cues.level
+        strength = cues.drive(0.3, 1.0, max(cues.hit, 0.5 * cues.vocal)) * cues.volume
         self._pair(frame, STEP[current], WARM_WHITE, strength * (1.0 - mix))
         self._pair(frame, STEP[(current + 1) % len(STEP)], WARM_WHITE, strength * mix)
 
@@ -57,16 +57,19 @@ class ParadiseLook(StageLook):
         lit = min(len(PAIRS), 1 + int(progress * len(PAIRS)))
         ctx = cues.ctx
         for pair in range(lit):
-            strength = 0.25 + 0.45 * progress
+            strength = cues.drive(0.2 + 0.45 * progress, 1.0, cues.hit) * cues.volume
             if pair == lit - 1 and progress > 0.5:
                 strength *= 0.4 + 0.6 * ctx.subdivision_hit(2, 6.0)
             self._pair(frame, pair, blend(AMBER, WHITE, progress), strength)
 
     def draw_drop(self, frame, cues):
         color = self._color(cues)
-        self._ring(frame, color, 0.08)
+        self._ring(frame, color, (0.06 + 0.1 * cues.energy) * cues.volume)
         if cues.downbeat > 0.0:
-            self._ring(frame, color, 0.85 * cues.downbeat)
+            self._ring(frame, color, min(1.0, 0.7 + 0.3 * cues.fx) * cues.downbeat)
         else:
-            self._pair(frame, STEP[cues.beat_in_bar], color, 0.15 + 0.85 * cues.kick)
+            self._pair(frame, STEP[cues.beat_in_bar], color, cues.drive(0.15, 1.0, cues.hit))
+            # Loud hits spill onto the neighbouring pair, so big moments light more ring.
+            spill = STEP[(cues.beat_in_bar + 1) % len(STEP)]
+            self._pair(frame, spill, color, 0.5 * cues.fx * cues.hit * cues.energy)
         ends(frame, 3, WHITE if color == RED else AMBER, cues.snare)

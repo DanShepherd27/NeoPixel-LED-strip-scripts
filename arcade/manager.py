@@ -84,6 +84,7 @@ class ArcadeManager(MusicRenderingMixin, MusicInputMixin):
         ]
         self._music_band_rgb = [_parse_hex_color(color) for color in self.music_band_colors]
         self.music_beat_lead_ms = int(music_beat_lead_ms)
+        self.music_fx_intensity = 100    # percent: how hard stage looks and the scanner react
         self._music_phase = 0.0
         self._music_gain = AutoGain(7)   # level + six bands
         self._music_beat = LiveBeatTracker()
@@ -774,6 +775,7 @@ class ArcadeManager(MusicRenderingMixin, MusicInputMixin):
                     "bpm": int(round(self._music_ctx.bpm)) if self._music_ctx.locked else None,
                     "beat_lead_ms": self.music_beat_lead_ms,
                     "glitter_brightness": self.music_glitter_brightness,
+                    "fx_intensity": self.music_fx_intensity,
                 },
                 "song": self._song.snapshot() if self._song else None,
                 "song_calibration": self.song_calibration,

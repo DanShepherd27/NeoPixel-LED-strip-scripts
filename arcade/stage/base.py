@@ -10,6 +10,7 @@ import math
 from abc import ABC, abstractmethod
 
 from arcade.song.effects import add, scaled
+from arcade.music_dynamics import Dynamics
 from arcade.stage.cues import Arrangement, StageCues
 from led.colors import blend
 
@@ -22,11 +23,16 @@ class StageLook(ABC):
     label = ""
     reveal_color = WHITE
 
-    def __init__(self, section=None):
+    def __init__(self, section=None, intensity=1.0):
         self.arrangement = Arrangement(section)
+        self.intensity = intensity       # the FX knob: 0-2, 1 is the default
+        self.dynamics = Dynamics()
+        self._period, self._last_beat = 0.5, None
 
     def render(self, frame, ctx):
-        cues = StageCues(ctx)
+        self.dynamics.update(ctx.level, ctx.dt)
+        self._follow_tempo(ctx)
+        cues = StageCues(ctx, self.dynamics, self.intensity, self._period)
         arrangement = self.arrangement
         arrangement.update(cues)
         if arrangement.section == "build" and arrangement.blackout(cues):
@@ -39,6 +45,12 @@ class StageLook(ABC):
             self.draw_breakdown(frame, cues, arrangement.age)
         if arrangement.reveal > 0.0:
             wash(frame, self.reveal_color, arrangement.reveal)
+
+    def _follow_tempo(self, ctx):
+        """Seconds per beat from how fast a song's beat counter advances."""
+        if self._last_beat is not None and ctx.dt > 0 and 0 < ctx.beat - self._last_beat < 1:
+            self._period = ctx.dt / (ctx.beat - self._last_beat)
+        self._last_beat = ctx.beat
 
     @abstractmethod
     def draw_breakdown(self, frame, cues, seconds):

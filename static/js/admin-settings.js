@@ -40,6 +40,8 @@
         $id("music-glitter-brightness").value = data.music_glitter_brightness == null ? 255 : data.music_glitter_brightness;
         $id("music-glitter-brightness-value").textContent = $id("music-glitter-brightness").value;
         $id("music-glitter-every-beats").value = data.music_glitter_every_beats || 8;
+        $id("music-fx-intensity").value = data.music_fx_intensity == null ? 100 : data.music_fx_intensity;
+        $id("music-fx-intensity-value").textContent = $id("music-fx-intensity").value + "%";
         $id("christmas-glitter-control").hidden = $id("music-animation").value !== "christmas_glitter";
         $id("music-primary-color").value = data.music_primary_color || "#00e5ff";
         $id("music-accent-color").value = data.music_accent_color || "#ff2ea6";
@@ -118,6 +120,7 @@
           music_sound_profile: $id("music-sound-profile").value,
           music_glitter_brightness: Number($id("music-glitter-brightness").value),
           music_glitter_every_beats: Number($id("music-glitter-every-beats").value),
+          music_fx_intensity: Number($id("music-fx-intensity").value),
           music_beat_lead_ms: Number($id("music-beat-lead-ms").value),
           music_primary_color: $id("music-primary-color").value,
           music_accent_color: $id("music-accent-color").value,
@@ -168,6 +171,9 @@
     });
     $id("music-glitter-brightness").addEventListener("input", function () {
       $id("music-glitter-brightness-value").textContent = this.value;
+    });
+    $id("music-fx-intensity").addEventListener("input", function () {
+      $id("music-fx-intensity-value").textContent = this.value + "%";
     });
     ["red", "green", "blue"].forEach(function (channel) {
       $id("led-color-" + channel).addEventListener("input", function () {

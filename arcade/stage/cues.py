@@ -9,6 +9,8 @@ whether the kick is playing and how loud the music is against its recent average
 
 import math
 
+from arcade.music_dynamics import follow, live_pop, pop
+
 PHRASE_BARS = 8                 # looks change color/geometry only at phrase starts
 SECTIONS = ("breakdown", "build", "drop")
 REVEAL_SECONDS = 0.35           # the one big flash when a drop lands
@@ -17,20 +19,25 @@ REVEAL_SECONDS = 0.35           # the one big flash when a drop lands
 class StageCues:
     """One frame of musical cues, read from a song or live ``BeatContext``."""
 
-    def __init__(self, ctx):
+    def __init__(self, ctx, dynamics=None, intensity=1.0, period=0.5):
         live = hasattr(ctx, "locked")
         self.ctx = ctx
         self.dt = max(0.0, ctx.dt)
         self.t = ctx.t
         self.grid = ctx.locked if live else True
         self.bar_known = (ctx.locked and ctx.bar_known) if live else True
-        self.kick = ctx.pulse if live else ctx.hit
-        self.snare = ctx.snare_pulse if live else (ctx.hit if ctx.is_backbeat else 0.0)
+        self.period = ctx.period if live else period
+        # Hits fade over a fixed ~150 ms (like a stage flash), not a share of the beat.
+        on_grid = pop(ctx.phase * self.period, ctx.accent)
+        self.kick = live_pop(ctx) if live else on_grid
+        if live and not (ctx.locked and ctx.backbeat_known):
+            self.snare = ctx.snare_hit
+        else:
+            self.snare = on_grid if ctx.is_backbeat else 0.0
         self.new_beat = ctx.beat_event if live else ctx.new_beat
         self.kick_heard = ctx.new_kick if live else ctx.new_beat
         self.downbeat = self.kick if self.bar_known and ctx.is_downbeat else 0.0
         self.beat_in_bar = ctx.beat_in_bar if self.bar_known else 0
-        self.period = ctx.period if live else 0.5
         # Beats since the start, used for slow tempo-locked motion.
         self.beats = ctx.beat if self.grid else ctx.t / self.period
         self.bar_in_section = ctx.bar_in_section if self.bar_known else 0
@@ -38,6 +45,22 @@ class StageCues:
         self.level = max(0.0, min(1.0, ctx.level))
         self.bands = [max(0.0, min(1.0, value)) for value in ctx.bands]
         self.progress = ctx.progress
+        # How hard effects react: 0 = barely, 1 = default, 2 = maximum (the FX knob).
+        self.fx = max(0.0, min(2.0, intensity))
+        self.energy = dynamics.energy if dynamics else 0.7
+        self.surge = dynamics.surge if dynamics else 0.0
+        # The pop used for hits: the beat; until a live beat grid locks, also any
+        # sudden jump in loudness, so the lights react from the first second.
+        self.hit = self.kick if self.grid else min(1.0, max(self.kick, self.surge))
+        # Overall brightness follows the music's volume; the knob widens the range.
+        depth = min(0.85, 0.55 * self.fx)
+        self.volume = 1.0 - depth + depth * self.energy
+
+    def drive(self, rest, peak, signal):
+        """Brightness from ``rest`` toward ``peak`` as ``signal`` rises. The FX knob
+        lowers the rest and steepens the rise, so hits stand out more."""
+        rest *= max(0.4, min(1.4, 1.4 - 0.5 * self.fx))
+        return max(0.0, min(1.0, rest + (peak - rest) * min(1.0, signal * (0.4 + 0.6 * self.fx))))
 
     def bars(self, count):
         """0-1 position through a cycle of ``count`` bars, locked to the beat grid."""
@@ -47,12 +70,6 @@ class StageCues:
     def vocal(self):
         """Mid/high-mid energy: voices, pads and leads rather than drums."""
         return 0.6 * self.bands[3] + 0.4 * self.bands[4]
-
-
-def follow(current, target, dt, attack=6.0, release=2.0):
-    """Exponential follower: ``attack`` per second toward louder, ``release`` back down."""
-    rate = attack if target > current else release
-    return current + (target - current) * (1.0 - math.exp(-dt * rate))
 
 
 class Arrangement:

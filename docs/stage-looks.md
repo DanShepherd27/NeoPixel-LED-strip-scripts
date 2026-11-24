@@ -71,6 +71,22 @@ Each look over 8 bars of breakdown, 4 bars of build and 16 bars of drop at 128 B
 
 ![Stage look timelines](stage-looks-timeline.png)
 
+## Intensity
+
+Stage lighting reads as reactive because of contrast in time: a hit flashes for about
+150 ms out of a near-dark gap. Every look uses the same three signals:
+
+- **Hit:** the beat's pop, fading over 140 ms at any tempo (`arcade/music_dynamics.pop`).
+  Until a live beat grid locks, any sudden jump in loudness counts as a hit too.
+- **Volume:** loudness against the song's own recent loudest moment, so quiet passages
+  dim and big moments open up without anyone touching the sensitivity.
+- **Effect intensity knob (0-200%):** higher lowers the resting level and makes every
+  hit brighter and wider. It is on the sound-reactive screen and in Admin.
+
+Song shows use the default intensity and only beat-grid hits, which keeps them within
+the 3-flashes-per-second limit without help from `FlashGuard`. Live mode is still
+capped by `FlashGuard`.
+
 ## Sections in live mode
 
 A song show names its section in each cue. Live input has no cue sheet, so

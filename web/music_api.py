@@ -3,6 +3,7 @@
 from flask import jsonify, request, send_file, session
 
 from arcade.song.library import list_songs, load_song
+from web.runtime_settings import update_runtime_settings
 
 
 def register_music_routes(app, manager):
@@ -89,6 +90,9 @@ def register_music_routes(app, manager):
         glitter_brightness = data.get("glitter_brightness", manager.music_glitter_brightness)
         if type(glitter_brightness) is not int or not 0 <= glitter_brightness <= 255:
             return jsonify({"ok": False, "message": "Glitter burst overdrive must be from 0 to 255."}), 400
+        fx_intensity = data.get("fx_intensity", manager.music_fx_intensity)
+        if type(fx_intensity) is not int or not 0 <= fx_intensity <= 200:
+            return jsonify({"ok": False, "message": "Effect intensity must be from 0 to 200 percent."}), 400
         try:
             manager.set_music_visualizer(
                 animation, manager.music_sensitivity, primary_color, accent_color,
@@ -97,6 +101,12 @@ def register_music_routes(app, manager):
             manager.music_glitter_brightness = glitter_brightness
         except (ValueError, TypeError) as exc:
             return jsonify({"ok": False, "message": str(exc)}), 400
+        if fx_intensity != manager.music_fx_intensity:
+            manager.music_fx_intensity = fx_intensity
+            try:   # the knob is set from the live screen, so keep it across restarts
+                update_runtime_settings({"music_fx_intensity": fx_intensity})
+            except OSError:
+                pass
         return jsonify({
             "ok": True,
             "animation": manager.music_animation,
@@ -105,6 +115,7 @@ def register_music_routes(app, manager):
             "enabled_bands": list(manager.music_enabled_bands),
             "band_colors": list(manager.music_band_colors),
             "glitter_brightness": manager.music_glitter_brightness,
+            "fx_intensity": manager.music_fx_intensity,
         })
 
     @app.post("/api/music/input")

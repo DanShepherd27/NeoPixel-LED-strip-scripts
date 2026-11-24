@@ -72,9 +72,16 @@
         <p id="music-visualizer-status" class="muted"></p>
         <div id="music-live-effect-controls" class="music-live-effect-controls" hidden>
           <h3>Music effect controls</h3>
+          <div id="music-live-fx-control">
+          <label for="music-live-fx-intensity">Effect intensity <output id="music-live-fx-intensity-value">100%</output></label>
+          <input id="music-live-fx-intensity" type="range" data-knob min="0" max="200" step="10" value="100">
+          <p class="muted">How hard the stage looks and the red scanner hit on beats and loud moments. Higher darkens the gaps and makes every hit bigger; the lights also follow the music's volume on their own. Saved for next time.</p>
+          </div>
+          <div id="music-live-glitter-control">
           <label for="music-live-glitter-brightness">Glitter burst overdrive <output id="music-live-glitter-brightness-value">255</output></label>
           <input id="music-live-glitter-brightness" type="range" data-knob min="0" max="255" step="1" value="255">
           <p class="muted">Adjusts the temporary brightness of Christmas Glitter bursts while music is playing.</p>
+          </div>
         </div>
         <div id="web-mic-controls" hidden>
           <label for="music-animation-select">Light pattern</label>
@@ -309,6 +316,9 @@
           <label for="music-sensitivity">Music sensitivity <output id="music-sensitivity-value">1.00×</output></label>
           <input id="music-sensitivity" type="range" data-knob min="0.25" max="4" step="0.25" value="1">
           <p class="muted">Raise sensitivity for a quiet mic; lower it if sound drives the lights too strongly.</p>
+          <label for="music-fx-intensity">Effect intensity <output id="music-fx-intensity-value">100%</output></label>
+          <input id="music-fx-intensity" type="range" data-knob min="0" max="200" step="10" value="100">
+          <p class="muted">How hard the stage looks (Genesys, Holo, Paradise, Rave) and the red scanner react to beats and loudness. Also adjustable live from the sound-reactive screen.</p>
           <label for="music-beat-lead-ms">Beat sync timing <output id="music-beat-lead-value">0 ms</output></label>
           <input id="music-beat-lead-ms" type="range" data-knob min="-100" max="200" step="10" value="0">
           <p class="muted">The beat tracker predicts from bass rhythm and estimated mic/network delay. Positive values pulse earlier; negative values pulse later.</p>
@@ -389,12 +399,12 @@
     </div>
   </aside>
 
-  <script src="/static/js/music-preview.js?v=20261124-stage"></script>
-  <script src="/static/js/admin-settings.js?v=20261124-bt-sync"></script>
+  <script src="/static/js/music-preview.js?v=20261124-fx"></script>
+  <script src="/static/js/admin-settings.js?v=20261124-fx"></script>
   <script src="/static/js/bluetooth-pair.js?v=20261124-bluetooth-reset"></script>
   <script src="/static/js/music-input.js?v=20261124-bt-sync"></script>
   <script src="/static/js/web-mic.js?v=20261123-onsets"></script>
-  <script src="/static/js/app.js?v=20261124-music-source-fix"></script>
+  <script src="/static/js/app.js?v=20261124-fx"></script>
   <script src="/static/js/song.js?v=20261122-song-import"></script>
   <script src="/static/js/song-transport.js?v=20261124-song-section"></script>
   <script src="/static/js/song-sync.js?v=20261122-song-sync"></script>

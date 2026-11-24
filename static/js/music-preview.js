@@ -27,6 +27,8 @@
     updateColorPreview("music-accent-color", "music-accent-preview", "music-accent-value");
   }
 
+  // Patterns whose punch follows the "Effect intensity" knob.
+  const fxPatterns = new Set(["genesys", "holo", "paradise", "rave", "kitt_scanner"]);
   const twoColorPatterns = new Set(["center_pulse", "mirror_bars", "comet", "inward_diamonds"]);
   const bandNames = ["Sub-bass", "Bass", "Low mids", "Mids", "High mids", "Treble"];
   const defaultBandColors = ["#FF2C0C", "#FF7A00", "#FFDC00", "#24FF20", "#00CDFF", "#AA20FF"];
@@ -185,6 +187,7 @@
     updateColors: updateColors,
     configurePatternControls: configurePatternControls,
     getBandColors: getBandColors,
+    usesFxIntensity: function (pattern) { return fxPatterns.has(pattern); },
     patternLabel: function (pattern) { return patternLabels[pattern] || "Sound reactive pattern"; },
     start: function (app) {
       currentApp = app;

@@ -37,11 +37,13 @@ class HoloLook(StageLook):
         return VIOLET if cues.phrase % 2 == 0 else MAGENTA
 
     def draw_breakdown(self, frame, cues, seconds):
-        self._depth(frame, cues, 0.10 + 0.08 * cues.vocal)
-        strength = 0.35 + 0.3 * cues.level
+        # The depth layer and the beams swell with the volume; hits widen the beams.
+        self._depth(frame, cues, (0.08 + 0.12 * cues.vocal + 0.15 * cues.fx * cues.hit) * cues.volume)
+        strength = cues.drive(0.3, 1.0, max(cues.hit, 0.5 * cues.vocal)) * cues.volume
+        radius = 2.0 + 1.5 * cues.energy + 1.5 * cues.fx * cues.hit
         span = frame.count - 1
-        beam(frame, glide(cues.bars(4)) * span, 2.5, self._beam_color(cues), strength)
-        beam(frame, (1.0 - glide(cues.bars(6))) * span, 2.0, ULTRA, strength * 0.9)
+        beam(frame, glide(cues.bars(4)) * span, radius, self._beam_color(cues), strength)
+        beam(frame, (1.0 - glide(cues.bars(6))) * span, radius * 0.8, ULTRA, strength * 0.9)
 
     def draw_build(self, frame, cues, progress):
         # The beams close in on the centre and narrow; the depth layer fades so the
@@ -51,17 +53,20 @@ class HoloLook(StageLook):
         sweep = glide(cues.bars(1.0 if progress < 0.6 else 0.5))
         distance = (1.0 - progress) * middle * (0.4 + 0.6 * sweep)
         color = blend(self._beam_color(cues), HOLO_WHITE, progress * 0.7)
-        mirrored(frame, distance, 2.5 - 1.5 * progress, color, 0.4 + 0.5 * progress)
+        mirrored(frame, distance, 2.5 - 1.5 * progress + cues.fx * cues.hit,
+                 color, cues.drive(0.3 + 0.4 * progress, 1.0, cues.hit))
 
     def draw_drop(self, frame, cues):
-        self._depth(frame, cues, 0.12)
+        self._depth(frame, cues, (0.08 + 0.2 * cues.fx * cues.kick) * cues.volume)
         middle = (frame.count - 1) / 2.0
         color = self._beam_color(cues)
-        lift = 0.7 + 0.25 * cues.kick           # a gentle lift, never a strobe
+        # The beams keep gliding smoothly; the kick fattens and brightens them.
+        lift = cues.drive(0.4, 1.0, cues.hit) * cues.volume
+        radius = 1.4 + 1.2 * cues.fx * cues.hit
         for pair in range(3):
             fan = glide(cues.bars(2) + pair / 3.0)
             distance = 3.0 + fan * (middle - 4.0)
-            mirrored(frame, distance, 1.6, color, lift)
-            mirrored(frame, distance, 0.0, WHITE, 0.5 * cues.downbeat)
+            mirrored(frame, distance, radius, color, lift)
+            mirrored(frame, distance, 0.0, WHITE, min(1.0, (0.3 * cues.hit + 0.5 * cues.downbeat) * cues.fx))
         beam(frame, middle, 2.0, HOLO_WHITE, cues.downbeat * 0.8)
         ends(frame, 3, blend(MAGENTA, WHITE, 0.6), cues.snare)

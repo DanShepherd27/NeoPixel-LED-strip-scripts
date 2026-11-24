@@ -10,6 +10,7 @@ import time
 from led.colors import hsv_to_rgb
 from arcade.music_colors import blend_rgb as _blend_rgb
 from arcade.music_gain import AutoGain
+from arcade.music_dynamics import Dynamics, live_pop
 from arcade.music_beat_patterns import BeatPatternMixin
 from arcade.music_patterns import MusicPatternMixin
 from arcade.stage import LOOKS as STAGE_LOOKS, create_look
@@ -83,6 +84,7 @@ class MusicRenderingMixin(BeatPatternMixin, MusicPatternMixin):
         name = self.music_animation
         if name not in looks:
             looks[name] = create_look(name)
+        looks[name].intensity = self.music_fx_intensity / 100.0
         frame.clear()
         looks[name].render(frame, self._music_ctx)
 
@@ -151,7 +153,7 @@ class MusicRenderingMixin(BeatPatternMixin, MusicPatternMixin):
             # A classic KITT scanner sweeps continuously between the ends.
             # The original's quick, lateral sweep is kept at roughly 1.55 s
             # end-to-end. Music may only add a small amount of urgency.
-            pulse = self._music_ctx.pulse
+            pulse = live_pop(self._music_ctx)
             speed = 38.0 + level * 5.0 + pulse * 2.0
             self._kitt_position += self._kitt_direction * speed * max(0.0, dt)
             if self._kitt_position >= count - 1:
@@ -161,19 +163,23 @@ class MusicRenderingMixin(BeatPatternMixin, MusicPatternMixin):
                 self._kitt_position = 0.0
                 self._kitt_direction = 1.0
             head = int(round(self._kitt_position))
-            transient = max(pulse, self._music_ctx.snare_pulse * 0.8,
-                            max(0.0, peak - level * 0.62) * 3.2)
-            self._kitt_speak = max(transient, self._kitt_speak * math.exp(-max(0.0, dt) * 13.0))
-            for offset in range(-3, 4):
+            dynamics = self._beat_pattern_state.setdefault("kitt_dynamics", Dynamics()).update(level, dt)
+            fx = self.music_fx_intensity / 100.0
+            transient = max(pulse, self._music_ctx.snare_pulse * 0.8, dynamics.surge)
+            self._kitt_speak = max(transient, self._kitt_speak * math.exp(-max(0.0, dt) * 7.0))
+            speak = min(1.0, self._kitt_speak * (0.6 + 0.6 * fx))
+            # Pure KITT red. Between hits the head glows with the volume (a near-dark
+            # gap when quiet); each kick, snare or loudness jump flashes it to full and
+            # widens the eye, while the scanner keeps sweeping.
+            glow = (0.03 + 0.17 * dynamics.energy) * max(0.3, 1.3 - 0.5 * fx)
+            pulse_brightness = min(1.0, glow + (1.0 - glow) * speak)
+            reach = 3.0 + 3.0 * speak * fx
+            for offset in range(-int(reach) - 1, int(reach) + 2):
                 index = head + offset
                 if not 0 <= index < count:
                     continue
-                strength = max(0.0, 1.0 - abs(offset) / 4.0)
-                strength = strength * strength
-                # Pure KITT red. Bass beat pulses drive a quick flash followed
-                # by a near-dark gap, while the scanner keeps sweeping.
-                pulse_brightness = 0.035 + 0.965 * self._kitt_speak
-                red = int(255 * strength * pulse_brightness)
+                strength = max(0.0, 1.0 - abs(offset) / (reach + 1.0))
+                red = int(255 * strength * strength * pulse_brightness)
                 frame.set(index, (red, 0, 0))
             return
         if self.music_animation == "laser_dance":

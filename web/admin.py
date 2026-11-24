@@ -59,6 +59,7 @@ def register_admin_routes(app, manager, hardware):
             "music_sources": manager.music_input_snapshot()["sources"],
             "bluetooth_latency_ms": manager.bluetooth_latency_ms,
             "bluetooth_auto_sync": manager.bluetooth_auto_sync,
+            "music_fx_intensity": manager.music_fx_intensity,
         })
 
     @app.put("/api/admin/settings")
@@ -88,6 +89,7 @@ def register_admin_routes(app, manager, hardware):
         music_input = data.get("music_input", manager.music_input)
         bluetooth_latency = data.get("bluetooth_latency_ms", manager.bluetooth_latency_ms)
         bluetooth_auto_sync = data.get("bluetooth_auto_sync", manager.bluetooth_auto_sync)
+        fx_intensity = data.get("music_fx_intensity", manager.music_fx_intensity)
         if type(start_value) is not int or type(end_value) is not int or type(handoff_value) is not int:
             return jsonify({"ok": False, "message": "Enter whole numbers for offsets and microphone handoff."}), 400
         if type(beat_lead_value) is not int or not -100 <= beat_lead_value <= 200:
@@ -104,6 +106,8 @@ def register_admin_routes(app, manager, hardware):
             return jsonify({"ok": False, "message": "Song auto-sync must be true or false."}), 400
         if type(bluetooth_auto_sync) is not bool:
             return jsonify({"ok": False, "message": "Bluetooth auto-sync must be true or false."}), 400
+        if type(fx_intensity) is not int or not 0 <= fx_intensity <= 200:
+            return jsonify({"ok": False, "message": "Effect intensity must be from 0 to 200 percent."}), 400
         if type(brightness) is not int or not 0 <= brightness <= 255:
             return jsonify({"ok": False, "message": "LED brightness must be a whole value from 0 to 255."}), 400
         if type(preview_invert_order) is not bool:
@@ -160,6 +164,7 @@ def register_admin_routes(app, manager, hardware):
                 "music_input": music_input,
                 "bluetooth_latency_ms": bluetooth_latency,
                 "bluetooth_auto_sync": bluetooth_auto_sync,
+                "music_fx_intensity": fx_intensity,
             })
         except OSError:
             return jsonify({"ok": False, "message": "Could not save settings on the server."}), 500
@@ -181,6 +186,7 @@ def register_admin_routes(app, manager, hardware):
         manager.song_auto_sync = song_auto_sync
         manager.bluetooth_latency_ms = bluetooth_latency
         manager.bluetooth_auto_sync = bluetooth_auto_sync
+        manager.music_fx_intensity = fx_intensity
         manager.set_music_input(music_input)
         return jsonify({
             "ok": True, "hidden_start": start, "hidden_end": end,
@@ -204,5 +210,6 @@ def register_admin_routes(app, manager, hardware):
             "music_input": music_input,
             "bluetooth_latency_ms": bluetooth_latency,
             "bluetooth_auto_sync": bluetooth_auto_sync,
+            "music_fx_intensity": fx_intensity,
         })
 
