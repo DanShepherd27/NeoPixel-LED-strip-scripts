@@ -1,4 +1,4 @@
-"""The FX intensity knob and volume dynamics: stage looks and the red scanner must
+"""The FX intensity knob and volume dynamics: stage looks must
 visibly hit on the beat, follow the music's loudness, and hit harder with the knob up."""
 
 import types
@@ -12,12 +12,12 @@ from arcade.music_dynamics import Dynamics
 from led.frame import Frame
 
 FPS, BPM = 40, 124
-FX_PATTERNS = ("genesys", "holo", "paradise", "rave", "kitt_scanner")
+FX_PATTERNS = ("genesys", "holo", "paradise", "rave")
 
 
 def measure(pattern, fx, seconds=12.0):
     """Mean brightness right after beats, late in beats, and in loud vs quiet stretches.
-    The drum loop alternates 4 s loud and 4 s quiet; the scanner is measured at its eye."""
+    The drum loop alternates 4 s loud and 4 s quiet."""
     clock = [1000.0]
     fake_time = types.SimpleNamespace(monotonic=lambda: clock[0])
     with mock.patch.object(music_rendering, "time", fake_time), \
@@ -44,7 +44,7 @@ def measure(pattern, fx, seconds=12.0):
             if t < 6.0:
                 continue
             values = [max(p) / 255.0 for p in frame.pixels]
-            value = max(values) if pattern == "kitt_scanner" else sum(values) / len(values)
+            value = sum(values) / len(values)
             if phase < 0.12:
                 groups["beat"].append(value)
             elif phase > 0.7:
@@ -66,11 +66,6 @@ class FxIntensityTests(unittest.TestCase):
             with self.subTest(pattern=pattern):
                 result = measure(pattern, 100)
                 self.assertGreater(result["loud"], 1.1 * result["quiet"])
-
-    def test_scanner_flashes_to_full_on_the_beat_and_goes_dim_between(self):
-        result = measure("kitt_scanner", 100)
-        self.assertGreater(result["beat"], 0.8)
-        self.assertLess(result["gap"], 0.35)
 
     def test_zero_intensity_still_renders(self):
         for pattern in FX_PATTERNS:

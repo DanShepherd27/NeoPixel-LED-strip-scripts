@@ -84,7 +84,7 @@ class ArcadeManager(MusicRenderingMixin, MusicInputMixin):
         ]
         self._music_band_rgb = [_parse_hex_color(color) for color in self.music_band_colors]
         self.music_beat_lead_ms = int(music_beat_lead_ms)
-        self.music_fx_intensity = 100    # percent: how hard stage looks and the scanner react
+        self.music_fx_intensity = 100    # percent: how hard stage looks and the KITT voice box react
         self._music_phase = 0.0
         self._music_gain = AutoGain(7)   # level + six bands
         self._music_beat = LiveBeatTracker()
@@ -100,9 +100,6 @@ class ArcadeManager(MusicRenderingMixin, MusicInputMixin):
         self.music_enabled_bands = [True] * 6
         self._bpm_trace_position = 0.0
         self._bpm_trace_energy = 0.0
-        self._kitt_position = 0.0
-        self._kitt_direction = 1.0
-        self._kitt_speak = 0.0
         self._music_led_frame = [(0, 0, 0)] * count
         self._laser_phrase = 0
         self._laser_phrase_length = 4

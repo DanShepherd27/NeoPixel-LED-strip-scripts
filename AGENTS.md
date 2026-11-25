@@ -70,14 +70,20 @@ and usable without internet after installation.
   looks are live patterns, song-show looks (`stage` pattern) and, for genesys/holo,
   idle effects (`arcade/stage/ambient.py`). Add one by subclassing `StageLook` and
   registering it in `arcade/stage/__init__.py`.
-  Stage looks and the red KITT scanner react to `arcade/music_dynamics.py`: `Dynamics`
+  The red scanner (`kitt_scanner`, `arcade/kitt_scanner.py`) combines KITT's nose
+  scanner and dashboard voice box: a comet with per-lamp afterglow sweeps a centred
+  window (40% of the strip) at a steady pace and ignores sound, while three segmented
+  red bars (middle one under the window and longest, two shorter ones outside it) open
+  from their centres with vocal-range loudness. Silence shows only the scanner.
+  Stage looks and the KITT voice box react to `arcade/music_dynamics.py`: `Dynamics`
   gives `energy` (loudness against the recent loudest, so brightness follows the song's
   own dynamics) and `surge` (a jump in loudness, used as a hit only until the live beat
   grid locks, so song shows stay within the flash limit), and `pop`/`live_pop` make a hit
   fade over a fixed 140 ms instead of a share of the beat. The "Effect intensity" knob
   (`music_fx_intensity`, 0-200%, default 100; live on the sound-reactive screen and in
   Admin, saved either way) scales how hard they hit: higher lowers the resting level and
-  steepens and widens each hit (`StageCues.drive`). `tests/test_fx_intensity.py` checks
+  steepens and widens each hit (`StageCues.drive`); for the voice box it raises
+  the loudness the bars need before they open. `tests/test_fx_intensity.py` checks
   beat contrast, loud vs quiet, and the knob.
   Live frames pass through `engine.FlashGuard` (at most 3 large flashes per
   second); `tests/test_music_patterns.py` checks every pattern. Keep colors
